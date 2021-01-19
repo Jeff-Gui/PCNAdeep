@@ -1,2 +1,3 @@
 output
-mrcnn_R_50_FPN_3x_mod.pkl
+models
+__pycache__

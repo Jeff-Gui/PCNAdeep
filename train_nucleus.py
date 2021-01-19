@@ -39,6 +39,7 @@ from detectron2.evaluation import (
 )
 from detectron2.modeling import GeneralizedRCNNWithTTA
 from prepareKaggleNucleus import load_KaggleNucleus
+from detectron2 import model_zoo
 
 class Trainer(DefaultTrainer):
     """
@@ -113,10 +114,9 @@ class Trainer(DefaultTrainer):
         res = OrderedDict({k + "_TTA": v for k, v in res.items()})
         return res
 
-    # 注册数据集和元数据
-#声明类别，尽量保持
+# Class metadata
 CLASS_NAMES =["cell"]
-# 数据集路径
+# Dataset metadata
 DATASET_ROOT = '/home/zje/dataset/kaggle_nucleus_2018'
 
 TRAIN_PATH = os.path.join(DATASET_ROOT, 'stage1_train')
@@ -136,63 +136,18 @@ def setup(args):
     """
     Create configs and perform basic setups.
     """
+    # from Detectron2_tutorial
     cfg = get_cfg()
-    args.config_file = "../../configs/COCO-Detection/retinanet_R_50_FPN_3x.yaml"
-    cfg.merge_from_file(args.config_file)
-    #cfg.merge_from_list(args.opts)
-
-    # 更改配置参数
-    cfg.DATASETS.TRAIN = ("nucleus_train",) # 训练数据集名称
+    cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
+    cfg.DATASETS.TRAIN = ("nucleus_train",)
     cfg.DATASETS.TEST = ("nucleus_val",)
-    cfg.DATALOADER.NUM_WORKERS = 4  # 单线程
-    cfg.MODEL.MASK_ON = True 
-    '''
-    cfg.INPUT.CROP.ENABLED = True
-    cfg.INPUT.MAX_SIZE_TRAIN = 256 # 训练图片输入的最大尺寸
-    cfg.INPUT.MAX_SIZE_TEST = 1440 # 测试数据输入的最大尺寸
-    cfg.INPUT.MIN_SIZE_TRAIN = 256 # 训练图片输入的最小尺寸，可以设定为多尺度训练
-    cfg.INPUT.MIN_SIZE_TEST = 1440
-    '''
-    #cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING，其存在两种配置，分别为 choice 与 range ：
-    # range 让图像的短边从 512-768随机选择
-    #choice ： 把输入图像转化为指定的，有限的几种图片大小进行训练，即短边只能为 512或者768
-    # cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING = 'range'
-    
-    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
-    cfg.MODEL.WEIGHTS = 'mrcnn_R_50_FPN_3x_mod.pkl'  # 预训练模型权重,运行configmrcnn按照类别数目修改层
-    cfg.SOLVER.IMS_PER_BATCH = 4  # batch_size=4; iters_in_one_epoch = dataset_imgs/batch_size
-
-    # 根据训练数据总数目以及batch_size，计算出每个epoch需要的迭代次数
-    ITERS_IN_ONE_EPOCH = int(570 / cfg.SOLVER.IMS_PER_BATCH)
-
-    # 指定最大迭代次数
-    cfg.SOLVER.MAX_ITER = (ITERS_IN_ONE_EPOCH * 4) - 1 # 4 epochs
-    # 初始学习率
-    cfg.SOLVER.BASE_LR = 0.002
-    
-    '''
-    # 优化器动能
-    cfg.SOLVER.MOMENTUM = 0.9
-    #权重衰减
-    cfg.SOLVER.WEIGHT_DECAY = 0.0001
-    cfg.SOLVER.WEIGHT_DECAY_NORM = 0.0
-    # 学习率衰减倍数
-    cfg.SOLVER.GAMMA = 0.1
-    # 迭代到指定次数，学习率进行衰减
-    cfg.SOLVER.STEPS = (7000,)
-    # 在训练之前，会做一个热身运动，学习率慢慢增加初始学习率
-    cfg.SOLVER.WARMUP_FACTOR = 1.0 / 1000
-    # 热身迭代次数
-    cfg.SOLVER.WARMUP_ITERS = 1000
-    cfg.SOLVER.WARMUP_METHOD = "linear"
-    '''
-
-    # 保存模型文件的命名数据减1
-    cfg.SOLVER.CHECKPOINT_PERIOD = ITERS_IN_ONE_EPOCH - 1
-
-    # 迭代到指定次数，进行一次评估
-    cfg.TEST.EVAL_PERIOD = ITERS_IN_ONE_EPOCH
-    #cfg.TEST.EVAL_PERIOD = 100
+    cfg.DATALOADER.NUM_WORKERS = 4
+    cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")  
+    cfg.SOLVER.IMS_PER_BATCH = 2
+    cfg.SOLVER.BASE_LR = 0.00025 
+    cfg.SOLVER.MAX_ITER = 1000    
+    cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 64   
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1 
 
     cfg.freeze()
     default_setup(cfg, args)
