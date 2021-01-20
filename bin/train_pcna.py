@@ -38,7 +38,7 @@ from detectron2.evaluation import (
     verify_results,
 )
 from detectron2.modeling import GeneralizedRCNNWithTTA
-from prepareKaggleNucleus import load_KaggleNucleus
+from preparePCNA import load_PCNA
 from detectron2 import model_zoo
 
 class Trainer(DefaultTrainer):
@@ -117,37 +117,32 @@ class Trainer(DefaultTrainer):
 # Class metadata
 CLASS_NAMES =["cell"]
 # Dataset metadata
-DATASET_ROOT = '/home/zje/dataset/kaggle_nucleus_2018'
+DATASET_ROOT = '/home/zje/dataset/pcna_small'
 
-TRAIN_PATH = os.path.join(DATASET_ROOT, 'stage1_train')
-VAL_PATH = os.path.join(DATASET_ROOT, 'stage1_val')
+TRAIN_PATH = DATASET_ROOT
 
 def plain_register_dataset():
     #训练集
-    DatasetCatalog.register("nucleus_train", lambda: load_KaggleNucleus(TRAIN_PATH))
-    MetadataCatalog.get("nucleus_train").set(thing_classes=CLASS_NAMES, evaluator_type='coco')
-
-    #DatasetCatalog.register("coco_my_val", lambda: load_coco_json(VAL_JSON, VAL_PATH, "coco_2017_val"))
-    #验证/测试集
-    DatasetCatalog.register("nucleus_val", lambda: load_KaggleNucleus(VAL_PATH))
-    MetadataCatalog.get("nucleus_val").set(thing_classes=CLASS_NAMES,evaluator_type='coco')
+    DatasetCatalog.register("pcna", lambda: load_PCNA(TRAIN_PATH))
+    MetadataCatalog.get("pcna").set(thing_classes=CLASS_NAMES, evaluator_typpe='coco')
 
 def setup(args):
     """
     Create configs and perform basic setups.
     """
-    # from Detectron2_tutorial
+    # from Detectron2_tutorial, used to train deepcell nucleus model (2021-01-19)
+    
     cfg = get_cfg()
-    cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
-    cfg.DATASETS.TRAIN = ("nucleus_train",)
-    cfg.DATASETS.TEST = ("nucleus_val",)
+    cfg.merge_from_file('../output/20210119_out_deepcell/config.yaml')
+    cfg.DATASETS.TRAIN = ("pcna",)
+    cfg.DATASETS.TEST = ()
     cfg.DATALOADER.NUM_WORKERS = 4
-    cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")  
+    cfg.MODEL.WEIGHTS = '../output/20210119_out_deepcell/model_final.pth'
     cfg.SOLVER.IMS_PER_BATCH = 2
-    cfg.SOLVER.BASE_LR = 0.00025 
-    cfg.SOLVER.MAX_ITER = 1000    
-    cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 64   
-    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1 
+    cfg.SOLVER.BASE_LR = 0.003
+    cfg.SOLVER.MAX_ITER = 2000
+    cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 32
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
 
     cfg.freeze()
     default_setup(cfg, args)

@@ -6,12 +6,15 @@ import os
 import time
 import cv2
 import tqdm
+import numpy as np
 
 from detectron2.config import get_cfg
 from detectron2.data.detection_utils import read_image
 from detectron2.utils.logger import setup_logger
 
 from predictor import VisualizationDemo
+
+import skimage.io as io
 
 # constants
 WINDOW_NAME = "COCO detections"
@@ -43,6 +46,7 @@ def get_parser():
     )
     parser.add_argument("--webcam", action="store_true", help="Take inputs from webcam.")
     parser.add_argument("--video-input", help="Path to video file.")
+    parser.add_argument("--stack_input", help="Path to image stack file.")
     parser.add_argument(
         "--input",
         nargs="+",
@@ -76,7 +80,6 @@ if __name__ == "__main__":
     setup_logger(name="fvcore")
     logger = setup_logger()
     logger.info("Arguments: " + str(args))
-
     cfg = setup_cfg(args)
 
     demo = VisualizationDemo(cfg)
@@ -113,6 +116,28 @@ if __name__ == "__main__":
                 cv2.imshow(WINDOW_NAME, visualized_output.get_image()[:, :, ::-1])
                 if cv2.waitKey(0) == 27:
                     break  # esc to quit
+
+    elif args.stack_input:
+        # Input image must be uint8
+        imgs = io.imread(args.stack_input)
+        imgs_out = []
+        for i in range(imgs.shape[0]):
+            img = imgs[i,:,:]
+            img = np.stack([img, img, img], axis=2)
+            start_time = time.time()
+            predictions, visualized_output = demo.run_on_image(img)
+            logger.info(
+                "{}: {} in {:.2f}s".format(
+                'frame'+str(i),
+                "detected {} instances".format(len(predictions["instances"]))
+                if "instances" in predictions
+                else "finished",
+                time.time() - start_time,
+                )
+            )
+            imgs_out.append(visualized_output.get_image())
+        io.imsave(args.output, np.stack(imgs_out, axis=0))
+
     elif args.webcam:
         assert args.input is None, "Cannot have both --input and --webcam!"
         assert args.output is None, "output not yet supported with --webcam!"

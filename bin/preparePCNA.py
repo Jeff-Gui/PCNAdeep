@@ -5,32 +5,56 @@ Created on Sat Jan 16 13:41:27 2021
 
 @author: jefft
 """
-def load_KaggleNucleus(root):
-    import os
+import os
+import re
+import random
+
+def get_files(dir):
+    files = []
+    for filepath, dirnames, filenames in os.walk(dir):
+        for filename in filenames:
+            if re.search('_mask', filename):
+                files.append(os.path.join(filepath, filename))
+    return files
+
+def load_PCNA(root):
+    """
+    File structure:
+        |------Root-------
+            |____Image1______
+                |__image.png__
+                |__mask.png___
+            |____Image2______
+            ...
+
+    """
+
     import skimage.io as io
     import skimage.measure as measure
     import numpy as np
     import detectron2.structures as st
-    imgs = os.listdir(root)
+
+    imgs = get_files(root)
+    random.shuffle(imgs)
+
     outs = []
     count = 0
     for i in imgs:
         count += 1
         #if i == '.DS_Store':
         #    continue
-        uid = i
-        image_fp = root+'/'+i+'/images'+'/'+i+'.png'
+        image_info = re.search(r'(.*\/)(\d+)_mask.png', i)
+        image_fp = image_info.group(1)+image_info.group(2)+'.png'
+        uid = image_info.group(2)
         ori_image = io.imread(image_fp)
-        ori_image = ori_image[:,:,0]
-        masks = os.listdir(root+'/'+i+'/masks')
+        masks = io.imread(i)
         height = ori_image.shape[0]
         width = ori_image.shape[1]
         
         # output initialize
         out = {'file_name':image_fp, 'height':height, 'width':width, 'image_id':uid, 'annotations':[]}
-        for j in masks:
-            mask = io.imread(root+'/'+i+'/masks/'+j)
-            region = measure.regionprops(measure.label(mask))[0]
+        regions = measure.regionprops(measure.label(masks))
+        for region in regions:
             if region.image.shape[0]<2 or region.image.shape[1]<2:
                 continue
             # register regions
@@ -82,16 +106,15 @@ def load_KaggleNucleus(root):
     return outs
 
 
-def inspect_nucleus(root,out_dir='./inspect/'):
-    import random
+def inspect_PCNA_data(root,out_dir='../inspect/pcna'):
     import cv2
     from detectron2.utils.visualizer import Visualizer
     from detectron2.data import DatasetCatalog, MetadataCatalog
 
-    DatasetCatalog.register("stage1_val", lambda d:load_KaggleNucleus(root + "/stage1_val"))
-    metadata = MetadataCatalog.get("stage1_val").set(thing_classes=['cell'])
+    DatasetCatalog.register("pcna", lambda d:load_PCNA(root))
+    metadata = MetadataCatalog.get("pcna").set(thing_classes=['cell'])
 
-    dataset_dicts = load_KaggleNucleus(root+"/stage1_val")
+    dataset_dicts = load_PCNA(root)
     for d in random.sample(dataset_dicts, 3):
         img = cv2.imread(d["file_name"])
         visualizer = Visualizer(img, metadata=metadata, scale=0.5)
