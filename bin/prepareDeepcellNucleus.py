@@ -21,7 +21,7 @@ def resolve_cellLine(col, filepath):
     for cellline in col:
         if re.search(cellline, filepath):
             return cellline 
-    return None
+    return 'test'
 
 def load_DeepcellNucleus(root, subset='all'):
     col = ['3T3NIH', 'HEK293', 'HeLa', '264.7']
@@ -39,7 +39,7 @@ def load_DeepcellNucleus(root, subset='all'):
         for cellline in col:
             imgs += get_files(root +'/'+cellline)
     else:
-        if subset not in col:
+        if subset not in col and subset != 'test':
             raise ValueError
             return
         imgs = get_files(root + '/' + subset)
@@ -121,10 +121,10 @@ def inspect_DeepCell_data(root,out_dir='../inspect/deepcell'):
     from detectron2.utils.visualizer import Visualizer
     from detectron2.data import DatasetCatalog, MetadataCatalog
 
-    DatasetCatalog.register("deepcell", lambda d:load_DeepcellNucleus(root, '3T3NIH'))
+    DatasetCatalog.register("deepcell", lambda d:load_DeepcellNucleus(root, 'test'))
     metadata = MetadataCatalog.get("deepcell").set(thing_classes=['cell'])
 
-    dataset_dicts = load_DeepcellNucleus(root, '3T3NIH')
+    dataset_dicts = load_DeepcellNucleus(root, 'test')
     for d in random.sample(dataset_dicts, 3):
         img = cv2.imread(d["file_name"])
         visualizer = Visualizer(img, metadata=metadata, scale=0.5)

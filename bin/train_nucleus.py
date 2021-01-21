@@ -136,6 +136,27 @@ def setup(args):
     """
     Create configs and perform basic setups.
     """
+
+    cfg = get_cfg()
+    cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml"))
+    cfg.DATASETS.TRAIN = ("nucleus_train",)
+    cfg.DATASETS.TEST = ("nucleus_val",)
+    cfg.DATALOADER.NUM_WORKERS = 4
+    cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml")  
+    cfg.SOLVER.IMS_PER_BATCH = 2
+    cfg.SOLVER.BASE_LR = 0.002
+    cfg.SOLVER.WEIGHT_DECAY = 0.0001
+    cfg.SOLVER.WEIGHT_DECAY_NORM = 0.0
+    cfg.SOLVER.GAMMA = 0.1
+    cfg.SOLVER.STEPS = (1000,)
+
+    ITERS_IN_ONE_EPOCH = 300
+    cfg.SOLVER.MAX_ITER = 1500
+    cfg.TEST.EVAL_PERIOD = ITERS_IN_ONE_EPOCH
+    cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 256
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
+    
+
     # from Detectron2_tutorial, used to train kaggle nucleus model (2021-01-19)
     """
     cfg = get_cfg()

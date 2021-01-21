@@ -24,7 +24,7 @@ import torch
 import detectron2.utils.comm as comm
 from detectron2.checkpoint import DetectionCheckpointer
 from detectron2.config import get_cfg
-from detectron2.data import DatasetCatalog, MetadataCatalog
+from detectron2.data import DatasetMapper, MetadataCatalog, build_detection_train_loader, DatasetCatalog
 from detectron2.engine import DefaultTrainer, default_argument_parser, default_setup, hooks, launch
 from detectron2.evaluation import (
     CityscapesInstanceEvaluator,
@@ -40,6 +40,24 @@ from detectron2.evaluation import (
 from detectron2.modeling import GeneralizedRCNNWithTTA
 from preparePCNA import load_PCNA
 from detectron2 import model_zoo
+import detectron2.data.transforms as T
+
+def build_sem_seg_train_aug(cfg):
+    augs = [
+        T.ResizeShortestEdge(
+            cfg.INPUT.MIN_SIZE_TRAIN, cfg.INPUT.MAX_SIZE_TRAIN, cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING
+        )
+    ]
+    if cfg.INPUT.CROP.ENABLED:
+        augs.append(
+            T.RandomCrop_CategoryAreaConstraint(
+                cfg.INPUT.CROP.TYPE,
+                cfg.INPUT.CROP.SIZE,
+            )
+        )
+    augs.append(T.RandomFlip())
+    return augs
+
 
 class Trainer(DefaultTrainer):
     """
@@ -113,13 +131,15 @@ class Trainer(DefaultTrainer):
         res = cls.test(cfg, model, evaluators)
         res = OrderedDict({k + "_TTA": v for k, v in res.items()})
         return res
+    
+    @classmethod
+    def build_train_loader(cls, cfg):
+        if "SemanticSegmentor" in cfg.MODEL.META_ARCHITECTURE:
+            mapper = DatasetMapper(cfg, is_train=True, augmentations=build_sem_seg_train_aug(cfg))
+        else:
+            mapper = None
+        return build_detection_train_loader(cfg, mapper=mapper)
 
-# Class metadata
-CLASS_NAMES =["cell"]
-# Dataset metadata
-DATASET_ROOT = '/home/zje/dataset/pcna_small'
-
-TRAIN_PATH = DATASET_ROOT
 
 def plain_register_dataset():
     #训练集
@@ -139,10 +159,18 @@ def setup(args):
     cfg.DATALOADER.NUM_WORKERS = 4
     cfg.MODEL.WEIGHTS = '../output/20210119_out_deepcell/model_final.pth'
     cfg.SOLVER.IMS_PER_BATCH = 2
-    cfg.SOLVER.BASE_LR = 0.003
+    cfg.SOLVER.BASE_LR = 0.01
     cfg.SOLVER.MAX_ITER = 2000
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 32
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
+
+    # Augmentation
+    cfg.INPUT.MIN_SIZE_TRAIN = 1000
+    cfg.INPUT.MAX_SIZE_TRAIN = 1200
+    cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING = 'choice'
+    cfg.INPUT.CROP.ENABLED = True
+    cfg.INPUT.CROP.TYPE = 'relative'
+    cfg.INPUT.CROP.SIZE = [0.9,0.9]
 
     cfg.freeze()
     default_setup(cfg, args)
@@ -180,6 +208,12 @@ def main(args):
 
 
 if __name__ == "__main__":
+    # Class metadata
+    CLASS_NAMES =["cell"]
+    # Dataset metadata
+    DATASET_ROOT = '/home/zje/dataset/pcna_small'
+    TRAIN_PATH = DATASET_ROOT
+
     args = default_argument_parser().parse_args()
     print("Command Line Args:", args)
     launch(
@@ -188,5 +222,5 @@ if __name__ == "__main__":
         num_machines=args.num_machines,
         machine_rank=args.machine_rank,
         dist_url=args.dist_url,
-        args=(args,),
+        args=(args,)
         )

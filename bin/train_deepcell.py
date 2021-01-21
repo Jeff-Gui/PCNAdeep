@@ -125,24 +125,35 @@ def plain_register_dataset():
     #训练集
     DatasetCatalog.register("deepcell", lambda: load_DeepcellNucleus(TRAIN_PATH, 'all'))
     MetadataCatalog.get("deepcell").set(thing_classes=CLASS_NAMES, evaluator_typpe='coco')
+    # Testing
+    DatasetCatalog.register("deepcell_test", lambda: load_DeepcellNucleus(TRAIN_PATH, 'test'))
+    MetadataCatalog.get("deepcell_test").set(thing_classes=CLASS_NAMES, evaluator_type='coco')
 
 def setup(args):
     """
     Create configs and perform basic setups.
     """
-    # from Detectron2_tutorial, used to train deepcell nucleus model (2021-01-19)
-    
+    # from Detectron2_tutorial, used to train deepcell nucleus model (2021-01-21)
+    # training set: ~2000 images
     cfg = get_cfg()
-    cfg.merge_from_file('../output/20210119_out_kaggleNucleus/config.yaml')
+    cfg.merge_from_file('../output/20210121_out_kaggleNucleus/config.yaml')
     cfg.DATASETS.TRAIN = ("deepcell",)
-    cfg.DATASETS.TEST = ()
+    cfg.DATASETS.TEST = ("deepcell_test",)
     cfg.DATALOADER.NUM_WORKERS = 4
-    cfg.MODEL.WEIGHTS = '../output/20210119_out_kaggleNucleus/model_final.pth'
-    cfg.SOLVER.IMS_PER_BATCH = 2
-    cfg.SOLVER.BASE_LR = 0.003
-    cfg.SOLVER.MAX_ITER = 2000
-    cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 128
+    cfg.MODEL.WEIGHTS = '../output/20210121_out_kaggleNucleus/model_final.pth'
+    cfg.SOLVER.IMS_PER_BATCH = 16
+    cfg.SOLVER.BASE_LR = 0.001
+    cfg.SOLVER.WEIGHT_DECAY = 0.0001
+    cfg.SOLVER.WEIGHT_DECAY_NORM = 0.0
+    cfg.SOLVER.GAMMA = 0.1
+    cfg.SOLVER.STEPS = (1000,)
+
+
+    cfg.SOLVER.MAX_ITER = 1600 # around 12 epoach
+    cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 256
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
+
+    cfg.TEST.EVAL_PERIOD = 400
 
     cfg.freeze()
     default_setup(cfg, args)
