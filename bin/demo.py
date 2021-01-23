@@ -11,10 +11,11 @@ import numpy as np
 from detectron2.config import get_cfg
 from detectron2.data.detection_utils import read_image
 from detectron2.utils.logger import setup_logger
-
+from detectron2.utils.visualizer import ColorMode
 from predictor import VisualizationDemo
 
 import skimage.io as io
+import torch
 
 # constants
 WINDOW_NAME = "COCO detections"
@@ -118,14 +119,34 @@ if __name__ == "__main__":
                     break  # esc to quit
 
     elif args.stack_input:
+        m = True
         # Input image must be uint8
         imgs = io.imread(args.stack_input)
         imgs_out = []
+        mask_out = []
         for i in range(imgs.shape[0]):
             img = imgs[i,:,:]
             img = np.stack([img, img, img], axis=2)
             start_time = time.time()
             predictions, visualized_output = demo.run_on_image(img)
+            #print(predictions['instances'].pred_classes)
+            if m:
+                # Generate mask
+                mask = predictions['instances'].pred_masks
+                mask = mask.char()
+                
+                # For visualising class prediction
+                # 0: G1/G2, 1: S, 2: M
+                cls = predictions['instances'].pred_classes
+                factor = {0:50, 1:100, 2:200}
+                for s in range(mask.shape[0]):
+                    f = factor[cls[s].item()]
+                    mask[s,:,:] = mask[s,:,:] * f
+                
+                mask_slice = torch.sum(mask, dim=0)
+                mask_slice_np = mask_slice.cpu().numpy().astype('uint8') # pseudo class output
+                #mask_slice_np = mask_slice.cpu().numpy().astype('bool') # mask output
+                mask_out.append(mask_slice_np)
             logger.info(
                 "{}: {} in {:.2f}s".format(
                 'frame'+str(i),
@@ -136,7 +157,10 @@ if __name__ == "__main__":
                 )
             )
             imgs_out.append(visualized_output.get_image())
-        io.imsave(args.output, np.stack(imgs_out, axis=0))
+        if m:
+            io.imsave(args.output, np.stack(mask_out, axis=0))
+        else:
+            io.imsave(args.output, np.stack(imgs_out, axis=0))
 
     elif args.webcam:
         assert args.input is None, "Cannot have both --input and --webcam!"

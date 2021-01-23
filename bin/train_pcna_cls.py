@@ -38,7 +38,7 @@ from detectron2.evaluation import (
     verify_results,
 )
 from detectron2.modeling import GeneralizedRCNNWithTTA
-from preparePCNA import load_PCNA
+from preparePCNA import load_PCNA_from_json
 from detectron2 import model_zoo
 import detectron2.data.transforms as T
 
@@ -143,7 +143,7 @@ class Trainer(DefaultTrainer):
 
 def plain_register_dataset():
     #训练集
-    DatasetCatalog.register("pcna", lambda: load_PCNA(TRAIN_PATH))
+    DatasetCatalog.register("pcna", lambda: load_PCNA_from_json(TRAIN_ANN_PATH, TRAIN_PATH))
     MetadataCatalog.get("pcna").set(thing_classes=CLASS_NAMES, evaluator_type='coco')
 
 def setup(args):
@@ -168,15 +168,17 @@ def setup(args):
 
     cfg.SOLVER.MAX_ITER = 10000
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 256
-    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 3
 
     # Augmentation
+    
     cfg.INPUT.MIN_SIZE_TRAIN = 1000
     cfg.INPUT.MAX_SIZE_TRAIN = 1200
     cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING = 'choice'
     cfg.INPUT.CROP.ENABLED = True
     cfg.INPUT.CROP.TYPE = 'relative'
     cfg.INPUT.CROP.SIZE = [0.9,0.9]
+    cfg.TEST.AUG.ENABLED = False
 
     cfg.freeze()
     default_setup(cfg, args)
@@ -215,9 +217,10 @@ def main(args):
 
 if __name__ == "__main__":
     # Class metadata
-    CLASS_NAMES =["cell"]
+    CLASS_NAMES =["cell","S","M"]
     # Dataset metadata
-    DATASET_ROOT = '/home/zje/dataset/pcna_small'
+    DATASET_ROOT = '/home/zje/dataset/pcna/20200902-MCF10A'
+    TRAIN_ANN_PATH = '/home/zje/dataset/pcna/20200902-MCF10A.json'
     TRAIN_PATH = DATASET_ROOT
 
     args = default_argument_parser().parse_args()
