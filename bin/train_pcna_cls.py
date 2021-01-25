@@ -219,7 +219,7 @@ if __name__ == "__main__":
     # Class metadata
     CLASS_NAMES =["cell","S","M"]
     # Dataset metadata
-    DATASET_ROOT = '/home/zje/dataset/pcna/20200902-MCF10A'
+    DATASET_ROOT = '/home/zje/dataset/pcna/20200902-MCF10A-pcd'
     TRAIN_ANN_PATH = '/home/zje/dataset/pcna/20200902-MCF10A.json'
     TRAIN_PATH = DATASET_ROOT
 

@@ -136,24 +136,24 @@ def setup(args):
     # from Detectron2_tutorial, used to train deepcell nucleus model (2021-01-21)
     # training set: ~2000 images
     cfg = get_cfg()
-    cfg.merge_from_file('../output/20210121_out_kaggleNucleus/config.yaml')
+    cfg.merge_from_file('../output/20210125_out_kaggle/config.yaml')
     cfg.DATASETS.TRAIN = ("deepcell",)
     cfg.DATASETS.TEST = ("deepcell_test",)
     cfg.DATALOADER.NUM_WORKERS = 4
-    cfg.MODEL.WEIGHTS = '../output/20210121_out_kaggleNucleus/model_final.pth'
-    cfg.SOLVER.IMS_PER_BATCH = 16
+    cfg.MODEL.WEIGHTS = '../output/20210125_out_kaggle/model_final.pth'
+    cfg.SOLVER.IMS_PER_BATCH = 16 # 2200 training image, ~ 137 iter per batch
     cfg.SOLVER.BASE_LR = 0.001
     cfg.SOLVER.WEIGHT_DECAY = 0.0001
     cfg.SOLVER.WEIGHT_DECAY_NORM = 0.0
     cfg.SOLVER.GAMMA = 0.1
     cfg.SOLVER.STEPS = (1000,)
+    cfg.SOLVER.CHECKPOINT_PERIOD = 400
 
-
-    cfg.SOLVER.MAX_ITER = 1600 # around 12 epoach
+    cfg.SOLVER.MAX_ITER = 1800 # around 13 epoach
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 256
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
-
-    cfg.TEST.EVAL_PERIOD = 400
+    
+    cfg.TEST.EVAL_PERIOD = 300
 
     cfg.freeze()
     default_setup(cfg, args)

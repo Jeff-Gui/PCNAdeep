@@ -144,15 +144,16 @@ def setup(args):
     cfg.DATALOADER.NUM_WORKERS = 4
     cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_101_FPN_3x.yaml")  
     cfg.SOLVER.IMS_PER_BATCH = 2
-    cfg.SOLVER.BASE_LR = 0.002
+    cfg.SOLVER.BASE_LR = 0.01
     cfg.SOLVER.WEIGHT_DECAY = 0.0001
     cfg.SOLVER.WEIGHT_DECAY_NORM = 0.0
     cfg.SOLVER.GAMMA = 0.1
     cfg.SOLVER.STEPS = (1000,)
 
     ITERS_IN_ONE_EPOCH = 300
-    cfg.SOLVER.MAX_ITER = 1500
+    cfg.SOLVER.MAX_ITER = 3000
     cfg.TEST.EVAL_PERIOD = ITERS_IN_ONE_EPOCH
+    cfg.SOLVER.CHECKPOINT_PERIOD = 2*ITERS_IN_ONE_EPOCH - 1
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 256
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
     
