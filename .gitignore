@@ -3,3 +3,4 @@ models
 inspect
 test
 __pycache__
+.DS_Store
