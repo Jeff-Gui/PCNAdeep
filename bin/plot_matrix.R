@@ -73,7 +73,7 @@ plot_matrix = function(IMAGE_TRAIN, BATCH_SIZE, MAX_ITER, AP, meta, bs_factor=1)
     geom_line() +
     geom_vline(xintercept=cut, linetype="dotted") +
     labs(x='Iteration', y='%', title = 'Average precision') +
-    theme(legend.position = 'top', legend.title=element_blank())
+    theme(legend.position = 'top', legend.title=element_blank()) 
   
   lc = ggplot(meta) + theme_classic() + 
     geom_line(aes(x=iteration, y=total_loss)) + 
