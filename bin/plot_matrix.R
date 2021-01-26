@@ -70,10 +70,11 @@ plot_matrix = function(IMAGE_TRAIN, BATCH_SIZE, MAX_ITER, AP, meta, bs_factor=1)
   }
   
   ap = ggplot(AP, aes(x=iteration,y=value, color=AP_measures)) + theme_classic() +
-    geom_line() +
+    geom_line() + 
     geom_vline(xintercept=cut, linetype="dotted") +
     labs(x='Iteration', y='%', title = 'Average precision') +
-    theme(legend.position = 'top', legend.title=element_blank()) 
+    theme(legend.position = 'bottom', legend.title=element_blank(), 
+          legend.box.spacing = unit(0,'cm'), legend.key.size = unit(3,'mm'))
   
   lc = ggplot(meta) + theme_classic() + 
     geom_line(aes(x=iteration, y=total_loss)) + 
