@@ -119,7 +119,7 @@ if __name__ == "__main__":
                     break  # esc to quit
 
     elif args.stack_input:
-        m = True
+        m = False
         # Input image must be uint8
         imgs = io.imread(args.stack_input)
         imgs_out = []
@@ -158,9 +158,11 @@ if __name__ == "__main__":
             )
             imgs_out.append(visualized_output.get_image())
         if m:
-            io.imsave(args.output, np.stack(mask_out, axis=0))
+            out = np.stack(mask_out, axis=0)
+            io.imsave(args.output, out)
         else:
-            io.imsave(args.output, np.stack(imgs_out, axis=0))
+            out = np.stack(imgs_out, axis=0)
+            io.imsave(args.output, out)
 
     elif args.webcam:
         assert args.input is None, "Cannot have both --input and --webcam!"
