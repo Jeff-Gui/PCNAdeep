@@ -150,23 +150,23 @@ def setup(args):
     """
     Create configs and perform basic setups.
     """
-    # from Detectron2_tutorial, used to train deepcell nucleus model (2021-01-19)
     
     cfg = get_cfg()
-    cfg.merge_from_file('../output/20210121_out_deepcell/config.yaml')
+    cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
     cfg.DATASETS.TRAIN = ("pcna",)
-    cfg.DATASETS.TEST = ()
+    cfg.DATASETS.TEST = ("pcna",)
     cfg.DATALOADER.NUM_WORKERS = 4
-    cfg.MODEL.WEIGHTS = '../output/20210121_out_deepcell/model_final.pth'
+    cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
     cfg.SOLVER.IMS_PER_BATCH = 1
     cfg.SOLVER.BASE_LR = 0.001
     cfg.SOLVER.WEIGHT_DECAY = 0.0001
     cfg.SOLVER.WEIGHT_DECAY_NORM = 0.0
     cfg.SOLVER.GAMMA = 0.1
-    cfg.SOLVER.STEPS = (6000,)
-    cfg.SOLVER.CHECKPOINT_PERIOD = 3000
+    cfg.SOLVER.STEPS = (5000,)
+    cfg.SOLVER.CHECKPOINT_PERIOD = 2500
+    cfg.TEST.EVAL_PERIOD = 2500
 
-    cfg.SOLVER.MAX_ITER = 10000
+    cfg.SOLVER.MAX_ITER = 7500
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 256
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 3
 
@@ -179,7 +179,7 @@ def setup(args):
     cfg.INPUT.CROP.TYPE = 'relative'
     cfg.INPUT.CROP.SIZE = [0.9,0.9]
     cfg.TEST.AUG.ENABLED = False
-
+    
     cfg.freeze()
     default_setup(cfg, args)
     return cfg
@@ -219,7 +219,7 @@ if __name__ == "__main__":
     # Class metadata
     CLASS_NAMES =["cell","S","M"]
     # Dataset metadata
-    DATASET_ROOT = '/home/zje/dataset/pcna/20200902-MCF10A-pcd'
+    DATASET_ROOT = '/home/zje/dataset/pcna/20200902-MCF10A-dual'
     TRAIN_ANN_PATH = '/home/zje/dataset/pcna/20200902-MCF10A.json'
     TRAIN_PATH = DATASET_ROOT
 

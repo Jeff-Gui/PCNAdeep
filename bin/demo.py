@@ -120,13 +120,18 @@ if __name__ == "__main__":
 
     elif args.stack_input:
         m = False
+        gray = False # gray: THW; non-gray: THWC 
         # Input image must be uint8
         imgs = io.imread(args.stack_input)
+        # print(imgs.shape)
+        if len(imgs.shape)<4:
+            imgs = np.expand_dims(imgs, axis=0)
         imgs_out = []
         mask_out = []
         for i in range(imgs.shape[0]):
-            img = imgs[i,:,:]
-            img = np.stack([img, img, img], axis=2)
+            img = imgs[i,:]
+            if gray:
+                img = np.stack([img, img, img], axis=2)
             start_time = time.time()
             predictions, visualized_output = demo.run_on_image(img)
             #print(predictions['instances'].pred_classes)
