@@ -57,6 +57,10 @@ def get_parser():
         action="store_true"
     )
     parser.add_argument(
+        "--is_slice",
+        action="store_true"
+    )
+    parser.add_argument(
         "--opts",
         help="Modify config options using the command-line 'KEY VALUE' pairs",
         default=[],
@@ -77,11 +81,11 @@ if __name__ == "__main__":
 
     if args.input:
         m = not args.mask_off
-        gray = args.is_gray # gray: THW; non-gray: THWC 
+        gray = args.is_gray # gray: THW; non-gray: THWC
         # Input image must be uint8
         imgs = io.imread(args.input)
         # print(imgs.shape)
-        if len(imgs.shape)<4:
+        if args.is_slice:
             imgs = np.expand_dims(imgs, axis=0)
         imgs_out = []
         mask_out = []
@@ -106,8 +110,8 @@ if __name__ == "__main__":
                     mask[s,:,:] = mask[s,:,:] * f
                 
                 mask_slice = torch.sum(mask, dim=0)
-                mask_slice_np = mask_slice.cpu().numpy().astype('uint8') # pseudo class output
-                #mask_slice_np = mask_slice.cpu().numpy().astype('bool') # mask output
+                #mask_slice_np = mask_slice.cpu().numpy().astype('uint8') # pseudo class output
+                mask_slice_np = mask_slice.cpu().numpy().astype('bool') # mask output
                 mask_out.append(mask_slice_np)
             logger.info(
                 "{}: {} in {:.2f}s".format(
