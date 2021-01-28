@@ -23,7 +23,7 @@ class VisualizationDemo(object):
         """
         self.metadata = MetadataCatalog.get(
             cfg.DATASETS.TEST[0] if len(cfg.DATASETS.TEST) else "__unused"
-        )
+        ).set(thing_classes=['G1/G2', 'S', 'M'])
         self.cpu_device = torch.device("cpu")
         self.instance_mode = instance_mode
 
@@ -58,7 +58,7 @@ class VisualizationDemo(object):
             if "sem_seg" in predictions:
                 vis_output = visualizer.draw_sem_seg(
                     predictions["sem_seg"].argmax(dim=0).to(self.cpu_device)
-                )
+                )            
             if "instances" in predictions:
                 instances = predictions["instances"].to(self.cpu_device)
                 vis_output = visualizer.draw_instance_predictions(predictions=instances)

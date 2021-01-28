@@ -169,6 +169,11 @@ def setup(args):
     cfg.SOLVER.MAX_ITER = 7500
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 256
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 3
+    # avoid overlapping
+    cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.5
+    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7
+    cfg.MODEL.PANOPTIC_FPN.COMBINE.OVERLAP_THRESH = 0.9
+    cfg.MODEL.RPN.NMS_THRESH = 0.7
 
     # Augmentation
     
