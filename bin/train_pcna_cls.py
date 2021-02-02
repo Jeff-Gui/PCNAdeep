@@ -143,7 +143,7 @@ class Trainer(DefaultTrainer):
 
 def plain_register_dataset():
     #训练集
-    DatasetCatalog.register("pcna", lambda: load_PCNA_from_json(TRAIN_ANN_PATH, TRAIN_PATH))
+    DatasetCatalog.register("pcna", lambda: load_PCNAs_json(TRAIN_ANN_PATH, TRAIN_PATH))
     MetadataCatalog.get("pcna").set(thing_classes=CLASS_NAMES, evaluator_type='coco')
 
 def setup(args):
@@ -224,8 +224,8 @@ if __name__ == "__main__":
     # Class metadata
     CLASS_NAMES =["cell","S","M"]
     # Dataset metadata
-    DATASET_ROOT = '/home/zje/dataset/pcna/20200902-MCF10A-dual'
-    TRAIN_ANN_PATH = '/home/zje/dataset/pcna/20200902-MCF10A.json'
+    DATASET_ROOT = ['/home/zje/dataset/pcna/20200902-MCF10A-dual']
+    TRAIN_ANN_PATH = ['/home/zje/dataset/pcna/20200902-MCF10A.json']
     TRAIN_PATH = DATASET_ROOT
 
     args = default_argument_parser().parse_args()

@@ -142,6 +142,16 @@ def load_PCNA_from_json(json_path, image_path, width=1200, height=1200):
         count += 1
     return outs
 
+def load_PCNAs_json(json_paths, image_paths):
+    """Load multiple training dataset
+    """
+    assert len(json_paths) == len(image_paths)
+    out = dict()
+    for i in range(len(json_paths)):
+        dic = load_PCNA_from_json(json_paths[i], image_paths[i])
+        out = dict(out.items() + dic.items())
+    return out
+
 
 def inspect_PCNA_simple_data(root,out_dir='../inspect/pcna'):
     import cv2
