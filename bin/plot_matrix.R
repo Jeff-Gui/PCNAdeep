@@ -32,11 +32,11 @@ process_matrix = function(fp){
     while (i<=length(fields)){
       v = nv_trans(fields[i])
       if (length(grep('segm', v[1]))>0){
-        AP_row = c(values[6], v[2], nv_trans(fields[i+1])[2], 
-                   nv_trans(fields[i+2])[2], nv_trans(fields[i+3])[2],
-                   nv_trans(fields[i+4])[2], nv_trans(fields[i+5])[2])
+        AP_row = c(values[6], v[2],
+                   nv_trans(fields[i+4])[2], nv_trans(fields[i+5])[2],
+                   nv_trans(fields[i+6])[2], nv_trans(fields[i+7])[2], nv_trans(fields[i+8])[2])
         AP[nrow(AP)+1,] = AP_row
-        i = i+6
+        i = i+9
         next
       }
       nms = c(nms, v[1])

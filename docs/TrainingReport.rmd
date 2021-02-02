@@ -206,3 +206,50 @@ lc = ggplot(meta) + theme_classic() +
 
 grid.arrange(lc, lr, ncol=1)
 ```
+
+### Output of ResNet50
+
+```{r, echo=FALSE}
+BATCH_SIZE = 1
+IMAGE_TRAIN = 25
+IMAGE_VALID = 0
+MAX_ITER = 7500
+rt_uni = process_matrix('/Users/jefft/Desktop/Chan lab/SRTP/ImageAnalysis/PCNAdeep/train_matrix/20210128_pcnaRawIn.json')
+rt_dual = process_matrix('/Users/jefft/Desktop/Chan lab/SRTP/ImageAnalysis/PCNAdeep/train_matrix/20210128_pcnaDual.json')
+rt_triple = process_matrix('/Users/jefft/Desktop/Chan lab/SRTP/ImageAnalysis/PCNAdeep/train_matrix/20210128_pcnaRawIn.json')
+meta_raw = rt_uni[['meta']]
+meta_dual = rt_dual[['meta']]
+meta_triple = rt_triple[['meta']]
+
+meta = data.frame('iteration'=meta_raw$iteration, 'uni'=meta_raw$total_loss, 'dual'=meta_dual$total_loss, 'triple'=meta_triple$total_loss)
+
+meta = gather(meta, key='data_type', value='loss', 2:ncol(meta))
+meta$data_type = as.factor(meta$data_type)
+
+iter_per_epoch = floor(IMAGE_TRAIN/BATCH_SIZE*100)
+cut = c()
+ep = iter_per_epoch
+while (ep <= MAX_ITER){
+  cut = c(cut, ep)
+  ep = ep + iter_per_epoch
+}
+
+lr = ggplot(meta_raw) + theme_classic() +
+    geom_line(aes(x=iteration, y=lr)) +
+    geom_vline(xintercept=cut, linetype="dotted") +
+    labs(x='Iteration', y=element_blank(), title='Learning rate')
+
+meta$data_type = as.factor(meta$data_type)
+meta$loss = as.numeric(meta$loss)
+lc = ggplot(meta, aes(x=iteration, y=loss, color=data_type)) + theme_classic() + 
+    geom_line() +
+    geom_vline(xintercept=cut, linetype="dotted") +
+    theme(legend.position = 'bottom') +
+    labs(x='Iteration', y=element_blank(), title='Total loss', fill='Data type')
+
+grid.arrange(lc, lr, ncol=1)
+```
+
+
+
+
