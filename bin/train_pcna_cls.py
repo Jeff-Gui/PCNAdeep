@@ -38,7 +38,7 @@ from detectron2.evaluation import (
     verify_results,
 )
 from detectron2.modeling import GeneralizedRCNNWithTTA
-from preparePCNA import load_PCNA_from_json
+from preparePCNA import load_PCNAs_json
 from detectron2 import model_zoo
 import detectron2.data.transforms as T
 
@@ -134,10 +134,7 @@ class Trainer(DefaultTrainer):
     
     @classmethod
     def build_train_loader(cls, cfg):
-        if "SemanticSegmentor" in cfg.MODEL.META_ARCHITECTURE:
-            mapper = DatasetMapper(cfg, is_train=True, augmentations=build_sem_seg_train_aug(cfg))
-        else:
-            mapper = None
+        mapper = DatasetMapper(cfg, is_train=True, augmentations=build_sem_seg_train_aug(cfg))
         return build_detection_train_loader(cfg, mapper=mapper)
 
 
@@ -157,26 +154,25 @@ def setup(args):
     cfg.DATASETS.TEST = ("pcna",)
     cfg.DATALOADER.NUM_WORKERS = 4
     cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
-    cfg.SOLVER.IMS_PER_BATCH = 1
+    cfg.SOLVER.IMS_PER_BATCH = 2
     cfg.SOLVER.BASE_LR = 0.001
     cfg.SOLVER.WEIGHT_DECAY = 0.0001
     cfg.SOLVER.WEIGHT_DECAY_NORM = 0.0
     cfg.SOLVER.GAMMA = 0.1
-    cfg.SOLVER.STEPS = (5000,)
-    cfg.SOLVER.CHECKPOINT_PERIOD = 2500
-    cfg.TEST.EVAL_PERIOD = 2500
+    cfg.SOLVER.STEPS = (8000,)
+    cfg.SOLVER.CHECKPOINT_PERIOD = 3000
+    cfg.TEST.EVAL_PERIOD = 3000
 
-    cfg.SOLVER.MAX_ITER = 7500
+    cfg.SOLVER.MAX_ITER = 12000
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 256
-    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 3
-    # avoid overlapping
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 4 # change according to class number
+    # Avoid overlapping
     cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.5
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7
     cfg.MODEL.PANOPTIC_FPN.COMBINE.OVERLAP_THRESH = 0.9
     cfg.MODEL.RPN.NMS_THRESH = 0.7
 
     # Augmentation
-    
     cfg.INPUT.MIN_SIZE_TRAIN = 1000
     cfg.INPUT.MAX_SIZE_TRAIN = 1200
     cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING = 'choice'
@@ -224,8 +220,12 @@ if __name__ == "__main__":
     # Class metadata
     CLASS_NAMES =["cell","S","M"]
     # Dataset metadata
-    DATASET_ROOT = ['/home/zje/dataset/pcna/20200902-MCF10A-dual']
-    TRAIN_ANN_PATH = ['/home/zje/dataset/pcna/20200902-MCF10A.json']
+    DATASET_ROOT = ['/home/zje/dataset/pcna/20200902-MCF10A-dual',
+            '/home/zje/dataset/pcna/20201030-MBAMD231-dual',
+                    '/home/zje/dataset/pcna/20210103-MCF10A-dual']
+    TRAIN_ANN_PATH = ['/home/zje/dataset/pcna/20200902-MCF10A.json',
+                    '/home/zje/dataset/pcna/20201030-MBAMD231.json',
+                    '/home/zje/dataset/pcna/20210103-MCF10A.json']
     TRAIN_PATH = DATASET_ROOT
 
     args = default_argument_parser().parse_args()

@@ -2,10 +2,11 @@ import argparse
 import multiprocessing as mp
 import time
 import numpy as np
+import json, os
 
 from detectron2.config import get_cfg
 from detectron2.utils.logger import setup_logger
-from pcna_predictor import VisualizationDemo
+from pcna_predictor import VisualizationDemo, pred2json
 
 import skimage.io as io
 import torch
@@ -61,6 +62,10 @@ def get_parser():
         action="store_true"
     )
     parser.add_argument(
+        "--json_out",
+        action="store_true"
+    )
+    parser.add_argument(
         "--opts",
         help="Modify config options using the command-line 'KEY VALUE' pairs",
         default=[],
@@ -84,35 +89,48 @@ if __name__ == "__main__":
         gray = args.is_gray # gray: THW; non-gray: THWC
         # Input image must be uint8
         imgs = io.imread(args.input)
-        # print(imgs.shape)
+        print("Run on image shape: "+str(imgs.shape))
         if args.is_slice:
             imgs = np.expand_dims(imgs, axis=0)
         imgs_out = []
         mask_out = []
+        json_out = {}
         for i in range(imgs.shape[0]):
             img = imgs[i,:]
             if gray:
-                img = np.stack([img, img, img], axis=2)
+                img = np.stack([img, img, img], axis=2)  # convert gray to 3 channels
             start_time = time.time()
-            predictions, visualized_output = demo.run_on_image(img)
-            #print(predictions['instances'].pred_classes)
-            if m:
-                # Generate mask
-                mask = predictions['instances'].pred_masks
-                mask = mask.char()
+            if args.json_out:
+                # Generate json output readable by VIA2
+                predictions = demo.run_on_image(img, vis=False)
+                ist = predictions['instances']
+                labels = list(ist.pred_classes.cpu().numpy())
+                masks = list(ist.pred_masks.cpu().numpy())
+                file_name = os.path.basename(args.input)[:-4] + '-' + "%04d" % (i+1) + '.png'
+                dic_frame = pred2json(masks, labels, file_name)
+                json_out[file_name] = dic_frame
+            else:
+                # Generate mask or visualized output
+                predictions, visualized_output = demo.run_on_image(img)
+                #print(predictions['instances'].pred_classes)
+                if m:
+                    # Generate mask
+                    mask = predictions['instances'].pred_masks
+                    mask = mask.char()
                 
-                # For visualising class prediction
-                # 0: G1/G2, 1: S, 2: M
-                cls = predictions['instances'].pred_classes
-                factor = {0:50, 1:100, 2:200}
-                for s in range(mask.shape[0]):
-                    f = factor[cls[s].item()]
-                    mask[s,:,:] = mask[s,:,:] * f
+                    # For visualising class prediction
+                    # 0: G1/G2, 1: S, 2: M, 3: E
+                    cls = predictions['instances'].pred_classes
+                    factor = {0:50, 1:100, 2:200, 3: 250}
+                    for s in range(mask.shape[0]):
+                        f = factor[cls[s].item()]
+                        mask[s,:,:] = mask[s,:,:] * f
                 
-                mask_slice = torch.sum(mask, dim=0)
-                #mask_slice_np = mask_slice.cpu().numpy().astype('uint8') # pseudo class output
-                mask_slice_np = mask_slice.cpu().numpy().astype('bool') # mask output
-                mask_out.append(mask_slice_np)
+                    mask_slice = torch.sum(mask, dim=0)
+                    #mask_slice_np = mask_slice.cpu().numpy().astype('uint8') # pseudo class output
+                    mask_slice_np = mask_slice.cpu().numpy().astype('bool') # mask output
+                    mask_out.append(mask_slice_np)
+                imgs_out.append(visualized_output.get_image())
             logger.info(
                 "{}: {} in {:.2f}s".format(
                 'frame'+str(i),
@@ -122,8 +140,10 @@ if __name__ == "__main__":
                 time.time() - start_time,
                 )
             )
-            imgs_out.append(visualized_output.get_image())
-        if m:
+        if args.json_out:
+            with(open(args.output, 'w', encoding='utf8')) as file:
+                json.dump(json_out, file)
+        elif m:
             out = np.stack(mask_out, axis=0)
             io.imsave(args.output, out)
         else:

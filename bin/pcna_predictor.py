@@ -5,6 +5,9 @@ import multiprocessing as mp
 from collections import deque
 import cv2
 import torch
+import numpy as np
+import skimage.measure as measure
+import copy
 
 from detectron2.data import MetadataCatalog
 from detectron2.engine.defaults import DefaultPredictor
@@ -34,7 +37,7 @@ class VisualizationDemo(object):
         else:
             self.predictor = DefaultPredictor(cfg)
 
-    def run_on_image(self, image):
+    def run_on_image(self, image, vis=True):
         """
         Args:
             image (np.ndarray): an image of shape (H, W, C) (in BGR order).
@@ -46,6 +49,8 @@ class VisualizationDemo(object):
         """
         vis_output = None
         predictions = self.predictor(image)
+        if vis==False:
+            return predictions
         # Convert image from OpenCV BGR format to Matplotlib RGB format.
         image = image[:, :, ::-1]
         visualizer = Visualizer(image, self.metadata, instance_mode=self.instance_mode)
@@ -218,3 +223,77 @@ class AsyncPredictor:
     @property
     def default_buffer_size(self):
         return len(self.procs) * 5
+
+
+def pred2json(masks, labels, fp):
+    """Transform detectron2 prediction to via2 json format
+    Args:
+        masks: list of instance mask in the frame, each mask should contain only one object.
+        labels: list of instance label in the frame, should be corresponsing to the mask in order.
+        fp: file name for this frame
+    
+    Return:
+        json format readable by VIA2 annotator
+    """
+    cc_stage = {0:'G1/G2', 1:'S', 2:'M', 3:"E"}
+    region_tmp = {"shape_attributes":{"name":"polygon","all_points_x":[],"all_points_y":[]}, "region_attributes":{"phase":''}}
+
+    if len(masks)<1:
+        return {}
+
+    tmp = {"filename":fp,"size":masks[0].astype('bool').size,"regions":[],"file_attributes":{}}
+    for i in range(len(masks)):
+        region = measure.regionprops(measure.label(masks[i]))[0]
+        if region.image.shape[0]<2 or region.image.shape[1]<2:
+            continue
+        # register regions
+        cur_tmp = copy.deepcopy(region_tmp)
+        bbox = list(region.bbox)
+        bbox[0],bbox[1] = bbox[1], bbox[0] # swap x and y
+        bbox[2],bbox[3] = bbox[3], bbox[2]
+        ct = measure.find_contours(region.image, 0.5)
+        if len(ct)<1:
+            continue
+        ct = ct[0]
+        if ct[0][0] != ct[-1][0] or ct[0][1] != ct[-1][1]:
+            # non connected
+            ct_image = np.zeros((bbox[3]-bbox[1]+2, bbox[2]-bbox[0]+2))
+            ct_image[1:-1,1:-1] = region.image.copy()
+            ct = measure.find_contours(ct_image, 0.5)[0]
+            # edge = measure.approximate_polygon(ct, tolerance=0.001)
+            edge = ct
+            for k in range(len(edge)): # swap x and y
+                x = edge[k][0] - 1
+                if x<0: 
+                    x=0
+                elif x>region.image.shape[0]-1:
+                    x = region.image.shape[0]-1
+                y = edge[k][1] - 1
+                if y<0:
+                    y=0
+                elif y> region.image.shape[1]-1:
+                    y = region.image.shape[1]-1
+                edge[k] = [y,x]
+            edge = edge.tolist()
+            elements = list(map(lambda x:tuple(x), edge))
+            edge = list(set(elements))
+            edge.sort(key=elements.index)
+            edge = np.array(edge)
+            edge[:,0] += bbox[0]
+            edge[:,1] += bbox[1]
+            edge = list(edge.ravel())
+            edge += edge[0:2]
+        else:
+            # edge = measure.approximate_polygon(ct, tolerance=0.4)
+            edge = ct
+            for k in range(len(edge)): # swap x and y
+                edge[k] = [edge[k][1], edge[k][0]]   
+            edge[:,0] += bbox[0]
+            edge[:,1] += bbox[1]
+            edge = list(edge.ravel())
+        cur_tmp['shape_attributes']['all_points_x'] = edge[::2]
+        cur_tmp['shape_attributes']['all_points_y'] = edge[1::2]
+        cur_tmp['region_attributes']['phase'] = cc_stage[int(labels[i])]
+        tmp['regions'].append(cur_tmp)
+        
+    return tmp

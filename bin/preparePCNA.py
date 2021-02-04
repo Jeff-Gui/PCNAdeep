@@ -111,7 +111,7 @@ def load_PCNA_from_json(json_path, image_path, width=1200, height=1200):
     import detectron2.structures as st
     import math
 
-    cc_stageDic = {"G1/G2":0, "S":1, "M":2}
+    cc_stageDic = {"G1/G2":0, "S":1, "M":2, "E":3}
 
     with open(json_path,'r', encoding='utf8') as fp:
         ann = json.load(fp)
@@ -145,11 +145,14 @@ def load_PCNA_from_json(json_path, image_path, width=1200, height=1200):
 def load_PCNAs_json(json_paths, image_paths):
     """Load multiple training dataset
     """
+    import random
     assert len(json_paths) == len(image_paths)
-    out = dict()
+    out = []
     for i in range(len(json_paths)):
+        print('Loading dataset from: '+image_paths[i])
         dic = load_PCNA_from_json(json_paths[i], image_paths[i])
-        out = dict(out.items() + dic.items())
+        out += dic
+    random.shuffle(out)
     return out
 
 
