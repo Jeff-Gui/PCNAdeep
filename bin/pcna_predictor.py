@@ -263,14 +263,15 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False):
         else:
             mask_slice[mask[s,:,:]!=0] = s+1
     
-    img = remove_small_objects(mask_slice,1000)
-    props = measure.regionprops_table(img, intensity_image=img[:,:,0], properties=('label','bbox','centroid','mean_intensity'))
+    img_bin = remove_small_objects(mask_slice,1000)
+    props = measure.regionprops_table(img_bin, intensity_image=img[:,:,0], properties=('label','bbox','centroid','mean_intensity'))
     props = pd.DataFrame(props)
+    props.columns = ['label','bbox-0','bbox-1','bbox-2','bbox-3','Center_of_the_object_0','Center_of_the_object_1','mean_intensity']
 
-    img_relabel = measure.label(img)
+    img_relabel = measure.label(img_bin)
     props_relabel = measure.regionprops_table(img_relabel, properties=('label','centroid'))
     props_relabel = pd.DataFrame(props_relabel)
-    props_relabel.columns = ['continuous_label','Center_of_the_object_0', 'Center_of_the_object_1','mean']
+    props_relabel.columns = ['continuous_label','Center_of_the_object_0', 'Center_of_the_object_1']
 
     out_props = pd.merge(props, props_relabel, on=['Center_of_the_object_0','Center_of_the_object_1'])
     out_props['frame'] = frame_id
