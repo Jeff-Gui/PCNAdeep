@@ -275,13 +275,32 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False):
     out_props = pd.merge(props, props_relabel, on=['Center_of_the_object_0','Center_of_the_object_1'])
     out_props['frame'] = frame_id
     phase = []
-    confid = []
+    G_confid = []
+    S_confid = []
+    M_confid = []
     for row in range(out_props.shape[0]):
         lb = int(out_props.iloc[row][0])
-        phase.append(factor[cls[lb-1].item()])
-        confid.append(conf[lb-1].item())
+        p = factor[cls[lb-1].item()]
+        confid = conf[lb-1].item()
+        phase.append(p)
+        if p=='G1/G2':
+            G_confid.append(confid)
+            S_confid.append((1-confid)/2)
+            M_confid.append((1-confid)/2)
+        elif p=='S':
+            S_confid.append(confid)
+            G_confid.append((1-confid)/2)
+            M_confid.append((1-confid)/2)
+        else:
+            M_confid.append(p)
+            G_confid.append((1-confid)/2)
+            S_confid.append((1-confid)/2)
+        
     out_props['phase'] = phase
-    out_props['confid'] = confid
+    out_props['Probability of G1/G2'] = G_confid
+    out_props['Probability of S'] = S_confid
+    out_props['Probability of M'] = M_confid
+    
     out_props['Center_of_the_object_0'] = np.round(out_props['Center_of_the_object_0'])
     out_props['Center_of_the_object_1'] = np.round(out_props['Center_of_the_object_1'])
     del out_props['label']
