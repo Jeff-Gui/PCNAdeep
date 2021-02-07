@@ -7,7 +7,9 @@ import cv2
 import torch
 import numpy as np
 import skimage.measure as measure
+from skimage.morphology import remove_small_objects
 import copy
+import pandas as pd
 
 from detectron2.data import MetadataCatalog
 from detectron2.engine.defaults import DefaultPredictor
@@ -70,68 +72,6 @@ class VisualizationDemo(object):
 
         return predictions, vis_output
 
-    def _frame_from_video(self, video):
-        while video.isOpened():
-            success, frame = video.read()
-            if success:
-                yield frame
-            else:
-                break
-
-    def run_on_video(self, video):
-        """
-        Visualizes predictions on frames of the input video.
-
-        Args:
-            video (cv2.VideoCapture): a :class:`VideoCapture` object, whose source can be
-                either a webcam or a video file.
-
-        Yields:
-            ndarray: BGR visualizations of each video frame.
-        """
-        video_visualizer = VideoVisualizer(self.metadata, self.instance_mode)
-
-        def process_predictions(frame, predictions):
-            frame = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-            if "panoptic_seg" in predictions:
-                panoptic_seg, segments_info = predictions["panoptic_seg"]
-                vis_frame = video_visualizer.draw_panoptic_seg_predictions(
-                    frame, panoptic_seg.to(self.cpu_device), segments_info
-                )
-            elif "instances" in predictions:
-                predictions = predictions["instances"].to(self.cpu_device)
-                vis_frame = video_visualizer.draw_instance_predictions(frame, predictions)
-            elif "sem_seg" in predictions:
-                vis_frame = video_visualizer.draw_sem_seg(
-                    frame, predictions["sem_seg"].argmax(dim=0).to(self.cpu_device)
-                )
-
-            # Converts Matplotlib RGB format to OpenCV BGR format
-            vis_frame = cv2.cvtColor(vis_frame.get_image(), cv2.COLOR_RGB2BGR)
-            return vis_frame
-
-        frame_gen = self._frame_from_video(video)
-        if self.parallel:
-            buffer_size = self.predictor.default_buffer_size
-
-            frame_data = deque()
-
-            for cnt, frame in enumerate(frame_gen):
-                frame_data.append(frame)
-                self.predictor.put(frame)
-
-                if cnt >= buffer_size:
-                    frame = frame_data.popleft()
-                    predictions = self.predictor.get()
-                    yield process_predictions(frame, predictions)
-
-            while len(frame_data):
-                frame = frame_data.popleft()
-                predictions = self.predictor.get()
-                yield process_predictions(frame, predictions)
-        else:
-            for frame in frame_gen:
-                yield process_predictions(frame, self.predictor(frame))
 
 
 class AsyncPredictor:
@@ -297,3 +237,53 @@ def pred2json(masks, labels, fp):
         tmp['regions'].append(cur_tmp)
         
     return tmp
+
+def predictFrame(img, frame_id, demonstrator, is_gray=False):
+    if is_gray:
+        img = np.stack([img, img, img], axis=2)  # convert gray to 3 channels
+    # Generate mask or visualized output
+    predictions = demonstrator.run_on_image(img)[0]
+    #print(predictions['instances'].pred_classes)
+    # Generate mask
+    mask = predictions['instances'].pred_masks
+    mask = mask.char().cpu().numpy()
+    mask_slice = np.zeros((mask.shape[1], mask.shape[2])).astype('uint8')
+
+    # For visualising class prediction
+    # 0: G1/G2, 1: S, 2: M, 3: E-early G1
+    cls = predictions['instances'].pred_classes
+    conf = predictions['instances'].scores
+    factor = {0:0, 1:1, 2:2, 3:0}
+    for s in range(mask.shape[0]):
+        sc = conf[s].item()
+        ori = np.max(mask_slice[mask[s,:,:]!=0])
+        if ori!=0:
+            if sc>conf[ori-1].item():
+                mask_slice[mask[s,:,:,]!=0] = s+1
+        else:
+            mask_slice[mask[s,:,:]!=0] = s+1
+    
+    img = remove_small_objects(mask_slice,1000)
+    props = measure.regionprops_table(img, intensity_image=img[:,:,0], properties=('label','bbox','centroid','mean_intensity'))
+    props = pd.DataFrame(props)
+
+    img_relabel = measure.label(img)
+    props_relabel = measure.regionprops_table(img_relabel, properties=('label','centroid'))
+    props_relabel = pd.DataFrame(props_relabel)
+    props_relabel.columns = ['continuous_label','Center_of_the_object_0', 'Center_of_the_object_1','mean']
+
+    out_props = pd.merge(props, props_relabel, on=['Center_of_the_object_0','Center_of_the_object_1'])
+    out_props['frame'] = frame_id
+    phase = []
+    confid = []
+    for row in range(out_props.shape[0]):
+        lb = int(out_props.iloc[row][0])
+        phase.append(factor[cls[lb-1].item()])
+        confid.append(conf[lb-1].item())
+    out_props['phase'] = phase
+    out_props['confid'] = confid
+    out_props['Center_of_the_object_0'] = np.round(out_props['Center_of_the_object_0'])
+    out_props['Center_of_the_object_1'] = np.round(out_props['Center_of_the_object_1'])
+    del out_props['label']
+
+    return img_relabel.astype('uint8'), out_props 
