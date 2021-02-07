@@ -252,7 +252,7 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False):
     # 0: G1/G2, 1: S, 2: M, 3: E-early G1
     cls = predictions['instances'].pred_classes
     conf = predictions['instances'].scores
-    factor = {0:0, 1:1, 2:2, 3:0}
+    factor = {0:'G1/G2', 1:'S', 2:'M', 3:'G1/G2'}
     for s in range(mask.shape[0]):
         sc = conf[s].item()
         ori = np.max(mask_slice[mask[s,:,:]!=0])

@@ -1,5 +1,7 @@
 output
 models
+model
+example
 inspect
 test
 __pycache__

@@ -77,17 +77,20 @@ if __name__ == "__main__":
     logger = setup_logger()
     logger.info("Arguments: " + str(args))
     cfg = setup_cfg(args)
+    logger.info("Finished setup.")
 
     demo = VisualizationDemo(cfg)
-
+    
+    logger.info("Start infering.")
     if args.input and not args.batch:
         gray = args.is_gray # gray: THW; non-gray: THWC
         # Input image must be uint8
         imgs = io.imread(args.input)
-        print("Run on image shape: "+str(imgs.shape))
+        logger.info("Run on image shape: "+str(imgs.shape))
 
         table_out = pd.DataFrame()
         mask_out = []
+
         for i in range(imgs.shape[0]):
             start_time = time.time()
             img_relabel, out_props = predictFrame(imgs[i,:], i, demo)
