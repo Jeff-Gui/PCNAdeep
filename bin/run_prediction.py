@@ -9,6 +9,9 @@ from detectron2.utils.logger import setup_logger
 from pcna_predictor import VisualizationDemo, pred2json
 
 import skimage.io as io
+import skimage.measure as measure
+from skimage.morphology import remove_small_objects
+import pandas as pd
 import torch
 
 def setup_cfg(args):
@@ -93,6 +96,7 @@ if __name__ == "__main__":
         if args.is_slice:
             imgs = np.expand_dims(imgs, axis=0)
         imgs_out = []
+        table_out = pd.DataFrame()
         mask_out = []
         json_out = {}
         for i in range(imgs.shape[0]):
@@ -116,21 +120,51 @@ if __name__ == "__main__":
                 if m:
                     # Generate mask
                     mask = predictions['instances'].pred_masks
-                    mask = mask.char()
+                    mask = mask.char().cpu().numpy()
+                    mask_slice = np.zeros((mask.shape[1], mask.shape[2])).astype('uint8')
                 
                     # For visualising class prediction
-                    # 0: G1/G2, 1: S, 2: M, 3: E
+                    # 0: G1/G2, 1: S, 2: M, 3: E-early G1
                     cls = predictions['instances'].pred_classes
-                    factor = {0:50, 1:100, 2:200, 3: 250}
+                    conf = predictions['instances'].scores
+                    factor = {0:0, 1:1, 2:2, 3:0}
                     for s in range(mask.shape[0]):
                         f = factor[cls[s].item()]
-                        mask[s,:,:] = mask[s,:,:] * f
-                
-                    mask_slice = torch.sum(mask, dim=0)
-                    #mask_slice_np = mask_slice.cpu().numpy().astype('uint8') # pseudo class output
-                    mask_slice_np = mask_slice.cpu().numpy().astype('bool') # mask output
-                    mask_out.append(mask_slice_np)
-                imgs_out.append(visualized_output.get_image())
+                        sc = conf[s].item()
+                        ori = np.max(mask_slice[mask[s,:,:]!=0])
+                        if ori!=0:
+                            if sc>conf[ori-1].item():
+                                mask_slice[mask[s,:,:,]!=0] = s+1
+                        else:
+                            mask_slice[mask[s,:,:]!=0] = s+1
+                    
+                    img = remove_small_objects(mask_slice,1000)
+                    props = measure.regionprops_table(img, properties=('label','bbox','centroid'))
+                    props = pd.DataFrame(props)
+
+                    img_relabel = measure.label(img)
+                    props_relabel = measure.regionprops_table(img_relabel, properties=('label','centroid'))
+                    props_relabel = pd.DataFrame(props_relabel)
+                    props_relabel.columns = ['continuous_label','Center_of_the_object_0', 'Center_of_the_object_1']
+
+                    out_props = pd.merge(props, props_relabel, on=['Center_of_the_object_0','Center_of_the_object_1'])
+                    out_props['frame'] = i
+                    phase = []
+                    confid = []
+                    for row in range(out_props.shape[0]):
+                        lb = int(out_props.iloc[row][0])
+                        phase.append(cls[lb-1].item())
+                        confid.append(conf[lb-1].item())
+                    out_props['phase'] = phase
+                    out_props['confid'] = confid
+                    out_props['Center_of_the_object_0'] = np.round(out_props['Center_of_the_object_0'])
+                    out_props['Center_of_the_object_1'] = np.round(out_props['Center_of_the_object_1'])
+                    del out_props['label']
+                    
+                    table_out = table_out.append(out_props)
+                    mask_out.append(img_relabel.astype('uint8'))
+                else:
+                    imgs_out.append(visualized_output.get_image())
             logger.info(
                 "{}: {} in {:.2f}s".format(
                 'frame'+str(i),
@@ -146,6 +180,7 @@ if __name__ == "__main__":
         elif m:
             out = np.stack(mask_out, axis=0)
             io.imsave(args.output, out)
+            table_out.to_csv(args.output[:-3]+'csv')
         else:
             out = np.stack(imgs_out, axis=0)
             io.imsave(args.output, out)
