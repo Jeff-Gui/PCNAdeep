@@ -197,6 +197,9 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
                   track$lineageId[t] = parent_id
                   track$parentTrackId[t] = parent_id
                 }
+                for (t in which(track$lineageId==target_info_1$track | track$lineageId==target_info_2$track)){
+                  track$lineageId[t] = parent_id
+                }
                 count = count + 1
               }
             }
@@ -253,6 +256,9 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
           for (k in which(track$trackId==target_info$track)){
             track$lineageId[k] = searching$trackId[j]
             track$parentTrackId[k] = searching$trackId[j]
+          }
+          for (k in which(track$lineageId==target_info$track)){
+            track$lineageId[k] = searching$trackId[j]
           }
           count = count + 1
         }
