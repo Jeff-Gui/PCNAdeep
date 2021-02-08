@@ -16,13 +16,43 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
   FRAME_TOLERANCE = frame_tolerance # 5 Time distance to search for parent-daughter relationship
   window_length = smooth # 5 recommanded
   
-  # Filter out false detection
-  false_track = nrow(track)
-  track = subset(track, track$trackId>0) # trackId = -1 means false detection
-  false_track = false_track - nrow(track) + 1
-  print(paste("Filtered false detection tracks, remaining:", false_track))
+  #=================PART A: Classification Smoothing=========================
+  track_filtered = track[c(),]
+  padding = floor(smooth/2)
+  for (i in unique(track$trackId)){
+    cur_track = subset(track, track$trackId==i)
+    row_pad_begin = cur_track[1,]
+    row_pad_begin[,c("Probability.of.S", "Probability.of.M", "Probability.of.G1.G2")] = 0
+    row_pad_end = cur_track[nrow(cur_track),]
+    row_pad_end[,c("Probability.of.S", "Probability.of.M", "Probability.of.G1.G2")] = 0
+    for (r in 1:padding){
+      cur_track = rbind(row_pad_begin, cur_track)
+      cur_track = rbind(cur_track, row_pad_end)
+    }
+    
+    for (j in c("Probability.of.S", "Probability.of.M", "Probability.of.G1.G2")){
+      cur_track[j] = stats::filter(cur_track[j], rep(1/window_length, window_length), sides = 2, method = "convolution")
+    }
+    range = (padding+1):(nrow(cur_track)-padding)
+    cur_track$predicted_class[range] = sapply(range, function(x){
+      max_id = which(cur_track[x, c("Probability.of.S", "Probability.of.M", "Probability.of.G1.G2")] == 
+                    max(cur_track[x, c("Probability.of.S", "Probability.of.M", "Probability.of.G1.G2")]))
+      if (length(max_id)>1){
+        # if tie, choose original one
+        return(cur_track$predicted_class[x])
+      }
+      if (max_id==1){return("S")} else {
+        if (max_id==2){return("M")} else {
+          return("G1/G2")
+        }
+      }
+    })
+    track_filtered = rbind(track_filtered, cur_track[range,])
+  }
+  print(paste("Classification corrected by smoothing:", length(which(track_filtered$predicted_class!=track$predicted_class))))
+  track = track_filtered
   
-  #====================PART A: Transition refinement==================================
+  #====================PART B: Transition refinement==================================
   #   Aim: correct false assignment of track A ID to adjacent track B when track A signal lost.
   #   Algorithm: detect false assignment by over-threshold frame-to-frame distance.
   # TODO: evaluate performance
@@ -59,48 +89,47 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
   # annotation table: record appearance and disappearance information of the track
   track_count = length(unique(track$trackId))
   ann = data.frame(
-    "track" = 2:track_count,
-    "app_frame" = rep.int(0, track_count-1), # appearance time frame
-    "disapp_frame" = rep.int(0, track_count-1), # disappearance time frame
-    "app_x" = rep.int(0, track_count-1), # appearance coordinate
-    "app_y" = rep.int(0, track_count-1),
-    "disapp_x" = rep.int(0, track_count-1), # disappearance coordinate
-    "disapp_y" = rep.int(0, track_count-1),
-    "app_stage" = rep_len(NA, track_count-1), # cell cycle classification at appearance
-    "disapp_stage" = rep_len(NA, track_count-1), # cell cycle classification at disappearance
-    "predicted_parent" = rep_len(NA, track_count-1), # non-mitotic parent track TO-predict
-    "predicted_daughter" = rep_len(NA, track_count-1),
-    "mitosis_parent" = rep_len(NA, track_count-1), # mitotic parent track to predict
-    "mitosis_daughter" = rep_len(NA, track_count-1),
-    "mitosis_identity" = rep_len(F, track_count-1)
+    "track" = unique(track$trackId),
+    "app_frame" = rep.int(0, track_count), # appearance time frame
+    "disapp_frame" = rep.int(0, track_count), # disappearance time frame
+    "app_x" = rep.int(0, track_count), # appearance coordinate
+    "app_y" = rep.int(0, track_count),
+    "disapp_x" = rep.int(0, track_count), # disappearance coordinate
+    "disapp_y" = rep.int(0, track_count),
+    "app_stage" = rep_len(NA, track_count), # cell cycle classification at appearance
+    "disapp_stage" = rep_len(NA, track_count), # cell cycle classification at disappearance
+    "predicted_parent" = rep_len(NA, track_count), # non-mitotic parent track TO-predict
+    "predicted_daughter" = rep_len(NA, track_count),
+    "mitosis_parent" = rep_len(NA, track_count), # mitotic parent track to predict
+    "mitosis_daughter" = rep_len(NA, track_count),
+    "mitosis_identity" = rep_len(F, track_count)
     # TODO if a track is searched for mitosis and assigned to some daughters, it will not be searched for non-mitotic daughters
   )
   
   broken_tracks = vector()
-  for (i in 2:track_count){
-    cur_track = subset(track, track$trackId==i)
-    if (max(cur_track$frame)-min(cur_track$frame-1)==nrow(cur_track) & nrow(cur_track) >= 2*FRAME_TOLERANCE){
-      # constraint A: ilastik does not allow gap-filling, so frame_diff should equals record number
-      # constraint B: track < 2 frame length tolerance is filtered out, No relationship can be deduced from that.
-      ann$track[i-1] = i
+  ids = unique(track$trackId)
+  for (i in 1:length(ids)){
+    cur_track = subset(track, track$trackId==ids[i])
+    if (nrow(cur_track) >= 2*FRAME_TOLERANCE){
+      # constraint: track < 2 frame length tolerance is filtered out, No relationship can be deduced from that.
+      ann$track[i] = ids[i]
       # (dis-)appearance time
-      ann$app_frame[i-1] = min(cur_track$frame)
-      ann$disapp_frame[i-1] = max(cur_track$frame)
+      ann$app_frame[i] = min(cur_track$frame)
+      ann$disapp_frame[i] = max(cur_track$frame)
       # (dis-)appearance coordinate
-      ann$app_x[i-1] = cur_track$Center_of_the_object_0[1]
-      ann$app_y[i-1] = cur_track$Center_of_the_object_1[1]
-      ann$disapp_x[i-1] = cur_track$Center_of_the_object_0[nrow(cur_track)]
-      ann$disapp_y[i-1] = cur_track$Center_of_the_object_1[nrow(cur_track)]
+      ann$app_x[i] = cur_track$Center_of_the_object_0[1]
+      ann$app_y[i] = cur_track$Center_of_the_object_1[1]
+      ann$disapp_x[i] = cur_track$Center_of_the_object_0[nrow(cur_track)]
+      ann$disapp_y[i] = cur_track$Center_of_the_object_1[nrow(cur_track)]
       # record (dis-)appearance cell cycle classification, in time range equals to FRAME_TOLERANCE
-      ann$app_stage[i-1] = paste(cur_track$predicted_class[1:FRAME_TOLERANCE], collapse = ",")
-      ann$disapp_stage[i-1] = paste(cur_track$predicted_class[(nrow(cur_track)-FRAME_TOLERANCE+1): nrow(cur_track)], collapse = ",")
+      ann$app_stage[i] = paste(cur_track$predicted_class[1:FRAME_TOLERANCE], collapse = ",")
+      ann$disapp_stage[i] = paste(cur_track$predicted_class[(nrow(cur_track)-FRAME_TOLERANCE+1): nrow(cur_track)], collapse = ",")
     } else {
-      broken_tracks = c(broken_tracks, i)
+      broken_tracks = c(broken_tracks, ids[i])
     }
   }
   ann = subset(ann, !ann$track%in%broken_tracks)
   track = subset(track, track$trackId%in%ann$track)
-  track$lineageId = track$trackId # erase original lineage ID, assign in following steps
   print(paste("High quality tracks subjected to predict relationship:", nrow(ann)))
   
   count = 0
@@ -123,37 +152,39 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
         
         # Find potential parent that disappear at M
         potential_parent = intersect(ann$track[grep('M', ann$disapp_stage)], ann$track[which(ann$mitosis_identity==F)])
-        ann[which(ann$track==potential_daughter_pair_id[i]), "mitosis_identity"] = "daughter"
-        ann[which(ann$track==potential_daughter_pair_id[j]), "mitosis_identity"] = "daughter"
-        for (k in 1:length(potential_parent)){
-          # spatial condition
-          parent_x = ann[which(ann$track==potential_parent[k]), "disapp_x"]
-          parent_y = ann[which(ann$track==potential_parent[k]), "disapp_y"]
-          parent_disapp_time = ann[which(ann$track==potential_parent[k]), "disapp_frame"]
-          parent_id = ann[which(ann$track==potential_parent[k]), "track"]
-          if (dist(rbind(
-            c(target_info_1$app_x, target_info_1$app_y),
-            c(parent_x, parent_y)
-          )) <= DIST_TOLERANCE * div_trans_factor &
-          dist(rbind(
-            c(parent_x, parent_y),
-            c(target_info_2$app_x, target_info_2$app_y)
-          )) <= DIST_TOLERANCE * div_trans_factor){
-            # Constraint A: parent close to both daughter tracks' appearance
-            if (abs(target_info_1$app_frame - parent_disapp_time) < FRAME_TOLERANCE &
-                abs(target_info_2$app_frame - parent_disapp_time) < FRAME_TOLERANCE){
-              # Constraint B: parent disappearance time close to daughter's appearance
-              # update information in ann table
-              ann[which(ann$track==target_info_1$track), "mitosis_parent"] = parent_id
-              ann[which(ann$track==target_info_2$track), "mitosis_parent"] = parent_id
-              ann[which(ann$track==parent_id), "mitosis_identity"] = "parent"
-              ann[which(ann$track==parent_id), "mitosis_daughter"] = paste(target_info_1$track, target_info_2$track, sep="/")
-              # update information in track table
-              for (t in which(track$trackId==target_info_1$track | track$trackId==target_info_2$track)){
-                track$lineageId[t] = parent_id
-                track$parentTrackId[t] = parent_id
+        if (length(potential_parent)>0){
+          ann[which(ann$track==potential_daughter_pair_id[i]), "mitosis_identity"] = "daughter"
+          ann[which(ann$track==potential_daughter_pair_id[j]), "mitosis_identity"] = "daughter"
+          for (k in 1:length(potential_parent)){
+            # spatial condition
+            parent_x = ann[which(ann$track==potential_parent[k]), "disapp_x"]
+            parent_y = ann[which(ann$track==potential_parent[k]), "disapp_y"]
+            parent_disapp_time = ann[which(ann$track==potential_parent[k]), "disapp_frame"]
+            parent_id = ann[which(ann$track==potential_parent[k]), "track"]
+            if (dist(rbind(
+              c(target_info_1$app_x, target_info_1$app_y),
+              c(parent_x, parent_y)
+            )) <= DIST_TOLERANCE * div_trans_factor &
+            dist(rbind(
+              c(parent_x, parent_y),
+              c(target_info_2$app_x, target_info_2$app_y)
+            )) <= DIST_TOLERANCE * div_trans_factor){
+              # Constraint A: parent close to both daughter tracks' appearance
+              if (abs(target_info_1$app_frame - parent_disapp_time) < FRAME_TOLERANCE &
+                  abs(target_info_2$app_frame - parent_disapp_time) < FRAME_TOLERANCE){
+                # Constraint B: parent disappearance time close to daughter's appearance
+                # update information in ann table
+                ann[which(ann$track==target_info_1$track), "mitosis_parent"] = parent_id
+                ann[which(ann$track==target_info_2$track), "mitosis_parent"] = parent_id
+                ann[which(ann$track==parent_id), "mitosis_identity"] = "parent"
+                ann[which(ann$track==parent_id), "mitosis_daughter"] = paste(target_info_1$track, target_info_2$track, sep="/")
+                # update information in track table
+                for (t in which(track$trackId==target_info_1$track | track$trackId==target_info_2$track)){
+                  track$lineageId[t] = parent_id
+                  track$parentTrackId[t] = parent_id
+                }
+                count = count + 1
               }
-              count = count + 1
             }
           }
         }
@@ -169,38 +200,40 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
   #   Algorithm: find the pool of tracks that appear as mitotic. For each, find nearby mitotic tracks.
   sub_ann = subset(ann, ann$mitosis_identity != "daughter")
   potential_daughter_trackId = sub_ann$track[grep('M', sub_ann$app_stage)] # potential daughter tracks must appear at M phase during mitosis
-  for (i in 1:length(potential_daughter_trackId)){
-    target_info = ann[which(ann$track==potential_daughter_trackId[i]),]
-    # extract all info in the frame when potential daughter appears
-    searching = subset(track, track$frame==target_info$app_frame)
-    # search for M cells (potential parent)
-    searching = subset(searching, searching$predicted_class=="M")
-    if (nrow(searching)==0){ next }
-    for (j in 1:nrow(searching)){
-      if (dist(rbind(
-        c(target_info$app_x, target_info$app_y),
-        c(searching$Center_of_the_object_0[j], searching$Center_of_the_object_1[j])
-      )) <= DIST_TOLERANCE * div_trans_factor &
-      searching$trackId[j] != target_info$track){
-        # Constraint A: close distance
-        # Constraint B: non-self.
-        if (!is.na(target_info["mitosis_parent"])){ 
-          # if the potential daughter already has mitosis parent, will override.
-          print("Warning: muiltiple mitosis parents found, only keep the last one.")}
-        
-        ann[which(ann$track==potential_daughter_trackId[i]),"mitosis_parent"] = searching$trackId[j]
-        # label parent and daughter tracks as mitotic searched
-        ann[which(ann$track==potential_daughter_trackId[i]),"mitosis_identity"] = "daughter"
-        #print(paste("Daughter: ", potential_daughter_trackId[i], sep = ""))
-        ann[which(ann$track==searching$trackId[j]), "mitosis_identity"] = "parent"
-        ann[which(ann$track==searching$trackId[j]), "mitosis_daughter"] = potential_daughter_trackId[i]
-        #print(paste("Parent: ", searching$trackId[j], sep = ""))
-        # update lineage and parent track information of the daughter track
-        for (k in which(track$trackId==target_info$track)){
-          track$lineageId[k] = searching$trackId[j]
-          track$parentTrackId[k] = searching$trackId[j]
+  if (length(potential_daughter_trackId>0)){
+    for (i in 1:length(potential_daughter_trackId)){
+      target_info = ann[which(ann$track==potential_daughter_trackId[i]),]
+      # extract all info in the frame when potential daughter appears
+      searching = subset(track, track$frame==target_info$app_frame)
+      # search for M cells (potential parent)
+      searching = subset(searching, searching$predicted_class=="M")
+      if (nrow(searching)==0){ next }
+      for (j in 1:nrow(searching)){
+        if (dist(rbind(
+          c(target_info$app_x, target_info$app_y),
+          c(searching$Center_of_the_object_0[j], searching$Center_of_the_object_1[j])
+        )) <= DIST_TOLERANCE * div_trans_factor &
+        searching$trackId[j] != target_info$track){
+          # Constraint A: close distance
+          # Constraint B: non-self.
+          if (!is.na(target_info["mitosis_parent"])){ 
+            # if the potential daughter already has mitosis parent, will override.
+            print("Warning: muiltiple mitosis parents found, only keep the last one.")}
+          
+          ann[which(ann$track==potential_daughter_trackId[i]),"mitosis_parent"] = searching$trackId[j]
+          # label parent and daughter tracks as mitotic searched
+          ann[which(ann$track==potential_daughter_trackId[i]),"mitosis_identity"] = "daughter"
+          #print(paste("Daughter: ", potential_daughter_trackId[i], sep = ""))
+          ann[which(ann$track==searching$trackId[j]), "mitosis_identity"] = "parent"
+          ann[which(ann$track==searching$trackId[j]), "mitosis_daughter"] = potential_daughter_trackId[i]
+          #print(paste("Parent: ", searching$trackId[j], sep = ""))
+          # update lineage and parent track information of the daughter track
+          for (k in which(track$trackId==target_info$track)){
+            track$lineageId[k] = searching$trackId[j]
+            track$parentTrackId[k] = searching$trackId[j]
+          }
+          count = count + 1
         }
-        count = count + 1
       }
     }
   }
@@ -302,38 +335,6 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
   }
   track = track[order(track$lineageId),]
   print(paste("Lineage amount after reorganizing the lineage:", length(unique(track$lineageId))))
-  
-  #  rm(list=ls()[which(ls()!="track" & ls()!="window_length")]) # clean-up
-  
-  #=================PART C: Classification Smoothing=========================
-  track_filtered = track[c(),]
-  for (i in unique(track$trackId)){
-    cur_track = subset(track, track$trackId==i)
-    for (j in c("Probability.of.S", "Probability.of.M", "Probability.of.G1.G2")){
-      cur_track[j] = stats::filter(cur_track[j], rep(1/window_length, window_length), sides = 2, method = "convolution")
-    }
-    cur_track$predicted_class = sapply(1:length(cur_track$predicted_class), function(x){
-      if (x <= floor(window_length/2) | x > (length(cur_track$predicted_class) - floor(window_length/2)) ){ 
-        # for beginning and end (outside convolution), keep original class
-        return(cur_track$predicted_class[x]) 
-      } else {
-        max_id = which(cur_track[x, c("Probability.of.S", "Probability.of.M", "Probability.of.G1.G2")] == 
-                         max(cur_track[x, c("Probability.of.S", "Probability.of.M", "Probability.of.G1.G2")]))
-        if (length(max_id)>1){
-          # if tie, choose original one
-          return(cur_track$predicted_class[x])
-        }
-        if (max_id==1){return("S")} else {
-          if (max_id==2){return("M")} else {
-            return("G1/G2")
-          }
-        }
-      }
-    })
-    track_filtered = rbind(track_filtered, cur_track)
-  }
-  print(paste("Classification corrected by smoothing:", length(which(track_filtered$predicted_class!=track$predicted_class))))
-  track = track_filtered
   
   return(track)
 }
