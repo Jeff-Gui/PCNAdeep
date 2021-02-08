@@ -127,7 +127,7 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
       
       # register mitosis prediction from deepcell
       if (cur_track$parentTrackId[1]!=0){
-        ann$mitosis_identity[i] = TRUE
+        ann$mitosis_identity[i] = 'daughter'
         ann$mitosis_parent[i] = cur_track$parentTrackId[1]
         check = ann[which(ann$track==cur_track$parentTrackId[1]),'mitosis_daughter']
         if (is.na(check)){
@@ -135,7 +135,7 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
         } else {
           ann[which(ann$track==cur_track$parentTrackId[1]),'mitosis_daughter'] = paste(as.character(check), as.character(ids[i]),sep='/')
         }
-        ann[which(ann$track==cur_track$parentTrackId[1]),'mitosis_identity'] = TRUE
+        ann[which(ann$track==cur_track$parentTrackId[1]),'mitosis_identity'] = 'parent'
       }
       
     } else {
@@ -217,19 +217,27 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
   if (length(potential_daughter_trackId>0)){
     for (i in 1:length(potential_daughter_trackId)){
       target_info = ann[which(ann$track==potential_daughter_trackId[i]),]
+      
       # extract all info in the frame when potential daughter appears
-      searching = subset(track, track$frame==target_info$app_frame)
+      searching = subset(track, track$frame>=target_info$app_frame-FRAME_TOLERANCE & 
+                           track$frame<=target_info$app_frame+FRAME_TOLERANCE)
       # search for M cells (potential parent)
-      searching = subset(searching, searching$predicted_class=="M")
+      searching = subset(searching, searching$predicted_class=="M" & searching$trackId!=potential_daughter_trackId[i])
+      searching_filtered = data.frame()
+      for (p in unique(searching$trackId)){
+        mf = max(searching[searching$trackId==p,'frame'])
+        searching_filtered = rbind(searching_filtered, 
+                                   searching[searching$trackId==p & searching$frame==mf,])
+      }
+      searching = searching_filtered
+      
       if (nrow(searching)==0){ next }
       for (j in 1:nrow(searching)){
         if (dist(rbind(
           c(target_info$app_x, target_info$app_y),
           c(searching$Center_of_the_object_0[j], searching$Center_of_the_object_1[j])
-        )) <= DIST_TOLERANCE * div_trans_factor &
-        searching$trackId[j] != target_info$track){
-          # Constraint A: close distance
-          # Constraint B: non-self.
+        )) <= DIST_TOLERANCE * div_trans_factor){
+          # Constraint: close distance
           if (!is.na(target_info["mitosis_parent"])){ 
             # if the potential daughter already has mitosis parent, will override.
             print("Warning: muiltiple mitosis parents found, only keep the last one.")}
