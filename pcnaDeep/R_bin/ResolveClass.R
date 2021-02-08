@@ -96,7 +96,7 @@ resolve_phase = function(track, base=0, end=288){
     if(!is.null(g1)){
       out['G1'][[1]] = g1
     } else {out['G1']=NA}
-    if(!is.null(g1)){
+    if(!is.null(g2)){
       out['G2'][[1]] = g2
     } else {out['G2']=NA}
     if(!is.null(s)){
@@ -253,15 +253,3 @@ doResolveTrack = function(track, length_filter=200){
   out = subset(out, !is.na(out$type))
   return(out)
 }
-
-# processing
-s1 = doResolveTrack(read.csv('/Users/jefft/Downloads/trks_new/10A_out/1-refined.csv'))
-s1 = cbind('stage'=rep('1',nrow(s1)), s1)
-s2 = doResolveTrack(read.csv('/Users/jefft/Downloads/trks_new/10A_out/2-refined.csv'))
-s2 = cbind('stage'=rep('2',nrow(s2)), s2)
-s3 = doResolveTrack(read.csv('/Users/jefft/Downloads/trks_new/10A_out/3-refined_smooth.csv'))
-s3 = cbind('stage'=rep('3',nrow(s3)), s3)
-s5 = doResolveTrack(read.csv('/Users/jefft/Downloads/trks_new/10A_out/5-refined.csv'))
-s5 = cbind('stage'=rep('5',nrow(s5)), s5)
-record = rbind(s1,s2,s3,s5)
-write.csv(record, '/Users/jefft/Downloads/trks_new/summary_auto.csv', row.names = F)
