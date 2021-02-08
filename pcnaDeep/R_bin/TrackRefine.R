@@ -23,9 +23,7 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
   for (i in unique(track$trackId)){
     cur_track = subset(track, track$trackId==i)
     row_pad_begin = cur_track[1,]
-    row_pad_begin[,c("Probability.of.S", "Probability.of.M", "Probability.of.G1.G2")] = 0
     row_pad_end = cur_track[nrow(cur_track),]
-    row_pad_end[,c("Probability.of.S", "Probability.of.M", "Probability.of.G1.G2")] = 0
     for (r in 1:padding){
       cur_track = rbind(row_pad_begin, cur_track)
       cur_track = rbind(cur_track, row_pad_end)
