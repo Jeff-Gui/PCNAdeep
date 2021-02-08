@@ -7,7 +7,6 @@ plot_pcna = function(track, out_dir, prefix, minLength){
   print(paste("Plotting track #",prefix))
   MIN_LENGTH = minLength
   prefix = file.path(out_dir, prefix)
-  track = subset(track, track$predicted_class != "undetermined")
   # detect break point
   isBreakPoint = c(F)
   position = c(NaN)
@@ -33,7 +32,6 @@ plot_pcna = function(track, out_dir, prefix, minLength){
     subtrack$parentTrackId = as.factor(subtrack$parentTrackId)
     
     plots = vector('list',length(r))
-    rowNum = ceiling(length(plots)/4)
     cbPalette = c("M" = "#FF0000", "G1/G2"="#696969", "S"="#0000CD")
     for (i in 1:length(r)){
       subtrack_new = subset(subtrack,subtrack$lineageId==r[i])
@@ -42,17 +40,31 @@ plot_pcna = function(track, out_dir, prefix, minLength){
         theme_bw() +
         geom_text(
           data = subtrack_new %>% filter(isBreakPoint==TRUE & position == 0), 
-          aes(label = frame), nudge_x = 0, nudge_y = 0.5/rowNum, angle = 0, size = 3, check_overlap = T) + 
+          aes(label = frame), nudge_x = 0, nudge_y = 0.2, angle = 0, size = 3, check_overlap = T) + 
         geom_text(
           data = subtrack_new %>% filter(isBreakPoint==TRUE & position == 1), 
-          aes(label = frame), nudge_x = 0, nudge_y = -0.5/rowNum, angle = 0, size = 3, check_overlap = T) +
+          aes(label = frame), nudge_x = 0, nudge_y = -0.2, angle = 0, size = 3, check_overlap = T) +
         scale_colour_manual(values=cbPalette) +
         labs(title=r[i]) +
         theme(legend.position = 'none', axis.title.x = element_blank(), axis.title.y=element_blank())
       plots[[i]] = p
     }
-    ml = arrangeGrob(grobs=plots,ncol=4,nrow=rowNum, top="Mitotis tracks", left="Lineages")
-    ggsave(paste(prefix,"-MitotisTracks.png",sep=""), ml,units = "in", dpi = 300, width=12, height = 8)
+    
+    rowOrg = 5
+    colOrg = 4
+    all = rowOrg * colOrg
+    organized_plots = list()
+    for(i in 1:ceiling(length(plots)/all)){
+      organized_plots[[i]] = list()
+    }
+    for(i in 1:length(plots)){
+      idx = i%%all
+      if(idx==0){idx=all}
+      organized_plots[[ceiling(i/all)]][[idx]] = plots[[i]]
+    }
+    ml = organized_plots %>% lapply(function(list) grid.arrange(grobs=list, nrow=rowOrg, ncol=colOrg))
+    marrangeGrob(grobs=ml, ncol = 1, nrow = 1, top="Mitotis tracks", left="Lineages") %>%
+      ggsave(paste(prefix,"-MitotisTracks.pdf",sep = ""),plot=.,device="pdf",units = "in", dpi = 300, width=12, height = 8)
   }
   
   
@@ -63,7 +75,7 @@ plot_pcna = function(track, out_dir, prefix, minLength){
     p = track$frame[track$trackId==i]
     lg = unique(track$lineageId[track$trackId==i])
     if (length(lg)>1){
-      print(paste("Warning! One track involved in two lineage. Check track ID:", i))
+      print(paste("Warning! One track involved in two lineages. Check track ID:", i))
     } else {
       if (!length(p)==0 & !lg %in% r){
         if ((max(p) - min(p))>MIN_LENGTH){
@@ -85,18 +97,33 @@ plot_pcna = function(track, out_dir, prefix, minLength){
       geom_point(size=0.5) +
       geom_text(
         data = filtered_track_new %>% filter(isBreakPoint==TRUE & position == 0), 
-        aes(label = frame), nudge_x = 0, nudge_y = 1/rowNum, angle = 0, size = 3, check_overlap = T) + 
+        aes(label = frame), nudge_x = 0, nudge_y = 0.2, angle = 0, size = 3, check_overlap = T) + 
       geom_text(
         data = filtered_track_new %>% filter(isBreakPoint==TRUE & position == 1), 
-        aes(label = frame), nudge_x = 0, nudge_y = -1/rowNum, angle = 0, size = 3, check_overlap = T) +
-      theme_bw() + 
+        aes(label = frame), nudge_x = 0, nudge_y = -0.2, angle = 0, size = 3, check_overlap = T) +
+      theme_classic() + 
       scale_colour_manual(values=cbPalette) +
       labs(title=count[i]) +
       theme(legend.position = 'none', axis.title.x = element_blank(), axis.title.y=element_blank())
     plots[[i]] = p
   }
-  ml = arrangeGrob(grobs=plots,ncol=4,nrow=rowNum, top="Non-Mitotis tracks", left="Lineages")
-  ggsave(paste(prefix,"-NonMitotisTracks.png",sep = ""), ml,units = "in", dpi = 300, width=12, height = 8)
+  
+  rowOrg = 7
+  colOrg = 4
+  all = rowOrg * colOrg
+  organized_plots = list()
+  for(i in 1:ceiling(length(plots)/all)){
+    organized_plots[[i]] = list()
+  }
+  for(i in 1:length(plots)){
+    idx = i%%all
+    if(idx==0){idx=all}
+    organized_plots[[ceiling(i/all)]][[idx]] = plots[[i]]
+  }
+  ml = organized_plots %>% lapply(function(list) grid.arrange(grobs=list, nrow=rowOrg, ncol=colOrg))
+  marrangeGrob(grobs=ml, ncol = 1, nrow = 1, top="Non-Mitotis tracks", left="Lineages") %>%
+    ggsave(paste(prefix,"-NonMitotisTracks.pdf",sep = ""),plot=.,device="pdf",units = "in", dpi = 300, width=12, height = 8)
+  
   lf = list.files(getwd(),pattern = "Rplots")
   file.remove(lf)
   print("Plottings saved.")
