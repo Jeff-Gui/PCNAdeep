@@ -25,7 +25,7 @@ plot_pcna = function(track, out_dir, prefix, minLength){
   track["position"] = position
   
   # plot mitotic tracks
-  r = unique(track$lineageId[which(track$parentTrackId>0)])
+  r = unique(track$lineageId[which(length(unique(track$trackId))>1)])
   if (length(r) > 0){
     subtrack = subset(track, track$lineageId %in% r)
     subtrack$trackId = as.character(subtrack$trackId)
