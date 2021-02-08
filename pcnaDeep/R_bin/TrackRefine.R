@@ -33,8 +33,8 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
     for (j in c("Probability.of.S", "Probability.of.M", "Probability.of.G1.G2")){
       cur_track[j] = stats::filter(cur_track[j], rep(1/window_length, window_length), sides = 2, method = "convolution")
     }
-    range = (padding+1):(nrow(cur_track)-padding)
-    cur_track$predicted_class[range] = sapply(range, function(x){
+    range_pad = (padding+1):(nrow(cur_track)-padding)
+    cur_track$predicted_class[range_pad] = sapply(range_pad, function(x){
       max_id = which(cur_track[x, c("Probability.of.S", "Probability.of.M", "Probability.of.G1.G2")] == 
                     max(cur_track[x, c("Probability.of.S", "Probability.of.M", "Probability.of.G1.G2")]))
       if (length(max_id)>1){
@@ -47,7 +47,7 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
         }
       }
     })
-    track_filtered = rbind(track_filtered, cur_track[range,])
+    track_filtered = rbind(track_filtered, cur_track[range_pad,])
   }
   print(paste("Classification corrected by smoothing:", length(which(track_filtered$predicted_class!=track$predicted_class))))
   track = track_filtered
@@ -85,7 +85,7 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
   track = track[order(track$trackId),]
   print(paste("Reorganized mis-transition tracks:", current_label - track_count + 1))
   
-  #=================PART B: Relationship prediction=========================
+  #=================PART C: Relationship prediction=========================
   # annotation table: record appearance and disappearance information of the track
   track_count = length(unique(track$trackId))
   ann = data.frame(
@@ -124,6 +124,20 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
       # record (dis-)appearance cell cycle classification, in time range equals to FRAME_TOLERANCE
       ann$app_stage[i] = paste(cur_track$predicted_class[1:FRAME_TOLERANCE], collapse = ",")
       ann$disapp_stage[i] = paste(cur_track$predicted_class[(nrow(cur_track)-FRAME_TOLERANCE+1): nrow(cur_track)], collapse = ",")
+      
+      # register mitosis prediction from deepcell
+      if (cur_track$parentTrackId[1]!=0){
+        ann$mitosis_identity[i] = TRUE
+        ann$mitosis_parent[i] = cur_track$parentTrackId[1]
+        check = ann[which(ann$track==cur_track$parentTrackId[1]),'mitosis_daughter']
+        if (is.na(check)){
+          ann[which(ann$track==cur_track$parentTrackId[1]),'mitosis_daughter'] = ids[i]
+        } else {
+          ann[which(ann$track==cur_track$parentTrackId[1]),'mitosis_daughter'] = paste(as.character(check), as.character(ids[i]),sep='/')
+        }
+        ann[which(ann$track==cur_track$parentTrackId[1]),'mitosis_identity'] = TRUE
+      }
+      
     } else {
       broken_tracks = c(broken_tracks, ids[i])
     }
