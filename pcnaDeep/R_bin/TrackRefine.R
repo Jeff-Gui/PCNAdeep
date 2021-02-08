@@ -15,43 +15,9 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
   div_trans_factor = dist_factor # 2.5 recommanded
   FRAME_TOLERANCE = frame_tolerance # 5 Time distance to search for parent-daughter relationship
   window_length = smooth # 5 recommanded
-  
-  #=================PART A: Classification Smoothing=========================
   track = subset(track, track$trackId!=-1)
-  track_filtered = track[c(),]
-  padding = floor(smooth/2)
-  for (i in unique(track$trackId)){
-    cur_track = subset(track, track$trackId==i)
-    row_pad_begin = cur_track[1,]
-    row_pad_end = cur_track[nrow(cur_track),]
-    for (r in 1:padding){
-      cur_track = rbind(row_pad_begin, cur_track)
-      cur_track = rbind(cur_track, row_pad_end)
-    }
-    
-    for (j in c("Probability.of.S", "Probability.of.M", "Probability.of.G1.G2")){
-      cur_track[j] = stats::filter(cur_track[j], rep(1/window_length, window_length), sides = 2, method = "convolution")
-    }
-    range_pad = (padding+1):(nrow(cur_track)-padding)
-    cur_track$predicted_class[range_pad] = sapply(range_pad, function(x){
-      max_id = which(cur_track[x, c("Probability.of.S", "Probability.of.M", "Probability.of.G1.G2")] == 
-                    max(cur_track[x, c("Probability.of.S", "Probability.of.M", "Probability.of.G1.G2")]))
-      if (length(max_id)>1){
-        # if tie, choose original one
-        return(cur_track$predicted_class[x])
-      }
-      if (max_id==1){return("S")} else {
-        if (max_id==2){return("M")} else {
-          return("G1/G2")
-        }
-      }
-    })
-    track_filtered = rbind(track_filtered, cur_track[range_pad,])
-  }
-  print(paste("Classification corrected by smoothing:", length(which(track_filtered$predicted_class!=track$predicted_class))))
-  track = track_filtered
   
-  #====================PART B: Transition refinement==================================
+  #====================PART A: Transition refinement==================================
   #   Aim: correct false assignment of track A ID to adjacent track B when track A signal lost.
   #   Algorithm: detect false assignment by over-threshold frame-to-frame distance.
   # TODO: evaluate performance
@@ -86,7 +52,7 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
   track = track[order(track$trackId),]
   print(paste("Reorganized mis-transition objects:", current_label - track_count + 1))
   
-  #=================PART C: Relationship prediction=========================
+  #=================PART B: Relationship prediction=========================
   # annotation table: record appearance and disappearance information of the track
   track_count = length(unique(track$trackId))
   ann = data.frame(
@@ -365,6 +331,40 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
   }
   track = track[order(track$lineageId),]
   print(paste("Lineage amount after reorganizing the lineage:", length(unique(track$lineageId))))
+  
+  #=================PART C: Classification Smoothing=========================
+  track_filtered = track[c(),]
+  padding = floor(smooth/2)
+  for (i in unique(track$trackId)){
+    cur_track = subset(track, track$trackId==i)
+    row_pad_begin = cur_track[1,]
+    row_pad_end = cur_track[nrow(cur_track),]
+    for (r in 1:padding){
+      cur_track = rbind(row_pad_begin, cur_track)
+      cur_track = rbind(cur_track, row_pad_end)
+    }
+    
+    for (j in c("Probability.of.S", "Probability.of.M", "Probability.of.G1.G2")){
+      cur_track[j] = stats::filter(cur_track[j], rep(1/window_length, window_length), sides = 2, method = "convolution")
+    }
+    range_pad = (padding+1):(nrow(cur_track)-padding)
+    cur_track$predicted_class[range_pad] = sapply(range_pad, function(x){
+      max_id = which(cur_track[x, c("Probability.of.S", "Probability.of.M", "Probability.of.G1.G2")] == 
+                       max(cur_track[x, c("Probability.of.S", "Probability.of.M", "Probability.of.G1.G2")]))
+      if (length(max_id)>1){
+        # if tie, choose original one
+        return(cur_track$predicted_class[x])
+      }
+      if (max_id==1){return("S")} else {
+        if (max_id==2){return("M")} else {
+          return("G1/G2")
+        }
+      }
+    })
+    track_filtered = rbind(track_filtered, cur_track[range_pad,])
+  }
+  print(paste("Classification corrected by smoothing:", length(which(track_filtered$predicted_class!=track$predicted_class))))
+  track = track_filtered
   
   return(track)
 }
