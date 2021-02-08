@@ -17,6 +17,7 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
   window_length = smooth # 5 recommanded
   
   #=================PART A: Classification Smoothing=========================
+  track = subset(track, track$trackId!=-1)
   track_filtered = track[c(),]
   padding = floor(smooth/2)
   for (i in unique(track$trackId)){
@@ -77,13 +78,15 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
         # assign new track ID to track from t=[i] toward the end
         track$trackId[i:nrow(track)] = sub(paste("^", track$trackId[i-1],"$", sep = ""), 
                                            current_label+1, track$trackId[i:nrow(track)])
+        track$lineageId[i:nrow(track)] = sub(paste("^", track$lineageId[i-1],"$", sep = ""), 
+                                             current_label+1, track$lineageId[i:nrow(track)])
         current_label = current_label + 1 # update maximum track ID
       }
     }
   }
   track$trackId = as.numeric(track$trackId)
   track = track[order(track$trackId),]
-  print(paste("Reorganized mis-transition tracks:", current_label - track_count + 1))
+  print(paste("Reorganized mis-transition objects:", current_label - track_count + 1))
   
   #=================PART C: Relationship prediction=========================
   # annotation table: record appearance and disappearance information of the track
@@ -229,9 +232,9 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
       searching = subset(searching, searching$predicted_class=="M" & searching$trackId!=potential_daughter_trackId[i])
       searching_filtered = data.frame()
       for (p in unique(searching$trackId)){
-        mf = max(searching[searching$trackId==p,'frame'])
-        searching_filtered = rbind(searching_filtered, 
-                                   searching[searching$trackId==p & searching$frame==mf,])
+        dif = abs(searching[searching$trackId==p,'frame']-target_info$app_frame)
+        mf = searching[searching$trackId==p,'frame'][which(dif==min(dif))]
+        searching_filtered = rbind(searching_filtered, searching[searching$trackId==p & searching$frame==mf,])
       }
       searching = searching_filtered
       

@@ -97,7 +97,7 @@ for (i in 1:length(track)){
   print('##=====================Resolving Class=========================')
   s = doResolveTrack(refined_tracks[[i]])
   s = cbind('stage'=rep(prefix[i],nrow(s)), s)
-  print(paste("Resolved ",as.character(nrow(s)),"tracks."))
+  print(paste("Resolved",as.character(nrow(s)),"tracks."))
   phase = rbind(phase, s)
   print('##============================================================')
 }
