@@ -37,7 +37,7 @@ plot_pcna = function(track, out_dir, prefix, minLength){
       subtrack_new = subset(subtrack,subtrack$lineageId==r[i])
       p = ggplot(subtrack_new, aes(x=frame, y=trackId,color=predicted_class)) +
         geom_point(size=0.5) +
-        theme_bw() +
+        theme_classic() +
         geom_text(
           data = subtrack_new %>% filter(isBreakPoint==TRUE & position == 0), 
           aes(label = frame), nudge_x = 0, nudge_y = 0.2, angle = 0, size = 3, check_overlap = T) + 
