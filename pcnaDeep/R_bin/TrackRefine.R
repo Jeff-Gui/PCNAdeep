@@ -215,11 +215,12 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
   # Mitosis search 2: 
   #   Aim: solve mitotic track (daughter) that appear near another mitotic track (parent).
   #   Algorithm: find the pool of tracks that appear as mitotic. For each, find nearby mitotic tracks.
-  sub_ann = subset(ann, ann$mitosis_identity != "daughter")
+  sub_ann = subset(ann, ann$mitosis_identity == FALSE)
   potential_daughter_trackId = sub_ann$track[grep('M', sub_ann$app_stage)] # potential daughter tracks must appear at M phase during mitosis
   if (length(potential_daughter_trackId>0)){
     for (i in 1:length(potential_daughter_trackId)){
       target_info = ann[which(ann$track==potential_daughter_trackId[i]),]
+      if (target_info$mitosis_identity != FALSE){next}
       
       # extract all info in the frame when potential daughter appears
       searching = subset(track, track$frame>=target_info$app_frame-FRAME_TOLERANCE & 
