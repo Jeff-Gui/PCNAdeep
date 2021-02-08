@@ -1,4 +1,3 @@
-# Ref: https://blog.csdn.net/weixin_40628687/article/details/79249861
 # read params
 # -t: track files (input repository)
 # -c: "foci" files (cell cycle classification, input repository, should be different from tracks)
@@ -63,9 +62,11 @@ if (length(unique(c(length(track),length(class))))!=1){
 }
 
 merged_tracks = list()
+prefix = vector()
 # execute MergeTrackAndFoci.R, store [output1] .csv files in temp repository (files named in order, e.g. 1.csv, 2.csv ...)
 source(file.path(getwd(), "MergeTrackAndFoci.R"))
 for (i in 1:length(track)){
+  prefix[i] = gsub('.csv','',basename(track[i]))
   merged_tracks[[i]] = mergeTrackAndFoci(read.csv(track[i]), read.csv(class[i]))
 }
 
@@ -74,9 +75,9 @@ for (i in 1:length(track)){
 refined_tracks = list()
 source(file.path(getwd(), "TrackRefine.R"))
 for (i in 1:length(track)){
-  print(paste("Refining tracks:",track[i]))
+  print(paste("Refining tracks:",prefix[i]))
   refined_tracks[[i]] = trackRefine(merged_tracks[[i]], distance_tolerance, dist_factor, frame_tolerance, window_length)
-  fp = file.path(out_dir, paste(as.character(i), '-refined.csv', sep=''))
+  fp = file.path(out_dir, paste(prefix[i], '-refined.csv', sep=''))
   write.csv(refined_tracks[[i]], fp)
   print(paste("Refined tracks saved at:", fp))
   print('##============================================================')
@@ -92,10 +93,10 @@ for (i in 1:length(track)){
     print("Error: minimum plotting track length larger than total frames.")
     exit()
   }
-  plot_pcna(refined_tracks[[i]], out_dir, as.character(i), m)
+  plot_pcna(refined_tracks[[i]], out_dir, prefix[i], m)
   print('##=====================Resolving Class=========================')
   s = doResolveTrack(refined_tracks[[i]])
-  s = cbind('stage'=rep(as.character(i),nrow(s)), s)
+  s = cbind('stage'=rep(prefix[i],nrow(s)), s)
   print(paste("Resolved ",as.character(nrow(s)),"tracks."))
   phase = rbind(phase, s)
   print('##============================================================')

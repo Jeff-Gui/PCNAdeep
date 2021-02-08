@@ -13,6 +13,7 @@ resolve_phase = function(track, base=0, end=288){
   if(count_lineage==3){
     
     lineages = unique(track$trackId)
+    if(!'M'%in%track$predicted_class){return(NULL)}
     m_entry = track$frame[min(which(track$predicted_class=='M'))]
     parent_lg = track$trackId[which(track$frame==m_entry)][1]
     parent = subset(track, track$trackId==parent_lg)
@@ -65,10 +66,7 @@ resolve_phase = function(track, base=0, end=288){
   }
   if(count_lineage==2){
     lineages = unique(track$trackId)
-    if(!'M'%in%track$predicted_class){
-      print(lineages)
-      return(NULL)
-    }
+    if(!'M'%in%track$predicted_class){return(NULL)}
     m_entry = track$frame[min(which(track$predicted_class=='M'))]
     parent_lg = track$trackId[which(track$frame==m_entry)][1]
     daughter_lg = lineages[which(lineages!=parent_lg)]

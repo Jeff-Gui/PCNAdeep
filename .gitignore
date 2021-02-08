@@ -2,6 +2,7 @@ output
 models
 model
 example
+examples
 inspect
 test
 __pycache__
