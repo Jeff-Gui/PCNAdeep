@@ -4,6 +4,7 @@ library(ggplot2)
 library(dplyr)
 
 plot_pcna = function(track, out_dir, prefix, minLength){
+  track$trackId = as.numeric(track$trackId)
   print(paste("Plotting track #",prefix))
   MIN_LENGTH = minLength
   prefix = file.path(out_dir, prefix)
@@ -31,6 +32,8 @@ plot_pcna = function(track, out_dir, prefix, minLength){
       r = c(r, i)
     }
   }
+  r = sort(as.numeric(r))
+  r = as.character(r)
   if (length(r) > 0){
     subtrack = subset(track, track$lineageId %in% r)
     subtrack$trackId = as.character(subtrack$trackId)
@@ -91,13 +94,13 @@ plot_pcna = function(track, out_dir, prefix, minLength){
     }
   }
   filtered_track$trackId = as.character(filtered_track$trackId)
-  count = unique(filtered_track$lineageId)
+  count = sort(as.numeric(unique(filtered_track$lineageId)))
   plots = vector('list',length(count))
   rowNum = ceiling(length(plots)/4)
   cbPalette = c("M" = "#FF0000", "G1/G2"="#696969", "S"="#0000CD")
   
   for (i in 1:length(count)){
-    filtered_track_new = subset(filtered_track, filtered_track$lineageId==count[i])
+    filtered_track_new = subset(filtered_track, filtered_track$lineageId==as.character(count[i]))
     p = ggplot(filtered_track_new, aes(x=frame, y=trackId,color=predicted_class)) +
       geom_point(size=0.5) +
       geom_text(

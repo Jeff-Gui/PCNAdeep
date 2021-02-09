@@ -196,6 +196,7 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
       searching = subset(searching, searching$predicted_class=="M" & searching$trackId!=potential_daughter_trackId[i])
       searching_filtered = data.frame()
       for (p in unique(searching$trackId)){
+        if(ann[which(ann$track==p),'mitosis_identity'] == 'parent'){next}
         dif = abs(searching[searching$trackId==p,'frame']-target_info$app_frame)
         mf = searching[searching$trackId==p,'frame'][which(dif==min(dif))][1]
         searching_filtered = rbind(searching_filtered, searching[searching$trackId==p & searching$frame==mf,])
@@ -330,12 +331,12 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
       track[which(track$lineageId==lineage_v[i]),"lineageId"]=lineage_v[1]
     }
   }
-  track = track[order(track$lineageId),]
+  track = track[order(track$lineageId, track$trackId, track$frame),]
   print(paste("Lineage amount after reorganizing the lineage:", length(unique(track$lineageId))))
   
   #=================PART C: Classification Smoothing=========================
   track_filtered = track[c(),]
-  padding = floor(smooth/2)
+  padding = floor(window_length/2)
   for (i in unique(track$trackId)){
     cur_track = subset(track, track$trackId==i)
     row_pad_begin = cur_track[1,]
@@ -348,7 +349,8 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
     for (j in c("Probability.of.S", "Probability.of.M", "Probability.of.G1.G2")){
       cur_track[j] = stats::filter(cur_track[j], rep(1/window_length, window_length), sides = 2, method = "convolution")
     }
-    range_pad = (padding+1):(nrow(cur_track)-padding)
+    escape = padding # escape the first some to make mitosis ends sharper
+    range_pad = (padding+escape+1):(nrow(cur_track)-padding-escape)
     cur_track$predicted_class[range_pad] = sapply(range_pad, function(x){
       max_id = which(cur_track[x, c("Probability.of.S", "Probability.of.M", "Probability.of.G1.G2")] == 
                        max(cur_track[x, c("Probability.of.S", "Probability.of.M", "Probability.of.G1.G2")]))
@@ -362,6 +364,7 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
         }
       }
     })
+    range_pad = (padding+1):(nrow(cur_track)-padding)
     track_filtered = rbind(track_filtered, cur_track[range_pad,])
   }
   print(paste("Classification corrected by smoothing:", length(which(track_filtered$predicted_class!=track$predicted_class))))

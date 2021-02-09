@@ -1,6 +1,7 @@
-resolve_phase = function(track, base=0, end=288){
+resolve_phase = function(track, base=0, end=288, s_min=50){
   BASE=base
   END=end
+  S_MIN=s_min
   # Track: dataframe of one lineage, should have these fields
   #   lineageID: unique identifier of the lineage
   #   trackID: unique identifier of the track
@@ -114,7 +115,7 @@ resolve_phase = function(track, base=0, end=288){
     return(out)
   
   }else{
-    
+    flag = F
     # register state
     cur_state = track$predicted_class[1]
     trs_track = rbind(transition, c(track$frame[1],cur_state))
@@ -128,6 +129,16 @@ resolve_phase = function(track, base=0, end=288){
     }
     trs_track = rbind(trs_track, c(track$frame[nrow(track)], cur_state))
     trs_track$frame = as.numeric(trs_track$frame)
+    for (i in which(trs_track$trans=='G1/G2->S')){
+      if (trs_track$trans[i+1]=='S->G1/G2'){
+        if (trs_track$frame[i+1]-trs_track$frame[i]<S_MIN){
+          track$predicted_class[which(track$frame==trs_track$frame[i]):
+                                which(track$frame==trs_track$frame[i+1])] = 'G1/G2'
+          flag = T
+        }
+      }
+    }
+    if (flag){return(resolve_phase(track, BASE, END))}
     invalid = trs_track[which(trs_track$trans!='G1/G2->S' & trs_track$trans!='S->G1/G2' & 
                       trs_track$trans!='G1/G2->M' & trs_track$trans!='M->G1/G2' & 
                       !trs_track$trans %in% c('M','G1/G2','S')),]
