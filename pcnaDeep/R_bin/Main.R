@@ -95,7 +95,7 @@ for (i in 1:length(track)){
   }
   plot_pcna(refined_tracks[[i]], out_dir, prefix[i], m)
   print('##=====================Resolving Class=========================')
-  s = doResolveTrack(refined_tracks[[i]])
+  s = doResolveTrack(refined_tracks[[i]], length_filter=0)
   s = cbind('stage'=rep(prefix[i],nrow(s)), s)
   print(paste("Resolved",as.character(nrow(s)),"tracks."))
   phase = rbind(phase, s)

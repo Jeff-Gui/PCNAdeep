@@ -134,6 +134,7 @@ resolve_phase = function(track, base=0, end=288, s_min=50){
         if (trs_track$frame[i+1]-trs_track$frame[i]<S_MIN){
           track$predicted_class[which(track$frame==trs_track$frame[i]):
                                 which(track$frame==trs_track$frame[i+1])] = 'G1/G2'
+          print(paste('omitted short S:',trs_track$frame[i+1]-trs_track$frame[i]))
           flag = T
         }
       }
@@ -168,7 +169,7 @@ resolve_phase = function(track, base=0, end=288, s_min=50){
     phs = strsplit(trs_track$trans[2],'->')[[1]]
     out[phs[1]]=paste('>',trs_track$frame[2]-BASE,sep='')
     phs = strsplit(trs_track$trans[nrow(trs_track)-1],'->')[[1]]
-    out[phs[2]]=paste('>',END-trs_track$frame[nrow(trs_track)],sep='')
+    out[phs[2]]=paste('>',END-trs_track$frame[nrow(trs_track)-1],sep='')
     for(i in 3:(nrow(trs_track)-1)){
       prv_state = strsplit(trs_track$trans[i-1],'->')[[1]][2]
       trs_state = strsplit(trs_track$trans[i],'->')[[1]][1]
@@ -198,7 +199,7 @@ doResolveTrack = function(track, length_filter=200){
     rsd = resolve_phase(d, base=as.numeric(min(d$frame)), end=as.numeric(max(d$frame)))
     if(is.null(rsd)){next}
     if(length(rsd)==1){
-      out$type[idx] = paste(names(rsd),'arrest',max(track$frame)-min(track$frame),sep='_')
+      out$type[idx] = paste(names(rsd),'arrest',max(d$frame)-min(d$frame),sep='_')
     } else {
       out$type[idx] = 'non-mitosis'
       if(!is.null(rsd$S[[1]])){
