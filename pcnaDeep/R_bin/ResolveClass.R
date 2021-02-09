@@ -38,8 +38,15 @@ resolve_phase = function(track, base=0, end=288, s_min=50){
     }
     
     out_parent = resolve_phase(parent, base=BASE, end=as.numeric(max(parent$frame)))
+    trans_par = out_parent$transition
+    out_parent = out_parent$out
     out_daug1 = resolve_phase(daug1, base=m_entry, end=as.numeric(max(daug1$frame)))
+    trans_daug1 = out_daug1$transition
+    out_daug1 = out_daug1$out
     out_daug2 = resolve_phase(daug2, base=m_entry, end=as.numeric(max(daug2$frame)))
+    trans_daug2 = out_daug2$transition
+    out_daug2 = out_daug2$out
+    
     if(is.null(out_parent) | is.null(out_daug1) | is.null(out_daug2)){return(NULL)}
     
     out = list()
@@ -64,7 +71,7 @@ resolve_phase = function(track, base=0, end=288, s_min=50){
     }
     out['M'][[1]] = mean(c(as.numeric(gsub('>','',out_daug1['M'][[1]][1])), 
                          as.numeric(gsub('>','',out_daug2['M'][[1]][1]))))
-    return(out)
+    return(list('out'=out,'transition'=list('parent'=trans_par, 'daug1'=trans_daug1, 'daug2'=trans_daug2)))
   }
   if(count_lineage==2){
     lineages = unique(track$trackId)
@@ -86,7 +93,11 @@ resolve_phase = function(track, base=0, end=288, s_min=50){
     }
 
     out_parent = resolve_phase(parent)
-    out_daughter = resolve_phase(daughter, base=m_entry)
+    trans_par = out_parent$transition
+    out_parent = out_parent$out
+    out_daughter = resolve_phase(daughter, base=m_entry)$out
+    trans_daug = out_daughter$transition
+    out_daughter = out_daughter$out
     if(is.null(out_parent) | is.null(out_daughter)){return(NULL)}
     
     # organize track info
@@ -112,8 +123,9 @@ resolve_phase = function(track, base=0, end=288, s_min=50){
     }
     out['M'][[1]] = mean(c(as.numeric(out_parent['M'][[1]][1]), 
                          as.numeric(gsub('>','',out_daughter['M'][[1]][1])))) # only handle one mitosis
-    return(out)
-  
+    
+    return(list('out'=out,'transition'=list('parent'=trans_par, 'daug'=trans_daug)))
+    
   }else{
     flag = F
     # register state
@@ -155,7 +167,7 @@ resolve_phase = function(track, base=0, end=288, s_min=50){
       # arrest
       out = list()
       out[trs_track$trans[1]] = 'arrest'
-      return(out)
+      return(list('out'=out, 'transition'=list('single'=trs_track)))
     }
     if(nrow(trs_track)==3){
       # single transition
@@ -163,7 +175,7 @@ resolve_phase = function(track, base=0, end=288, s_min=50){
       phs = strsplit(trs_track$trans[2],'->')[[1]]
       out[phs[1]] = paste('>',trs_track$frame[2]-BASE,sep='')
       out[phs[2]] = paste('>',END-trs_track$frame[2],sep='')
-      return(out)
+      return(list('out'=out, 'transition'=list('single'=trs_track)))
     }
     out = list()
     phs = strsplit(trs_track$trans[2],'->')[[1]]
@@ -180,7 +192,7 @@ resolve_phase = function(track, base=0, end=288, s_min=50){
         out[trs_state][[1]] = trs_track$frame[i]-trs_track$frame[i-1]
       }
     }
-    return(out)
+    return(list('out'=out, 'transition'=list('single'=trs_track)))
   }
 }
 
@@ -196,7 +208,7 @@ doResolveTrack = function(track, length_filter=200){
     d = subset(track, track$lineageId==i)
     if(length(unique(d$trackId))==1 & (max(d$frame)-min(d$frame))<length_filter){next}
     idx = which(out$lineage==i)
-    rsd = resolve_phase(d, base=as.numeric(min(d$frame)), end=as.numeric(max(d$frame)))
+    rsd = resolve_phase(d, base=as.numeric(min(d$frame)), end=as.numeric(max(d$frame)))$out
     if(is.null(rsd)){next}
     if(length(rsd)==1){
       out$type[idx] = paste(names(rsd),'arrest',max(d$frame)-min(d$frame),sep='_')
