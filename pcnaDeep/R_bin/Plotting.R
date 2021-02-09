@@ -132,5 +132,4 @@ plot_pcna = function(track, out_dir, prefix, minLength){
   lf = list.files(getwd(),pattern = "Rplots")
   file.remove(lf)
   print("Plottings saved.")
-  print("##============================================================")
 }
