@@ -29,11 +29,11 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
   for (i in 2:nrow(track)){
     escape = F
     if (dist(rbind(c(track$Center_of_the_object_0[i], track$Center_of_the_object_1[i]),
-                   c(track$Center_of_the_object_0[i-1], track$Center_of_the_object_1[i-1]))) >= DIST_TOLERANCE){
+                   c(track$Center_of_the_object_0[i-1], track$Center_of_the_object_1[i-1]))) > DIST_TOLERANCE){
       # when distance of object in track A at t=i to t=i-1 is larger than the threshold.
       if (i<nrow(track)){ if (
         dist(rbind(c(track$Center_of_the_object_0[i+1], track$Center_of_the_object_1[i+1]),
-                   c(track$Center_of_the_object_0[i-1], track$Center_of_the_object_1[i-1]))) < DIST_TOLERANCE){
+                   c(track$Center_of_the_object_0[i-1], track$Center_of_the_object_1[i-1]))) <= DIST_TOLERANCE){
         # check distance t=[i-1] to t=[i+1], if smaller than threshold, -> [i+1] & [i-1] correctly linked, only [i] false assigned
         escape = T # escape, do not make any change to the trial with one false detection in the middle.
       }}
@@ -197,7 +197,7 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
       searching_filtered = data.frame()
       for (p in unique(searching$trackId)){
         dif = abs(searching[searching$trackId==p,'frame']-target_info$app_frame)
-        mf = searching[searching$trackId==p,'frame'][which(dif==min(dif))]
+        mf = searching[searching$trackId==p,'frame'][which(dif==min(dif))][1]
         searching_filtered = rbind(searching_filtered, searching[searching$trackId==p & searching$frame==mf,])
       }
       searching = searching_filtered
@@ -211,7 +211,7 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
           # Constraint: close distance
           if (!is.na(target_info["mitosis_parent"])){ 
             # if the potential daughter already has mitosis parent, will override.
-            print("Warning: muiltiple mitosis parents found, only keep the last one.")}
+            print(paste("Track",potential_daughter_trackId[i],"Warning: muiltiple mitosis parents found, only keep the last one."))}
           
           ann[which(ann$track==potential_daughter_trackId[i]),"mitosis_parent"] = searching$trackId[j]
           # label parent and daughter tracks as mitotic searched
@@ -325,9 +325,10 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
   # for established lineage, assign parent track id to daughters
   for (lineage in l){
     lineage_v = lineage
-    for (i in 2:length(lineage_v))
+    for (i in 2:length(lineage_v)){
       track[which(track$trackId==lineage_v[i]),"trackId"]=lineage_v[1]
-    track[which(track$lineageId==lineage_v[i]),"lineageId"]=lineage_v[1]
+      track[which(track$lineageId==lineage_v[i]),"lineageId"]=lineage_v[1]
+    }
   }
   track = track[order(track$lineageId),]
   print(paste("Lineage amount after reorganizing the lineage:", length(unique(track$lineageId))))

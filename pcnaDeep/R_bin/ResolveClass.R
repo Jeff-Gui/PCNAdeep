@@ -32,6 +32,7 @@ resolve_phase = function(track, base=0, end=288){
     while((daug1$frame[min(which(daug1$predicted_class=='M'))]-m_entry)>10 |
           (daug2$frame[min(which(daug2$predicted_class=='M'))]-m_entry)>10){
       m_entry = cd[pin+1]
+      if(is.na(m_entry)){return(NULL)}
       pin = pin+1
     }
     
@@ -79,6 +80,7 @@ resolve_phase = function(track, base=0, end=288){
     pin=1
     while((daughter$frame[min(which(daughter$predicted_class=='M'))]-m_entry)>10){
       m_entry = cd[pin+1]
+      if(is.na(m_entry)){return(NULL)}
       pin = pin+1
     }
 
