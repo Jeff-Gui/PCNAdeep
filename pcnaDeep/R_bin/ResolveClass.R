@@ -92,10 +92,10 @@ resolve_phase = function(track, base=0, end=288, s_min=50){
       pin = pin+1
     }
 
-    out_parent = resolve_phase(parent)
+    out_parent = resolve_phase(parent, base=BASE, end=as.numeric(max(parent$frame)))
     trans_par = out_parent$transition
     out_parent = out_parent$out
-    out_daughter = resolve_phase(daughter, base=m_entry)
+    out_daughter = resolve_phase(daughter, base=m_entry, end=as.numeric(max(daughter$frame)))
     trans_daug = out_daughter$transition
     out_daughter = out_daughter$out
     if(is.null(out_parent) | is.null(out_daughter)){return(NULL)}
