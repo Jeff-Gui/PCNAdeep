@@ -13,8 +13,7 @@ process_matrix = function(fp){
   data = readChar(fname, nchars = file.info(fname)$size)
   data_lines = strsplit(data, '\n')[[1]]
   
-  AP = data.frame('iteration'=vector(), 'AP'=vector(), 'AP50'=vector(), 
-             'AP75'=vector(), 'APl'=vector(), 'APm'=vector(), 'APs'=vector())
+  AP = data.frame()
   meta = data.frame('data_time'=vector(), 'eta_seconds'=vector(), 'fast_rcnn/cls_accuracy'=vector(),
                     'fast_rcnn/false_negative'=vector(), 'fast_rcnn/fg_cls_accuracy'=vector(),
                     'iteration'=vector(), 'loss_box_reg'=vector(), 'loss_cls'=vector(), 'loss_mask'=vector(),
@@ -32,11 +31,12 @@ process_matrix = function(fp){
     while (i<=length(fields)){
       v = nv_trans(fields[i])
       if (length(grep('segm', v[1]))>0){
-        AP_row = c(values[6], v[2],
-                   nv_trans(fields[i+4])[2], nv_trans(fields[i+5])[2],
-                   nv_trans(fields[i+6])[2], nv_trans(fields[i+7])[2], nv_trans(fields[i+8])[2])
-        AP[nrow(AP)+1,] = AP_row
-        i = i+9
+        AP_row = c(values[6])
+        while(length(grep('segm', nv_trans(fields[i])))>0){
+          AP_row = c(AP_row, fields[i])
+          i = i+1
+        }
+        AP = rbind(AP, AP_row)
         next
       }
       nms = c(nms, v[1])
@@ -51,7 +51,18 @@ process_matrix = function(fp){
   meta$iteration = as.numeric(meta$iteration)
   
   AP = AP[1:nrow(AP)-1,]
-  AP = AP[, which(colnames(AP)!='APl')]
+  AP_name = c('iteration')
+  for (i in 2:length(names(AP))){
+    AP_name = c(AP_name, gsub('segm.', '',strsplit(names(AP)[i],'\\.\\.\\.\\.')[[1]][2]))
+  }
+  colnames(AP) = AP_name
+  for (i in 1:nrow(AP)){
+    for (j in 1:ncol(AP)){
+      AP[i,j] = gsub('\\S*: ','',AP[i,j])
+    }
+  }
+ 
+  #AP = AP[, which(colnames(AP)!='APl')]
   AP = gather(AP, key='AP_measures', value='value', 2:ncol(AP))
   AP$value = as.numeric(AP$value)
   AP$iteration = as.numeric(AP$iteration)
