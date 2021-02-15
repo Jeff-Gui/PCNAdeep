@@ -292,7 +292,7 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False):
             G_confid.append((1-confid)/2)
             M_confid.append((1-confid)/2)
         else:
-            M_confid.append(p)
+            M_confid.append(confid)
             G_confid.append((1-confid)/2)
             S_confid.append((1-confid)/2)
         
@@ -301,8 +301,6 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False):
     out_props['Probability of S'] = S_confid
     out_props['Probability of M'] = M_confid
     
-    out_props['Center_of_the_object_0'] = np.round(out_props['Center_of_the_object_0'])
-    out_props['Center_of_the_object_1'] = np.round(out_props['Center_of_the_object_1'])
     del out_props['label']
 
     return img_relabel.astype('uint8'), out_props 

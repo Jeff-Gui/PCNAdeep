@@ -105,6 +105,7 @@ if __name__ == "__main__":
                 )
             )
         
+        del(imgs)  # save memory space TODO: use image buffer input
         mask_out = np.stack(mask_out, axis=0)
         io.imsave(os.path.join(args.output,'mask.tif'), mask_out)
         logger.info('Tracking...')

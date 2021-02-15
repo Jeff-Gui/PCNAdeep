@@ -38,7 +38,7 @@ from detectron2.evaluation import (
     verify_results,
 )
 from detectron2.modeling import GeneralizedRCNNWithTTA
-from preparePCNA import load_PCNA
+from prepareDICnuc import load_DICs_json
 from detectron2 import model_zoo
 import detectron2.data.transforms as T
 
@@ -134,41 +134,43 @@ class Trainer(DefaultTrainer):
     
     @classmethod
     def build_train_loader(cls, cfg):
-        if "SemanticSegmentor" in cfg.MODEL.META_ARCHITECTURE:
-            mapper = DatasetMapper(cfg, is_train=True, augmentations=build_sem_seg_train_aug(cfg))
-        else:
-            mapper = None
+        mapper = DatasetMapper(cfg, is_train=True, augmentations=build_sem_seg_train_aug(cfg))
         return build_detection_train_loader(cfg, mapper=mapper)
 
 
 def plain_register_dataset():
     #训练集
-    DatasetCatalog.register("pcna", lambda: load_PCNA(TRAIN_PATH))
-    MetadataCatalog.get("pcna").set(thing_classes=CLASS_NAMES, evaluator_type='coco')
+    DatasetCatalog.register("dic", lambda: load_DICs_json(TRAIN_ANN_PATH, TRAIN_PATH))
+    MetadataCatalog.get("dic").set(thing_classes=CLASS_NAMES, evaluator_type='coco')
 
 def setup(args):
     """
     Create configs and perform basic setups.
     """
-    # from Detectron2_tutorial, used to train deepcell nucleus model (2021-01-19)
     
     cfg = get_cfg()
-    cfg.merge_from_file('../output/20210121_out_deepcell/config.yaml')
-    cfg.DATASETS.TRAIN = ("pcna",)
-    cfg.DATASETS.TEST = ()
+    cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
+    cfg.DATASETS.TRAIN = ("dic",)
+    cfg.DATASETS.TEST = ("dic",)
     cfg.DATALOADER.NUM_WORKERS = 4
-    cfg.MODEL.WEIGHTS = '../output/20210121_out_deepcell/model_final.pth'
-    cfg.SOLVER.IMS_PER_BATCH = 1
-    cfg.SOLVER.BASE_LR = 0.001
+    cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
+    cfg.SOLVER.IMS_PER_BATCH = 2
+    cfg.SOLVER.BASE_LR = 0.01
     cfg.SOLVER.WEIGHT_DECAY = 0.0001
     cfg.SOLVER.WEIGHT_DECAY_NORM = 0.0
     cfg.SOLVER.GAMMA = 0.1
     cfg.SOLVER.STEPS = (8000,)
+    cfg.SOLVER.CHECKPOINT_PERIOD = 3000
+    cfg.TEST.EVAL_PERIOD = 3000
 
-
-    cfg.SOLVER.MAX_ITER = 10000
+    cfg.SOLVER.MAX_ITER = 12000
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 256
-    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 1
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 2 # change according to class number
+    # Avoid overlapping
+    cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.5
+    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7
+    cfg.MODEL.PANOPTIC_FPN.COMBINE.OVERLAP_THRESH = 0.9
+    cfg.MODEL.RPN.NMS_THRESH = 0.7
 
     # Augmentation
     cfg.INPUT.MIN_SIZE_TRAIN = 1000
@@ -177,7 +179,8 @@ def setup(args):
     cfg.INPUT.CROP.ENABLED = True
     cfg.INPUT.CROP.TYPE = 'relative'
     cfg.INPUT.CROP.SIZE = [0.9,0.9]
-
+    cfg.TEST.AUG.ENABLED = False
+    
     cfg.freeze()
     default_setup(cfg, args)
     return cfg
@@ -215,9 +218,14 @@ def main(args):
 
 if __name__ == "__main__":
     # Class metadata
-    CLASS_NAMES =["cell"]
+    CLASS_NAMES=['I','M']
     # Dataset metadata
-    DATASET_ROOT = '/home/zje/dataset/pcna_small'
+    DATASET_ROOT = ['/home/zje/dataset/pcna/dic/20200902-MCF10A',
+                    '/home/zje/dataset/pcna/dic/20210103-MCF10A',
+                    '/home/zje/dataset/pcna/dic/20210127-MCF10A-mRel2']
+    TRAIN_ANN_PATH = ['/home/zje/dataset/pcna/20200902-MCF10A.json',
+                    '/home/zje/dataset/pcna/20210103-MCF10A.json',
+                    '/home/zje/dataset/pcna/20210127-MCF10A-mRels2.json']
     TRAIN_PATH = DATASET_ROOT
 
     args = default_argument_parser().parse_args()

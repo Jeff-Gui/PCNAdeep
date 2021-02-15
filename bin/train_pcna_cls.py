@@ -221,11 +221,9 @@ if __name__ == "__main__":
     CLASS_NAMES =["G1/G2","S","M","E"]
     # Dataset metadata
     DATASET_ROOT = ['/home/zje/dataset/pcna/20200902-MCF10A-dual',
-                    '/home/zje/dataset/pcna/20201030-MBAMD231-dual',
                     '/home/zje/dataset/pcna/20210103-MCF10A-dual',
                     '/home/zje/dataset/pcna/20210127-MCF10A-mRels2']
     TRAIN_ANN_PATH = ['/home/zje/dataset/pcna/20200902-MCF10A.json',
-                    '/home/zje/dataset/pcna/20201030-MBAMD231.json',
                     '/home/zje/dataset/pcna/20210103-MCF10A.json',
                     '/home/zje/dataset/pcna/20210127-MCF10A-mRels2.json']
     TRAIN_PATH = DATASET_ROOT

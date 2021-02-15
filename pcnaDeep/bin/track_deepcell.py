@@ -38,8 +38,8 @@ def trackDeepcell(mask, raw):
             slice = y[f,:,:,0].copy()
             slice[slice!=lb] = 0
             obj_x, obj_y = measure.regionprops(measure.label(slice))[0].centroid
-            c0.append(int(np.round(obj_x)))
-            c1.append(int(np.round(obj_y)))
+            c0.append(obj_x)
+            c1.append(obj_y)
         dt['Center_of_the_object_0'] = c0
         dt['Center_of_the_object_1'] = c1
         track_table = track_table.append(dt)
