@@ -12,8 +12,8 @@
 
 trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, smooth){
   DIST_TOLERANCE = distance_tolerance # 50 Distance to search for parent-daughter relatoinship
-  div_trans_factor = dist_factor # 2.5 recommanded
-  FRAME_TOLERANCE = frame_tolerance # 5 Time distance to search for parent-daughter relationship
+  div_trans_factor = dist_factor # 2 recommanded
+  FRAME_TOLERANCE = frame_tolerance # 15 Time distance to search for parent-daughter relationship
   window_length = smooth # 5 recommanded
   track = subset(track, track$trackId!=-1)
   
@@ -27,17 +27,10 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
   current_label = track_count
   track = track[order(track$trackId),] # sort by track ID
   for (i in 2:nrow(track)){
-    escape = F
     if (dist(rbind(c(track$Center_of_the_object_0[i], track$Center_of_the_object_1[i]),
                    c(track$Center_of_the_object_0[i-1], track$Center_of_the_object_1[i-1]))) > DIST_TOLERANCE){
       # when distance of object in track A at t=i to t=i-1 is larger than the threshold.
-      if (i<nrow(track)){ if (
-        dist(rbind(c(track$Center_of_the_object_0[i+1], track$Center_of_the_object_1[i+1]),
-                   c(track$Center_of_the_object_0[i-1], track$Center_of_the_object_1[i-1]))) <= DIST_TOLERANCE){
-        # check distance t=[i-1] to t=[i+1], if smaller than threshold, -> [i+1] & [i-1] correctly linked, only [i] false assigned
-        escape = T # escape, do not make any change to the trial with one false detection in the middle.
-      }}
-      if (track$trackId[i]==track$trackId[i-1] & escape == F){
+      if (track$trackId[i]==track$trackId[i-1]){
         # if no escape -> from t=[i], the subsequent track is completely not the former [t-1] one.
         # assign new track ID to track from t=[i] toward the end
         track$trackId[i:nrow(track)] = sub(paste("^", track$trackId[i-1],"$", sep = ""), 
@@ -77,7 +70,7 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
   ids = unique(track$trackId)
   for (i in 1:length(ids)){
     cur_track = subset(track, track$trackId==ids[i])
-    if (nrow(cur_track) >= 2*FRAME_TOLERANCE){
+    if (nrow(cur_track) >= FRAME_TOLERANCE){
       # constraint: track < 2 frame length tolerance is filtered out, No relationship can be deduced from that.
       ann$track[i] = ids[i]
       # (dis-)appearance time
@@ -190,8 +183,8 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
       if (target_info$mitosis_identity != FALSE){next}
       
       # extract all info in the frame when potential daughter appears
-      searching = subset(track, track$frame>=target_info$app_frame-FRAME_TOLERANCE & 
-                           track$frame<=target_info$app_frame+FRAME_TOLERANCE)
+      searching = subset(track, track$frame>=target_info$app_frame-floor(FRAME_TOLERANCE/3) & 
+                           track$frame<=target_info$app_frame+floor(FRAME_TOLERANCE/3))
       # search for M cells (potential parent)
       searching = subset(searching, searching$predicted_class=="M" & searching$trackId!=potential_daughter_trackId[i])
       searching_filtered = data.frame()

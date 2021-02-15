@@ -13,10 +13,12 @@ command=matrix(c( "track" , "t" ,1, "character" , "File path to raw track output
                   "classification" , "c" ,2, "character" , "File path to cell cycle stage classification output",
                   "dist" , "d" ,2, "character" , "Distance tolerance (default: 40)",
                   "factor" , "i" ,2, "character" , "dist_trans_factor (default: 2.5)",
-                  "frame" , "f" ,2, "character" , "Frame tolerance (default: 5)",
+                  "frame" , "f" ,2, "character" , "Frame tolerance (default: 15)",
                   "out_dir", "o", 1, "character", "Output directory",
-                  "minPlot", "m", 2, "character", "mininum length of a plotting",
-                  "smooth" , "s" ,2, "integer" , "Smooth filter size (recommand: 5)",
+                  "minPlot", "m", 2, "character", "Mininum length for plotting",
+                  "minResolve", "r",2, "character", "Mininum length for resolving phase (default: =minPlot)",
+                  "rm_short_G_S", "z",2,"character", "Remove small G1, G2 or S period (default: 10)",
+                  "smooth", "s" ,2, "integer" , "Smooth filter size (default: 5)",
                   "help", "h",0, "logical","Print usage"),byrow=T,ncol=5)
 args=getopt(command)
 if  (! is.null(args$help)) {
@@ -49,9 +51,14 @@ if (length(distance_tolerance)==0) { distance_tolerance = 40 }
 dist_factor = as.numeric(args$factor)
 if (length(dist_factor)==0) { dist_factor = 2.5 }
 frame_tolerance = as.numeric(args$frame)
-if (length(frame_tolerance)==0) { frame_tolerance = 5 }
+if (length(frame_tolerance)==0) { frame_tolerance = 15 }
 window_length = as.numeric(args$smooth)
 if (length(window_length)==0) { window_length = 5 }
+min_resolve = as.numeric(args$minResolve)
+if (length(min_resolve)==0) { min_resolve = m }
+rm_short_G_S = as.numeric(args$rm_short_G_S)
+if (length(rm_short_G_S)==0) { rm_short_G_S = 10 }
+
 
 class = list.files(path=c, full.names = T, pattern = "*.csv")
 # read all track .csv files in -t repository, stepwise, exit if broken.
@@ -95,7 +102,7 @@ for (i in 1:length(track)){
   }
   plot_pcna(refined_tracks[[i]], out_dir, prefix[i], m)
   print('##=====================Resolving Class=========================')
-  s = doResolveTrack(refined_tracks[[i]], length_filter=0)
+  s = doResolveTrack(refined_tracks[[i]], length_filter=min_resolve, minGS=rm_short_G_S)
   s = cbind('stage'=rep(prefix[i],nrow(s)), s)
   print(paste("Resolved",as.character(nrow(s)),"tracks."))
   phase = rbind(phase, s)

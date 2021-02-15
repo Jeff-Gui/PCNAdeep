@@ -1,4 +1,4 @@
-resolve_phase = function(track, base=0, end=288, s_min=0){
+resolve_phase = function(track, base=0, end=288, s_min=10){
   BASE=base
   END=end
   S_MIN=s_min
@@ -37,13 +37,13 @@ resolve_phase = function(track, base=0, end=288, s_min=0){
       pin = pin+1
     }
     
-    out_parent = resolve_phase(parent, base=BASE, end=as.numeric(max(parent$frame)))
+    out_parent = resolve_phase(parent, base=BASE, end=as.numeric(max(parent$frame)), S_MIN)
     trans_par = out_parent$transition
     out_parent = out_parent$out
-    out_daug1 = resolve_phase(daug1, base=m_entry, end=as.numeric(max(daug1$frame)))
+    out_daug1 = resolve_phase(daug1, base=m_entry, end=as.numeric(max(daug1$frame)), S_MIN)
     trans_daug1 = out_daug1$transition
     out_daug1 = out_daug1$out
-    out_daug2 = resolve_phase(daug2, base=m_entry, end=as.numeric(max(daug2$frame)))
+    out_daug2 = resolve_phase(daug2, base=m_entry, end=as.numeric(max(daug2$frame)), S_MIN)
     trans_daug2 = out_daug2$transition
     out_daug2 = out_daug2$out
     
@@ -92,10 +92,10 @@ resolve_phase = function(track, base=0, end=288, s_min=0){
       pin = pin+1
     }
 
-    out_parent = resolve_phase(parent, base=BASE, end=as.numeric(max(parent$frame)))
+    out_parent = resolve_phase(parent, base=BASE, end=as.numeric(max(parent$frame)), S_MIN)
     trans_par = out_parent$transition
     out_parent = out_parent$out
-    out_daughter = resolve_phase(daughter, base=m_entry, end=as.numeric(max(daughter$frame)))
+    out_daughter = resolve_phase(daughter, base=m_entry, end=as.numeric(max(daughter$frame)), S_MIN)
     trans_daug = out_daughter$transition
     out_daughter = out_daughter$out
     if(is.null(out_parent) | is.null(out_daughter)){return(NULL)}
@@ -161,7 +161,7 @@ resolve_phase = function(track, base=0, end=288, s_min=0){
         }
       }
     }
-    if (flag){return(resolve_phase(track, BASE, END))}
+    if (flag){return(resolve_phase(track, BASE, END, S_MIN))}
     invalid = trs_track[which(trs_track$trans!='G1/G2->S' & trs_track$trans!='S->G1/G2' & 
                       trs_track$trans!='G1/G2->M' & trs_track$trans!='M->G1/G2' & 
                       !trs_track$trans %in% c('M','G1/G2','S')),]
@@ -206,7 +206,7 @@ resolve_phase = function(track, base=0, end=288, s_min=0){
   }
 }
 
-doResolveTrack = function(track, length_filter=200){
+doResolveTrack = function(track, length_filter=200, minGS=10){
   lineage_count = length(unique(track$lineageId))
   out = data.frame('lineage'=unique(track$lineageId),
                    'type'=rep(NA, lineage_count),
@@ -218,7 +218,7 @@ doResolveTrack = function(track, length_filter=200){
     d = subset(track, track$lineageId==i)
     if(length(unique(d$trackId))==1 & (max(d$frame)-min(d$frame))<length_filter){next}
     idx = which(out$lineage==i)
-    rsd = resolve_phase(d, base=as.numeric(min(d$frame)), end=as.numeric(max(d$frame)))$out
+    rsd = resolve_phase(d, base=as.numeric(min(d$frame)), end=as.numeric(max(d$frame)), s_min=minGS)$out
     if(is.null(rsd)){next}
     if(length(rsd)==1){
       out$type[idx] = paste(names(rsd),'arrest',max(d$frame)-min(d$frame),sep='_')

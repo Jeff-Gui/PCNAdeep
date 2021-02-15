@@ -22,6 +22,9 @@ mergeTrackAndFoci = function(track,foci,elective=NULL){
       exit()
     }
   }
+  temp = test$Center_of_the_object_0
+  test$Center_of_the_object_0 = test$Center_of_the_object_1
+  test$Center_of_the_object_1 = temp
   return(test[,c('frame','trackId','lineageId','parentTrackId','Center_of_the_object_0','Center_of_the_object_1','predicted_class','Probability.of.S','Probability.of.G1.G2','Probability.of.M', elective_cols)])
 }
 
