@@ -1,4 +1,4 @@
-resolve_phase = function(track, base=0, end=288, s_min=50){
+resolve_phase = function(track, base=0, end=288, s_min=0){
   BASE=base
   END=end
   S_MIN=s_min
@@ -147,6 +147,16 @@ resolve_phase = function(track, base=0, end=288, s_min=50){
           track$predicted_class[which(track$frame==trs_track$frame[i]):
                                 which(track$frame==trs_track$frame[i+1])] = 'G1/G2'
           print(paste('omitted short S:',trs_track$frame[i+1]-trs_track$frame[i]))
+          flag = T
+        }
+      }
+    }
+    for (i in which(trs_track$trans=='S->G1/G2')){
+      if (trs_track$trans[i+1]=='G1/G2->S'){
+        if (trs_track$frame[i+1]-trs_track$frame[i]<S_MIN){
+          track$predicted_class[which(track$frame==trs_track$frame[i]):
+                                  which(track$frame==trs_track$frame[i+1])] = 'G1/G2'
+          print(paste('omitted short G1/G2:',trs_track$frame[i+1]-trs_track$frame[i]))
           flag = T
         }
       }
