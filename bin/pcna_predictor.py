@@ -18,7 +18,7 @@ from detectron2.utils.visualizer import ColorMode, Visualizer
 
 
 class VisualizationDemo(object):
-    def __init__(self, cfg, instance_mode=ColorMode.IMAGE, parallel=False):
+    def __init__(self, cfg, instance_mode=ColorMode.IMAGE, parallel=False, thing_class=['G1/G2','S','M','E']):
         """
         Args:
             cfg (CfgNode):
@@ -28,7 +28,7 @@ class VisualizationDemo(object):
         """
         self.metadata = MetadataCatalog.get(
             cfg.DATASETS.TEST[0] if len(cfg.DATASETS.TEST) else "__unused"
-        ).set(thing_classes=['G1/G2', 'S', 'M', 'E'])
+        ).set(thing_classes=thing_class)
         self.cpu_device = torch.device("cpu")
         self.instance_mode = instance_mode
 
