@@ -121,8 +121,12 @@ resolve_phase = function(track, base=0, end=288, s_min=10){
         out_parent['M'][[1]] = out_parent['M'][[1]][-m_dur]
       }
     }
+    if (out_daughter['M'][[1]][1]=='arrest'){
+      out['M'][[1]] = as.numeric(out_parent['M'][[1]][1])
+    } else {
     out['M'][[1]] = mean(c(as.numeric(out_parent['M'][[1]][1]), 
                          as.numeric(gsub('>','',out_daughter['M'][[1]][1])))) # only handle one mitosis
+    }
     
     return(list('out'=out,'transition'=list('parent'=trans_par, 'daug'=trans_daug)))
     
