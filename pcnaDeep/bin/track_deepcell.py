@@ -53,5 +53,5 @@ def trackDeepcell(mask, raw):
                 track_table.iloc[np.flatnonzero(track_table.trackId == daug), 2] = int(t['label'])  # lineage ID
                 track_table.iloc[np.flatnonzero(track_table.lineageId == daug), 2] = int(t['label'])
     
-    return track_table
+    return track_table, y
 

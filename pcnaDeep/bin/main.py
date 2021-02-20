@@ -107,8 +107,9 @@ if __name__ == "__main__":
         
         del(imgs)  # save memory space TODO: use image buffer input
         mask_out = np.stack(mask_out, axis=0)
-        io.imsave(os.path.join(args.output,'mask.tif'), mask_out)
+        #io.imsave(os.path.join(args.output,'mask.tif'), mask_out)
         logger.info('Tracking...')
         track_out = trackDeepcell(mask=mask_out, raw=mask_out)  #TODO, use raw data, not mask output for tracking raw
         table_out.to_csv(os.path.join(args.output,'class.csv'))
-        track_out.to_csv(os.path.join(args.output, 'track.csv'))
+	io.imsave(os.path.join(args.output,'mask_tracked.tif'), track_out[1])
+        track_out[0].to_csv(os.path.join(args.output, 'track.csv'))
