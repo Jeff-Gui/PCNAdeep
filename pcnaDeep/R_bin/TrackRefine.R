@@ -322,6 +322,7 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
     for (i in 2:length(lineage_v)){
       track[which(track$trackId==lineage_v[i]),"trackId"]=lineage_v[1]
       track[which(track$lineageId==lineage_v[i]),"lineageId"]=lineage_v[1]
+      track[which(track$parentTrackId==lineage_v[i]), "parentTrackId"]=lineage_v[1]
     }
   }
   track = track[order(track$lineageId, track$trackId, track$frame),]
