@@ -25,8 +25,8 @@ def trackDeepcell(mask, raw):
         t = out[key]
         dt = pd.DataFrame()
         dt['frame'] = t['frames']
-        dt['trackId'] = t['label'] + 1  # track begins from 2
-        dt['lineageId'] = t['label'] + 1
+        dt['trackId'] = t['label']  # track begins from 1
+        dt['lineageId'] = t['label']
         dt['parentTrackId'] = 0
         
         # search for object center
