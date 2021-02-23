@@ -173,6 +173,7 @@ def setup(args):
     cfg.MODEL.RPN.NMS_THRESH = 0.7
 
     # Augmentation
+    '''
     cfg.INPUT.MIN_SIZE_TRAIN = 1000
     cfg.INPUT.MAX_SIZE_TRAIN = 1200
     cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING = 'choice'
@@ -180,6 +181,7 @@ def setup(args):
     cfg.INPUT.CROP.TYPE = 'relative'
     cfg.INPUT.CROP.SIZE = [0.9,0.9]
     cfg.TEST.AUG.ENABLED = False
+    '''
     
     cfg.freeze()
     default_setup(cfg, args)

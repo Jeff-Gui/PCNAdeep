@@ -6,12 +6,13 @@ import json, os
 
 from detectron2.config import get_cfg
 from detectron2.utils.logger import setup_logger
-from pcna_predictor import VisualizationDemo, pred2json, predictFrame
-from track_deepcell import trackDeepcell
+from dic_predictor import VisualizationDemo, predictFrame
+# from track_deepcell import trackDeepcell
 
 import skimage.io as io
 import skimage.measure as measure
-from skimage.morphology import remove_small_objects
+from skimage.util import img_as_ubyte
+import skimage.exposure as exposure
 import pandas as pd
 import torch
 
@@ -54,12 +55,13 @@ def get_parser():
         help="Minimum score for instance predictions to be shown",
     )
     parser.add_argument(
-        "--is_gray",
-        action="store_true"
+        "--batch",
+        action="store_true",
     )
     parser.add_argument(
-        "--batch",
-        action="store_true"
+        "--minmax",
+        action="store_true",
+        help="Rescale contrast through min-max.",
     )
     parser.add_argument(
         "--opts",
@@ -68,6 +70,12 @@ def get_parser():
         nargs=argparse.REMAINDER,
     )
     return parser
+
+def enhance_contrast(stack):
+    for i in range(stack.shape[0]):
+        stack[i,:,:] = exposure.rescale_intensity(stack[i,:,:], in_range=tuple(np.percentile(stack[i,:,:], (2,98))))
+
+    return stack
 
 
 if __name__ == "__main__":
@@ -81,13 +89,17 @@ if __name__ == "__main__":
 
     demo = VisualizationDemo(cfg)
     
-    logger.info("Start infering.")
     if args.input and not args.batch:
-        gray = args.is_gray # gray: THW; non-gray: THWC
         # Input image must be uint8
         imgs = io.imread(args.input)
         logger.info("Run on image shape: "+str(imgs.shape))
-
+        if args.minmax:
+            logger.info("Enhance contrast.")
+            imgs = enhance_contrast(imgs.copy())  # should do minmax on uint16
+        if imgs.dtype != np.dtype('uint8'):
+            imgs = img_as_ubyte(imgs)
+        
+        logger.info("Start infering.")
         table_out = pd.DataFrame()
         mask_out = []
 
@@ -108,9 +120,9 @@ if __name__ == "__main__":
         del(imgs)  # save memory space TODO: use image buffer input
         mask_out = np.stack(mask_out, axis=0)
         #io.imsave(os.path.join(args.output,'mask.tif'), mask_out)
-        logger.info('Tracking...')
-        track_out = trackDeepcell(mask=mask_out, raw=mask_out)  #TODO, use raw data, not mask output for tracking raw
+        #logger.info('Tracking...')
+        # track_out = trackDeepcell(mask=mask_out, raw=mask_out)  #TODO, choose a tracker
         table_out.to_csv(os.path.join(args.output,'class.csv'))
-        io.imsave(os.path.join(args.output,'mask_tracked.tif'), track_out[1])
-        track_out[0].to_csv(os.path.join(args.output, 'track.csv'), index=0)
-        print('Finished: '+time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()))
+        io.imsave(os.path.join(args.output,'mask.tif'), mask_out)
+        #track_out[0].to_csv(os.path.join(args.output, 'track.csv'), index=0)
+        logger.info('Finished: '+time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()))

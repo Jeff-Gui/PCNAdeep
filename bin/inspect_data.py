@@ -15,6 +15,11 @@ from preparePCNA import inspect_PCNA_small_data
 inspect_PCNA_small_data('/home/zje/dataset/pcna_small')
 '''
 
+'''
 from preparePCNA import inspect_PCNA_data
 inspect_PCNA_data('/home/zje/dataset/pcna/20200902-MCF10A.json','/home/zje/dataset/pcna/20200902-MCF10A-dual/')
+'''
+
+from prepareDICnuc import inspect_DIC_data
+inspect_DIC_data('/home/zje/dataset/pcna/20200902-MCF10A.json','/home/zje/dataset/pcna/dic/20200902-MCF10A/')
 

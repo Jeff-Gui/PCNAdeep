@@ -57,10 +57,6 @@ def get_parser():
         action="store_true"
     )
     parser.add_argument(
-        "--is_gray",
-        action="store_true"
-    )
-    parser.add_argument(
         "--is_slice",
         action="store_true"
     )
@@ -89,12 +85,12 @@ if __name__ == "__main__":
 
     if args.input:
         m = not args.mask_off
-        gray = args.is_gray # gray: THW; non-gray: THWC
         # Input image must be uint8
         imgs = io.imread(args.input)
         print("Run on image shape: "+str(imgs.shape))
         if args.is_slice:
             imgs = np.expand_dims(imgs, axis=0)
+        imgs = np.expand_dims(imgs, axis=3)
         imgs_out = []
         table_out = pd.DataFrame()
         mask_out = []
