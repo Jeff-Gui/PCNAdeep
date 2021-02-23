@@ -210,84 +210,45 @@ resolve_phase = function(track, base=0, end=288, s_min=10){
   }
 }
 
-doResolveTrack = function(track, length_filter=200, minGS=10){
+extract_mitosis = function(track, length_filter=200, minM=5, prevM=20, postM=10){
+  #  extract mitosis track through resolving the class, length filter 5 (minM)
+  #  extract frame info before mitosis, max 20 (prevM) and after entry, max 10
+  #  output: suggested mitosis track ID (parent track, not daughter track (?))
   lineage_count = length(unique(track$lineageId))
-  out = data.frame('lineage'=unique(track$lineageId),
-                   'type'=rep(NA, lineage_count),
-                   'G1'=rep(NA,lineage_count),
-                   'S'=rep(NA,lineage_count),
-                   'M'=rep(NA,lineage_count),
-                   'G2'=rep(NA,lineage_count))
+  out = data.frame()
   for(i in unique(track$lineageId)){
     d = subset(track, track$lineageId==i)
     if(length(unique(d$trackId))==1 & (max(d$frame)-min(d$frame))<length_filter){next}
-    idx = which(out$lineage==i)
-    rsd = resolve_phase(d, base=as.numeric(min(d$frame)), end=as.numeric(max(d$frame)), s_min=minGS)$out
+    if(length(grep('M',d$predicted_class))==0){next}
+    rsd = resolve_phase(d, base=as.numeric(min(d$frame)), end=as.numeric(max(d$frame)), s_min=10)
     if(is.null(rsd)){next}
-    if(length(rsd)==1){
-      out$type[idx] = paste(names(rsd),'arrest',max(d$frame)-min(d$frame),sep='_')
+    trans = rsd$transition
+    if (length(trans)>=2){
+      trans = trans[['parent']][[1]]
     } else {
-      out$type[idx] = 'non-mitosis'
-      if(!is.null(rsd$S[[1]])){
-        s = rsd$S[[1]]
-        for(dur in s){
-          if(length(grep('[><]',dur))==0){
-            if(is.na(out$S[idx])){
-              out$S[idx] = as.numeric(s)
-            } else {
-              out$S[idx] = paste(out$S[idx],s,sep='/')
-            }
-          }
-        }
-      }
-      if(!is.null(rsd$G1[[1]])){
-        g1 = rsd$G1[[1]]
-        for(dur in g1){
-          if(length(grep('[><]',dur))==0){
-            if(is.na(out$G1[idx])){
-              out$G1[idx] = as.numeric(g1)
-            } else {
-              out$G1[idx] = paste(out$G1[idx],g1,sep='/')
-            }
-          }
-        }
-      }
-      if(!is.null(rsd$M[[1]])){
-        if(length(unique(d$trackId))==1){
-          out$type[idx] = 'mitosis_lose_daughter'
-        } else {
-          out$type[idx] = 'mitosis'
-        }
-        m = rsd$M[[1]]
-        for(dur in m){
-          if(length(grep('[><]',dur))==0){
-            if(is.na(out$M[idx])){
-              out$M[idx] = as.numeric(m)
-            } else {
-              out$M[idx] = paste(out$M[idx],m,sep='/')
-            }
-          }
-        }
-      }
-      if(!is.null(rsd$G2[[1]])){
-        g2 = rsd$G2[[1]]
-        for(dur in g2){
-          if(length(grep('[><]',dur))==0){
-            # filter out tracks with single transition (>xxx, <xxx frame)
-            if(is.na(out$G2[idx])){
-              out$G2[idx] = as.numeric(g2)
-            } else {
-              out$G2[idx] = paste(out$G2[idx],g2,sep='/')
-            }
-          }
-        }
-      }
-      if(is.na(out$G1[idx]) & is.na(out$S[idx]) & is.na(out$G2[idx]) & is.na(out$M[idx])){
-        # filter out tracks with single transition
-        out$type[idx] = NA
+      trans = trans[[1]]
+    }
+    if(length(grep('G2->M', trans$trans))==0){next}
+    if(as.numeric(gsub('>','', rsd$out$M))>minM){
+      daug = unique(d$parentTrackId)
+      daug = daug[which(daug!=0)]
+      if(length(daug)==0){
+        out = rbind(out, c(unique(d$lineageId),trans$frame[which(trans$trans=='G2->M')], NA))
+      } else {
+        out = rbind(out, c(unique(d$lineageId),trans$frame[which(trans$trans=='G2->M')], paste(daug, collapse = '/')))
       }
     }
   }
-  out = subset(out, !is.na(out$type))
-  return(out)
+  colnames(out) = c('trackId', 'M_entry', 'daughterTrackId')
+  filtered_track = data.frame()
+  for (i in 1:nrow(out)){
+    id = out$trackId[i]
+    entry = as.numeric(out$M_entry[i])
+    sub = track[which(track$trackId==id & track$frame>=(entry-prevM) & track$frame<=(entry+postM)),]
+    sub['is_entry'] = rep(0, nrow(sub))
+    sub$is_entry[which(sub$frame==entry)] = 1
+    filtered_track = rbind(filtered_track, sub)
+  }
+  return(list('meta'=out, 'track'=filtered_track))
 }
+

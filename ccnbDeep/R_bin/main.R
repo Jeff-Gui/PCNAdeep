@@ -17,7 +17,7 @@ command=matrix(c( "track" , "t" ,1, "character" , "File path to raw track output
                   "out_dir", "o", 1, "character", "Output directory",
                   "minPlot", "m", 2, "character", "Mininum length for plotting",
                   "minResolve", "r",2, "character", "Mininum length for resolving phase (default: =minPlot)",
-                  "rm_short_G_S", "z",2,"character", "Remove small G1, G2 or S period (default: 10)",
+                  "rm_short_M", "z",2,"character", "Remove small M period (default: 5)",
                   "smooth", "s" ,2, "integer" , "Smooth filter size (default: 5)",
                   "help", "h",0, "logical","Print usage"),byrow=T,ncol=5)
 args=getopt(command)
@@ -92,7 +92,7 @@ for (i in 1:length(track)){
 unlink(merged_tracks)
 
 # run Plotting.R (inspection mode) for each [output3] in output repository, store [output4] in the same repository.
-source(file.path(getwd(), "Plotting.R"))
+#source(file.path(getwd(), "Plotting.R"))
 source(file.path(getwd(), "ResolveClass.R"))
 phase = data.frame()
 for (i in 1:length(track)){
@@ -100,15 +100,19 @@ for (i in 1:length(track)){
     print("Error: minimum plotting track length larger than total frames.")
     exit()
   }
-  plot_pcna(refined_tracks[[i]], out_dir, prefix[i], m)
+  #plot_pcna(refined_tracks[[i]], out_dir, prefix[i], m)
   print('##=====================Resolving Class=========================')
-  s = doResolveTrack(refined_tracks[[i]], length_filter=min_resolve, minGS=rm_short_G_S)
+  s = extract_mitosis(refined_tracks[[i]], length_filter=min_resolve, minM=rm_short_M)
+  mt_track = s[['track']]
+  fp = file.path(out_dir, paste(prefix[i], '-mt_track.csv', sep=''))  # for each stage, output table of mitosis track
+  write.csv(mt_track, fp, row.names = F)
+  s = s[['meta']]
   s = cbind('stage'=rep(prefix[i],nrow(s)), s)
   print(paste("Resolved",as.character(nrow(s)),"tracks."))
   phase = rbind(phase, s)
   print('##============================================================')
 }
-colnames(phase) = c('stage','lineage','type','G1','S','M','G2')
-write.csv(phase, file.path(out_dir, 'phase.csv'), row.names = F)
-unlink(file.path(out_dir, "Rplots.pdf"))
+colnames(phase) = c('stage','parentTrackId', 'M_entry', 'daughterTrackId')
+write.csv(phase, file.path(out_dir, 'mt_meta.csv'), row.names = F)
+# unlink(file.path(out_dir, "Rplots.pdf"))
 quit()
