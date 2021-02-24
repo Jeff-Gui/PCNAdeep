@@ -2,17 +2,15 @@
 import atexit
 import bisect
 import multiprocessing as mp
-from collections import deque
 import torch
 import numpy as np
 import skimage.measure as measure
 from skimage.morphology import remove_small_objects
-import copy
+from scipy.ndimage import binary_fill_holes
 import pandas as pd
 
 from detectron2.data import MetadataCatalog
 from detectron2.engine.defaults import DefaultPredictor
-from detectron2.utils.video_visualizer import VideoVisualizer
 from detectron2.utils.visualizer import ColorMode, Visualizer
 
 
@@ -189,7 +187,8 @@ def predictFrame(img, frame_id, demonstrator, is_gray=True):
             mask_slice[mask[s,:,:]!=0] = s+1
     
     img_bin = remove_small_objects(mask_slice,1000)
-    props = measure.regionprops_table(img_bin, intensity_image=img[:,:,0], properties=('label','bbox','centroid','mean_intensity'))
+    img_bin = binary_fill_holes(img_bin.astype('bool'))
+    props = measure.regionprops_table(measure.label(img_bin), intensity_image=img[:,:,0], properties=('label','bbox','centroid','mean_intensity'))
     props = pd.DataFrame(props)
     props.columns = ['label','bbox-0','bbox-1','bbox-2','bbox-3','Center_of_the_object_0','Center_of_the_object_1','mean_intensity']
 
