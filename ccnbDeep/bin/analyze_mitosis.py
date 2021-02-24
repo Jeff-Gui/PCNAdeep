@@ -150,7 +150,7 @@ if __name__ == "__main__":
     ds = pd.DataFrame()
     for i in list(rt.keys()):
         io.imsave(os.path.join(out, prefix+'_'+str(i)+'.tif'), rt[i][0])
-        d = measure_dist(rt[i][0],t0=rt[i][1],max_d=100,min_d=-100)
+        d = measure_dist(rt[i][0],t0=rt[i][1],max_d=10,min_d=-10)
         d['trackId'] = i
         ds = ds.append(d)
     ds.to_csv(os.path.join(out, 'measure.csv'), index=0)

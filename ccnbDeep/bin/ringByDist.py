@@ -35,13 +35,14 @@ def get_dist_map(mask):
     return(dist_map)
 
 
-def measure_dist(stack, t0, max_d=float('+inf'), min_d=float('-inf')):
+def measure_dist(stack, t0, max_d=float('+inf'), min_d=float('-inf'), remove_out=True):
     """Statistics of each distance relative to NE in a synchrogram
     
     Args:
         stack: time lapse ndarray of 3 channels in order of DIC/GFP/binary mask
         t0: int, time location of the first frame, usually relative to NEBD
         max_d, min_d: int, limit of distance
+        rmove_out: bool, whether to remove outliers of intensity values
     
     Return:
         for each object at each frame, mean and s.d. of the GFP signal
@@ -62,6 +63,8 @@ def measure_dist(stack, t0, max_d=float('+inf'), min_d=float('-inf')):
             if j<=max_d and j>=min_d:
                 dists.append(j)
                 pix = gfp[i,mp==j]
+                if remove_out:
+                    pix = pix[np.abs(pix-np.mean(pix))<=np.std(pix)]  # outliers: out of mu + 3sd
                 ms.append(np.mean(pix))
                 sds.append(np.std(pix))
         
