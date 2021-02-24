@@ -2,7 +2,7 @@ import argparse
 import multiprocessing as mp
 import time
 import numpy as np
-import json, os
+import os
 
 from detectron2.config import get_cfg
 from detectron2.utils.logger import setup_logger
@@ -10,11 +10,9 @@ from dic_predictor import VisualizationDemo, predictFrame
 # from track_deepcell import trackDeepcell
 
 import skimage.io as io
-import skimage.measure as measure
 from skimage.util import img_as_ubyte
 import skimage.exposure as exposure
 import pandas as pd
-import torch
 
 def setup_cfg(args):
     # load config from file and command-line arguments
