@@ -28,7 +28,7 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
   track = track[order(track$trackId),] # sort by track ID
   for (i in 2:nrow(track)){
     if (dist(rbind(c(track$Center_of_the_object_0[i], track$Center_of_the_object_1[i]),
-                   c(track$Center_of_the_object_0[i-1], track$Center_of_the_object_1[i-1]))) > DIST_TOLERANCE |
+                   c(track$Center_of_the_object_0[i-1], track$Center_of_the_object_1[i-1]))) > DIST_TOLERANCE  * (track$frame[i] - track$frame[i-1]) |
         (track$frame[i] - track$frame[i-1]) > FRAME_TOLERANCE){
       # when distance of object in track A at t=i to t=i-1 is larger than the threshold.
       if (track$trackId[i]==track$trackId[i-1]){
