@@ -6,14 +6,13 @@ import json, os
 
 from detectron2.config import get_cfg
 from detectron2.utils.logger import setup_logger
-from pcna_predictor import VisualizationDemo, pred2json, predictFrame
-from track_deepcell import trackDeepcell
+from pcna_predictor import VisualizationDemo, predictFrame
 
 import skimage.io as io
 import skimage.measure as measure
 from skimage.morphology import remove_small_objects
 import pandas as pd
-import torch
+from track_tp import track
 
 def setup_cfg(args):
     # load config from file and command-line arguments
@@ -107,10 +106,10 @@ if __name__ == "__main__":
         
         del(imgs)  # save memory space TODO: use image buffer input
         mask_out = np.stack(mask_out, axis=0)
-        #io.imsave(os.path.join(args.output,'mask.tif'), mask_out)
+
         logger.info('Tracking...')
-        track_out = trackDeepcell(mask=mask_out, raw=mask_out)  #TODO, use raw data, not mask output for tracking raw
-        table_out.to_csv(os.path.join(args.output,'class.csv'))
+        track_out = track(df=table_out, mask=mask_out.copy(), discharge=40, gap_fill=5)
+        track_out[0].to_csv(os.path.join(args.output,'tracks.csv'))
         io.imsave(os.path.join(args.output,'mask_tracked.tif'), track_out[1])
-        track_out[0].to_csv(os.path.join(args.output, 'track.csv'), index=0)
+
         print('Finished: '+time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()))
