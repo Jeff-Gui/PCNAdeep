@@ -47,10 +47,10 @@ def track(df, mask, discharge=40, gap_fill=5):
     out.columns = names
     out = out.sort_values(by=['trackId','frame'])
 
-    #  relabel mask with trackId
-    print('Relabeling mask...')
+    #  relabel mask with trackId, makes no sense because tracks are reorganized in post-processing 
+    '''
     mask_bin = mask.astype('bool').astype('uint16')
-    
+    print('Relabeling mask...')
     ct = 0
     for i in range(mask_bin.shape[0]):
         sl = mask_bin[i,:,:]
@@ -67,6 +67,8 @@ def track(df, mask, discharge=40, gap_fill=5):
         mask_bin[i,:,:] = sl.copy()
 
     print('Untracked object: ' + str(ct))
-    
-    return out.drop('continuous_label', axis=1), mask_bin
+    mask = mask_bin
+    '''
+
+    return out.drop('continuous_label', axis=1), mask
 
