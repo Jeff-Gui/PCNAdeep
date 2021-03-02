@@ -57,12 +57,12 @@ def track(df, mask, discharge=40, gap_fill=5):
         sub = out[out['frame']==i]
         for p in props:
             y, x = p.centroid
-            tg = sub[(sub['Center_of_the_object_0']==int(np.floor(x))) & (sub['Center_of_the_object_1']==int(np.floor(y)))]
+            tg = sub[(sub['Center_of_the_object_0']==x) & (sub['Center_of_the_object_1']==y)]
             assert tg.shape[0] <= 1  #  should only have less than one match
             if tg.shape[0]==0:
                 ct += 1
 
-            #sl[mask[i,:,:]==int(tg['continuous_label'])] = tg['trackId']
+            sl[mask[i,:,:]==int(tg['continuous_label'])] = tg['trackId']
         mask_bin[i,:,:] = sl.copy()
 
     print('Untracked object: ' + str(ct))
