@@ -48,6 +48,7 @@ def track(df, mask, discharge=40, gap_fill=5):
     out = out.sort_values(by=['trackId','frame'])
 
     #  relabel mask with trackId
+    print('Relabeling mask...')
     mask_bin = mask.astype('bool').astype('uint16')
     
     ct = 0
@@ -61,8 +62,8 @@ def track(df, mask, discharge=40, gap_fill=5):
             assert tg.shape[0] <= 1  #  should only have less than one match
             if tg.shape[0]==0:
                 ct += 1
-
-            sl[mask[i,:,:]==int(tg['continuous_label'])] = tg['trackId']
+            else:
+                sl[mask[i,:,:]==int(list(tg['continuous_label'])[0])] = tg['trackId']
         mask_bin[i,:,:] = sl.copy()
 
     print('Untracked object: ' + str(ct))
