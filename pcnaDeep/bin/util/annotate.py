@@ -6,6 +6,7 @@ Created on Mon Feb  22 09:03:20 2021
 """
 import pandas as pd
 import sys, getopt, re, os, tarfile, tempfile, json
+from io import BytesIO
 import skimage.io as io
 import skimage.measure as measure
 import numpy as np
@@ -119,8 +120,8 @@ def save_trks(filename, lineages, raw, tracked):
     Args:
         filename (str): full path to the final trk files.
         lineages (dict): a list of dictionaries saved as a json.
-        raw (np.array): raw images data.
-        tracked (np.array): annotated image data.
+        raw (np.array): 4D raw images data. THWC
+        tracked (np.array): 4D annotated image data. THWC
 
     Raises:
         ValueError: filename does not end in ".trk".
@@ -150,7 +151,83 @@ def save_trks(filename, lineages, raw, tracked):
             trks.add(tracked_file.name, 'tracked.npy')
             os.remove(tracked_file.name)
 
+def load_trks(filename):
+    """Copied from deepcell_tracking.utils, version 0.3.1. Author Van Valen Lab
+    """
+    """Load a trk/trks file.
 
+    Args:
+        filename (str): full path to the file including .trk/.trks.
+
+    Returns:
+        dict: A dictionary with raw, tracked, and lineage data.
+    """
+    with tarfile.open(filename, 'r') as trks:
+
+        # numpy can't read these from disk...
+        array_file = BytesIO()
+        array_file.write(trks.extractfile('raw.npy').read())
+        array_file.seek(0)
+        raw = np.load(array_file)
+        array_file.close()
+
+        array_file = BytesIO()
+        array_file.write(trks.extractfile('tracked.npy').read())
+        array_file.seek(0)
+        tracked = np.load(array_file)
+        array_file.close()
+
+        # trks.extractfile opens a file in bytes mode, json can't use bytes.
+        _, file_extension = os.path.splitext(filename)
+
+        if file_extension == '.trks':
+            trk_data = trks.getmember('lineages.json')
+            lineages = json.loads(trks.extractfile(trk_data).read().decode())
+            # JSON only allows strings as keys, so convert them back to ints
+            for i, tracks in enumerate(lineages):
+                lineages[i] = {int(k): v for k, v in tracks.items()}
+
+        elif file_extension == '.trk':
+            trk_data = trks.getmember('lineage.json')
+            lineage = json.loads(trks.extractfile(trk_data).read().decode())
+            # JSON only allows strings as keys, so convert them back to ints
+            lineages = []
+            lineages.append({int(k): v for k, v in lineage.items()})
+
+    return {'lineages': lineages, 'X': raw, 'y': tracked}
+
+def lineage_dic2txt(lineage_dic):
+    """Convert deepcell .trk lineage format to CTC txt format
+
+    Args:
+        lineage_dic: [index:dict], extracted from deepcell .trk file 
+    """
+    
+    lineage_dic = lineage_dic[0]
+    dic = {'id':[], 'appear':[], 'disappear':[]}
+    pars = []
+    for d in lineage_dic.values():
+        i = d['label']
+        begin = np.min(d['frames'])
+        end = np.max(d['frames'])
+
+        dic['id'].append(i)
+        dic['appear'].append(int(begin))
+        dic['disappear'].append(int(end))
+        if d['daughters']:
+            pars.append(d)
+
+    dic = pd.DataFrame(dic)
+    dic['parents'] = 0
+
+    # resolve parents
+    for p in pars:
+        for d in d['daughters']:
+            dic.loc[dic.index[dic['id']==d], 'parents'] = d
+    
+    return dic
+
+'''
     # 2021/3/4
     # 1. From detection and tracking output, generate RES folder files
     mask = io.imread('/Users/jefft/Desktop/Chan lab/SRTP/ImageAnalysis/PCNAdeep/pcnaDeep/examples/10A_20200902_s1_cpd_trackPy/mask_tracked.tif')
@@ -169,16 +246,11 @@ def save_trks(filename, lineages, raw, tracked):
     mask = io.imread('/Users/jefft/Desktop/mask_GT.tif')
     raw = io.imread('/Users/jefft/Desktop/raw.tif')
     from tracker import track_mask
-    out = track_mask(mask)
+    out = track_mask(mask, dis)
     track_new = relabel_trackID(out.copy())
     tracked_mask = label_by_track(mask.copy(), track_new.copy())
     #txt = get_lineage_txt(track_new.copy())
     dic = get_lineage_dict(track_new.copy())
-    save_trks('/Users/jefft/Desktop/001.trk', dic, raw, tracked_mask)
-    
-    '''
-    # generate npz instead
-    X = np.expand_dims(raw, axis=3)
-    y = np.expand_dims(tracked, axis=3)
-    np.savez(out, X=X, y=y)
-    '''
+    save_trks('/Users/jefft/Desktop/001.trk', dic, np.expand_dims(raw, axis=3), np.expand_dims(tracked_mask, axis=3))
+
+'''
