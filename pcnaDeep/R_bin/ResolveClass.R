@@ -69,8 +69,16 @@ resolve_phase = function(track, base=0, end=288, s_min=10){
         out_parent['M'][[1]] = out_parent['M'][[1]][-m_dur]
       }
     }
-    out['M'][[1]] = mean(c(as.numeric(gsub('>','',out_daug1['M'][[1]][1])), 
-                         as.numeric(gsub('>','',out_daug2['M'][[1]][1]))))
+    
+    # Deduce m exit
+    c_l = c()
+    s1 = subset(trans_daug1[[1]], trans_daug1[[1]]$trans=='M->G1')
+    s2 = subset(trans_daug2[[1]], trans_daug2[[1]]$trans=='M->G1')
+    if (nrow(s1)>0){c_l = c(c_l, s1$frame[which(s1$frame-m_entry == min(s1$frame - m_entry))])}
+    if (nrow(s2)>0){c_l = c(c_l, s2$frame[which(s2$frame-m_entry == min(s2$frame - m_entry))])}
+    m_exit = mean(c_l)
+    
+    out['M'][[1]] = m_exit - m_entry
     return(list('out'=out,'transition'=list('parent'=trans_par, 'daug1'=trans_daug1, 'daug2'=trans_daug2)))
   }
   if(count_lineage==2){
@@ -121,13 +129,16 @@ resolve_phase = function(track, base=0, end=288, s_min=10){
         out_parent['M'][[1]] = out_parent['M'][[1]][-m_dur]
       }
     }
-    if (out_daughter['M'][[1]][1]=='arrest'){
-      out['M'][[1]] = as.numeric(out_parent['M'][[1]][1])
-    } else {
-    out['M'][[1]] = mean(c(as.numeric(out_parent['M'][[1]][1]), 
-                         as.numeric(gsub('>','',out_daughter['M'][[1]][1])))) # only handle one mitosis
-    }
     
+    # Deduce m exit
+    c_l = c()
+    s1 = subset(trans_par[[1]], trans_par[[1]]$trans=='M->G1')
+    s2 = subset(trans_daug[[1]], trans_daug[[1]]$trans=='M->G1')
+    if (nrow(s1)>0){c_l = c(c_l, s1$frame[which(s1$frame-m_entry == min(s1$frame - m_entry))])}
+    if (nrow(s2)>0){c_l = c(c_l, s2$frame[which(s2$frame-m_entry == min(s2$frame - m_entry))])}
+    m_exit = mean(c_l)
+    
+    out['M'][[1]] = m_exit - m_entry
     return(list('out'=out,'transition'=list('parent'=trans_par, 'daug'=trans_daug)))
     
   }else{
