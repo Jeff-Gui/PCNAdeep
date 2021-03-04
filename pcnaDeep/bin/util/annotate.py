@@ -11,17 +11,12 @@ import skimage.measure as measure
 import numpy as np
 from skimage.util import img_as_float64
 
-def relabel_trackID(label_table, ori_start=0):
+def relabel_trackID(label_table):
     """Relabel trackID in tracking table, starting from 1
 
     Args:
         label_table: track table
-        ori_start: original base of track ID
     """
-    offset = 1-ori_start
-    label_table['trackId'] += offset
-    label_table['parentTrackId'] += offset
-    label_table['lineageId'] += offset
 
     dic = {}
     ori = np.unique(label_table['trackId'])

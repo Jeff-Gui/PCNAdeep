@@ -11,7 +11,7 @@ import skimage.measure as measure
 import numpy as np
 import pandas as pd
 
-def track(df, mask, discharge=40, gap_fill=5):
+def track(df, discharge=40, gap_fill=5):
     """Track and relabel mask with trackID
 
     Args:
@@ -48,28 +48,22 @@ def track(df, mask, discharge=40, gap_fill=5):
     out.columns = names
     out = out.sort_values(by=['trackId','frame'])
 
-    #  relabel mask with trackId, makes no sense because tracks are reorganized in post-processing 
-    '''
-    mask_bin = mask.astype('bool').astype('uint16')
-    print('Relabeling mask...')
-    ct = 0
-    for i in range(mask_bin.shape[0]):
-        sl = mask_bin[i,:,:]
-        props = measure.regionprops(mask[i,:,:])
-        sub = out[out['frame']==i]
-        for p in props:
-            y, x = p.centroid
-            tg = sub[(sub['Center_of_the_object_0']==x) & (sub['Center_of_the_object_1']==y)]
-            assert tg.shape[0] <= 1  #  should only have less than one match
-            if tg.shape[0]==0:
-                ct += 1
-            else:
-                sl[mask[i,:,:]==int(list(tg['continuous_label'])[0])] = tg['trackId']
-        mask_bin[i,:,:] = sl.copy()
+    return out.drop('continuous_label', axis=1)
 
-    print('Untracked object: ' + str(ct))
-    mask = mask_bin
-    '''
+def track_mask(mask, discharge=40, gap_fill=5):
+    """Track binary mask objects
+    """
+    p = pd.DataFrame()
+    for i in range(mask.shape[0]):
+        props = measure.regionprops_table(measure.label(mask[i,:,:]), properties=('centroid', 'label'))
+        props = pd.DataFrame(props)
+        props.columns = ['Center_of_the_object_0', 'Center_of_the_object_1', 'continuous_label']
+        props['Probability of G1/G2'] = 0
+        props['Probability of S'] = 0
+        props['Probability of M'] = 0
+        props['phase'] = 0
+        props['frame'] = i
+        p = p.append(props)
 
-    return out.drop('continuous_label', axis=1), mask
-
+        track_out = track(p, discharge=discharge, gap_fill=gap_fill)
+        return track_out
