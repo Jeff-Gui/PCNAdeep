@@ -54,11 +54,11 @@ def label_by_track(mask, label_table):
         sl = measure.label(sl)
         props = measure.regionprops(sl)
         for p in props:
-            y, x = np.round(p.centroid)
-            tar = sub_table[(sub_table['Center_of_the_object_0']==int(x)) & (sub_table['Center_of_the_object_1']==int(y))]
+            y, x = np.floor(p.centroid)
+            tar = sub_table[(np.floor(sub_table['Center_of_the_object_0'])==x) & (np.floor(sub_table['Center_of_the_object_1'])==y)]
             assert tar.shape[0] <= 1
             if tar.shape[0] == 0:
-                mask[i,:,:][sl==p.label] = 0  # untracked
+                mask[i,:,:][sl==p.label] = 0  # untracked, should not exist
             else:
                 mask[i,:,:][sl==p.label] = int(tar['trackId'])
     
@@ -151,82 +151,34 @@ def save_trks(filename, lineages, raw, tracked):
             os.remove(tracked_file.name)
 
 
-if __name__ == "__main__":
-    argv = sys.argv[1:]
-    try:
-        opts, args = getopt.getopt(argv, "hi:m:o:r", ["indir=", "mask=", "outdir="])
-        # h: switch-type parameter, help
-        # i: / o: parameter must with some values
-        # m: mask dir
-    except getopt.GetoptError:
-        print('generateCalibanNPZ.py -i <inputfile> -o <outputfile> -m <mask> -r <relabel mask> -trk <generate .trk file instead of npz>')
-        sys.exit(2)
-    for opt, arg in opts:
-        if opt == '-h':
-            print('generateCalibanNPZ.py -i <inputfile> -o <outputfile> -m <mask> -r <relabel mask> -trk <generate .trk file instead of npz>')
-            sys.exit()
-        elif opt == '-r':
-            relabel = True
-        elif opt in ("-i", "--indir"):
-            ip = arg
-        elif opt in ("-o", "--outdir"):
-            out = arg
-        elif opt in ("-m", "--mask"):
-            mask = arg
-    
-    X = io.imread(ip)
-    if len(X.shape)<4:
-        X = np.expand_dims(X, axis=3)
-    y = io.imread(mask).astype('bool').astype('uint16')
-    if len(y.shape)<4:
-        y = np.expand_dims(y, axis=3)
-    
-    for i in range(y.shape[0]):
-        y[i,:,:,:] = measure.label(y[i,:,:,:])
-        
-    np.savez(out, X=X, y=y)
-    
-    
-    # generate trk files from tracks
-    df = pd.read_csv('/Users/jefft/Downloads/20200902-MCF10A-dual_extended/track/trks-refined-relabeled.csv')
-    mask_fp = '/Users/jefft/Downloads/20200902-MCF10A-dual_extended/mask/'
-    raw_fp = '/Users/jefft/Downloads/20200902-MCF10A-dual_extended/'
-    out = '/Users/jefft/Desktop/test.npz'
-    mask_dic = {}
-    raw_dic = {}  # raw should have same file name as mask
-    l = os.listdir(mask_fp)
-    for i in l:
-        if re.search('.png$', i) or re.search('.tif$', i):
-            mask_dic[int(re.search('.*-(\d+).[pngtif]', i).group(1))] = os.path.join(mask_fp, i)
-            raw_dic[int(re.search('.*-(\d+).[pngtif]', i).group(1))] = os.path.join(raw_fp, i)
-            
-    frame = sorted(list(mask_dic.keys()))
-    frames = list(map(lambda x:io.imread(mask_dic[x]), frame))
-    raw_frames = list(map(lambda x:io.imread(raw_dic[x]), frame))
-    mask = np.stack(frames, axis=0)
-    raw = np.stack(raw_frames, axis=0)
-    #raw = img_as_float64(raw)
-    
-    df_new = relabel_trackID(df)
-    tracked = label_by_track(mask, df_new)
-    lin = get_lineage_dict(df_new)
-    save_trks(out, lin, np.expand_dims(raw, axis=3), np.expand_dims(tracked, axis=3))
-    
-    # generate npz instead
-    X = np.expand_dims(raw, axis=3)
-    y = np.expand_dims(tracked, axis=3)
-    np.savez(out, X=X, y=y)
-
-
     # 2021/3/4
+    # 1. From detection and tracking output, generate RES folder files
     mask = io.imread('/Users/jefft/Desktop/Chan lab/SRTP/ImageAnalysis/PCNAdeep/pcnaDeep/examples/10A_20200902_s1_cpd_trackPy/mask_tracked.tif')
     mask.dtype
     track = pd.read_csv('/Users/jefft/Desktop/Chan lab/SRTP/ImageAnalysis/PCNAdeep/pcnaDeep/examples/10A_20200902_s1_cpd_trackPy/output/tracks-refined.csv')
     track
     track_new = relabel_trackID(track.copy())
-    tracked_mask = label_by_track(mask.copy(), track_new)
+    tracked_mask = label_by_track(mask.copy(), track_new.copy())
     txt = get_lineage_txt(track_new)
     # write out processed files for RES folder
-    io.imsave('/Users/jefft/Desktop/mask_tracked.tif', tracked_mask)
+    io.imsave('/Users/jefft/Desktop/mask_tracked.tif', tracked_mask.astype('uint16'))
     txt.to_csv('/Users/jefft/Desktop/res_track.txt', sep=' ', index=0, header=False)
     
+    # 2. From ground truth mask, generate Caliban files for annotating tracks, eventually for GT folder files
+    # Ground truth mask may be annotated by VIA2
+    mask = io.imread('/Users/jefft/Desktop/mask_GT.tif')
+    raw = io.imread('/Users/jefft/Desktop/raw.tif')
+    from tracker import track_mask
+    out = track_mask(mask)
+    track_new = relabel_trackID(out.copy())
+    tracked_mask = label_by_track(mask.copy(), track_new.copy())
+    #txt = get_lineage_txt(track_new.copy())
+    dic = get_lineage_dict(track_new.copy())
+    save_trks('/Users/jefft/Desktop/001.trk', dic, raw, tracked_mask)
+    
+    '''
+    # generate npz instead
+    X = np.expand_dims(raw, axis=3)
+    y = np.expand_dims(tracked, axis=3)
+    np.savez(out, X=X, y=y)
+    '''

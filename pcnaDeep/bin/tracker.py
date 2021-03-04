@@ -64,6 +64,6 @@ def track_mask(mask, discharge=40, gap_fill=5):
         props['phase'] = 0
         props['frame'] = i
         p = p.append(props)
-
-        track_out = track(p, discharge=discharge, gap_fill=gap_fill)
-        return track_out
+        
+    track_out = track(p, discharge=discharge, gap_fill=gap_fill)
+    return track_out
