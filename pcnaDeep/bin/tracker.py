@@ -37,6 +37,7 @@ def track(df, mask, discharge=40, gap_fill=5):
     t.columns = ['Center_of_the_object_0', 'Center_of_the_object_1', 'frame', 'trackId']
     out = pd.merge(df, t, on=['Center_of_the_object_0', 'Center_of_the_object_1', 'frame'])
     #  change format for downstream
+    out['trackId'] += 1
     out['lineageId'] = out['trackId']
     out['parentTrackId'] = 0
     out = out[['frame','trackId','lineageId','parentTrackId','Center_of_the_object_0','Center_of_the_object_1','phase','Probability of G1/G2','Probability of S','Probability of M','continuous_label']]

@@ -11,9 +11,18 @@ import skimage.measure as measure
 import numpy as np
 from skimage.util import img_as_float64
 
-def relabel_trackID(label_table):
+def relabel_trackID(label_table, ori_start=0):
     """Relabel trackID in tracking table, starting from 1
+
+    Args:
+        label_table: track table
+        ori_start: original base of track ID
     """
+    offset = 1-ori_start
+    label_table['trackId'] += offset
+    label_table['parentTrackId'] += offset
+    label_table['lineageId'] += offset
+
     dic = {}
     ori = np.unique(label_table['trackId'])
     for i in range(1, len(ori)+1):
@@ -25,7 +34,6 @@ def relabel_trackID(label_table):
     
     return label_table
     
-
 def label_by_track(mask, label_table):
     """Label objects in mask with track ID
 
@@ -59,7 +67,6 @@ def label_by_track(mask, label_table):
                 mask[i,:,:][sl==p.label] = int(tar['trackId'])
     
     return mask
-
 
 def get_lineage_dict(label_table):
     """Generate lineage dictionary in deepcell tracking format
@@ -106,7 +113,6 @@ def get_lineage_txt(label_table):
         dic['parent'].append(int(parent))
 
     return pd.DataFrame(dic)
-
 
 def save_trks(filename, lineages, raw, tracked):
     """Copied from deepcell_tracking.utils, version 0.3.1. Author Van Valen Lab
@@ -214,3 +220,16 @@ if __name__ == "__main__":
     X = np.expand_dims(raw, axis=3)
     y = np.expand_dims(tracked, axis=3)
     np.savez(out, X=X, y=y)
+
+
+    # 2021/3/4
+    mask = io.imread('/Users/jefft/Desktop/Chan lab/SRTP/ImageAnalysis/PCNAdeep/pcnaDeep/examples/10A_20200902_s1_cpd_trackPy/mask_tracked.tif')
+    mask.dtype
+    track = pd.read_csv('/Users/jefft/Desktop/Chan lab/SRTP/ImageAnalysis/PCNAdeep/pcnaDeep/examples/10A_20200902_s1_cpd_trackPy/output/tracks-refined.csv')
+    track
+    track_new = relabel_trackID(track)
+    tracked_mask = label_by_track(mask, track_new)
+    txt = get_lineage_txt(track_new)
+    # write out processed files for RES folder
+    io.imsave('/Users/jefft/Desktop/mask_tracked.tif', tracked_mask)
+    

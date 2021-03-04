@@ -288,7 +288,7 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
       }
     }
     # verify daughter relationship
-    if (nrow(cdd_daughter>0 & cur_info$mitosis_identity!="parent")){
+    if (nrow(cdd_daughter)>0 & cur_info$mitosis_identity!="parent"){
       for (j in 1:nrow(cdd_daughter)){
         cdd_crd = c(cdd_daughter$app_x[j], cdd_daughter$app_y[j])
         if (dist(rbind(disapp_crd,cdd_crd))<=DIST_TOLERANCE){
