@@ -238,7 +238,18 @@ def pred2json(masks, labels, fp):
         
     return tmp
 
-def predictFrame(img, frame_id, demonstrator, is_gray=False):
+def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000):
+    """predict single frame and deduce meta information
+    
+    Args:
+        img: uint8 image slice, ndarray
+        frame_id: index of the slice, int from 0
+        demostrator
+        size_flt: size filter, int
+        is_gray: whether the slice is gray. If true, will convert to 3 channels at first
+
+    """
+
     if is_gray:
         img = np.stack([img, img, img], axis=2)  # convert gray to 3 channels
     # Generate mask or visualized output
@@ -255,20 +266,21 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False):
     conf = predictions['instances'].scores
     factor = {0:0, 1:1, 2:2, 3:0}
     for s in range(mask.shape[0]):
+        if np.sum(mask[s,:,:]) < size_flt:
+            continue
         sc = conf[s].item()
         ori = np.max(mask_slice[mask[s,:,:]!=0])
         if ori!=0:
             if sc>conf[ori-1].item():
-                mask_slice[mask[s,:,:,]!=0] = s+1
+                mask_slice[mask[s,:,:]!=0] = s+1
         else:
             mask_slice[mask[s,:,:]!=0] = s+1
     
-    img_bin = remove_small_objects(mask_slice,1000)
-    props = measure.regionprops_table(img_bin, intensity_image=img[:,:,0], properties=('label','bbox','centroid','mean_intensity'))
+    props = measure.regionprops_table(mask_slice, intensity_image=img[:,:,0], properties=('label','bbox','centroid','mean_intensity'))
     props = pd.DataFrame(props)
     props.columns = ['label','bbox-0','bbox-1','bbox-2','bbox-3','Center_of_the_object_0','Center_of_the_object_1','mean_intensity']
 
-    img_relabel = measure.label(img_bin)
+    img_relabel = measure.label(mask_slice)
     props_relabel = measure.regionprops_table(img_relabel, properties=('label','centroid'))
     props_relabel = pd.DataFrame(props_relabel)
     props_relabel.columns = ['continuous_label','Center_of_the_object_0', 'Center_of_the_object_1']
