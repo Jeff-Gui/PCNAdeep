@@ -19,13 +19,14 @@ def relabel_trackID(label_table):
     """
 
     dic = {}
-    ori = np.unique(label_table['trackId'])
+    ori = list(np.unique(label_table['trackId']))
     for i in range(1, len(ori)+1):
         dic[ori[i-1]] = i
     dic[0] = 0
-    label_table['trackId'] = list(map(lambda x:dic[x], label_table['trackId']))
-    label_table['parentTrackId'] = list(map(lambda x:dic[x], label_table['parentTrackId']))
-    label_table['lineageId'] = list(map(lambda x:dic[x], label_table['lineageId']))
+    for i in range(label_table.shape[0]):
+        label_table.loc[i, 'trackId'] = dic[label_table['trackId'][i]]
+        label_table.loc[i, 'parentTrackId'] = dic[label_table['parentTrackId'][i]]
+        label_table.loc[i, 'lineageId'] = dic[label_table['lineageId'][i]]
     
     return label_table
     
@@ -222,9 +223,10 @@ if __name__ == "__main__":
     mask.dtype
     track = pd.read_csv('/Users/jefft/Desktop/Chan lab/SRTP/ImageAnalysis/PCNAdeep/pcnaDeep/examples/10A_20200902_s1_cpd_trackPy/output/tracks-refined.csv')
     track
-    track_new = relabel_trackID(track)
-    tracked_mask = label_by_track(mask, track_new)
+    track_new = relabel_trackID(track.copy())
+    tracked_mask = label_by_track(mask.copy(), track_new)
     txt = get_lineage_txt(track_new)
     # write out processed files for RES folder
     io.imsave('/Users/jefft/Desktop/mask_tracked.tif', tracked_mask)
+    txt.to_csv('/Users/jefft/Desktop/res_track.txt', sep=' ', index=0, header=False)
     

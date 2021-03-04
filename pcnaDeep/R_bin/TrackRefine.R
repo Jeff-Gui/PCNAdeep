@@ -291,7 +291,8 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
     if (nrow(cdd_daughter)>0 & cur_info$mitosis_identity!="parent"){
       for (j in 1:nrow(cdd_daughter)){
         cdd_crd = c(cdd_daughter$app_x[j], cdd_daughter$app_y[j])
-        if (dist(rbind(disapp_crd,cdd_crd))<=DIST_TOLERANCE){
+        if (dist(rbind(disapp_crd,cdd_crd))<=DIST_TOLERANCE &
+            cdd_daughter$mitosis_identity[j]!='daughter'){
           daughters = c(daughters, cdd_daughter$track[j])
         }
       }
@@ -302,6 +303,7 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
     }
   }
   print(paste("Lineage relations found: ", as.character(count), sep=""))
+
   # Based on predicted information, adjust track identity
   pool = c() # already searched track
   l = list()
