@@ -33,7 +33,7 @@ def track(df, discharge=40, gap_fill=5):
 
     f = df[['Center_of_the_object_0', 'Center_of_the_object_1', 'frame']]
     f.columns = ['x','y','frame']
-    t = tp.link(f, search_range=discharge, memory=gap_fill)
+    t = tp.link(f, search_range=discharge, memory=gap_fill, adaptive_stop=0.4*discharge)
     t.columns = ['Center_of_the_object_0', 'Center_of_the_object_1', 'frame', 'trackId']
     out = pd.merge(df, t, on=['Center_of_the_object_0', 'Center_of_the_object_1', 'frame'])
     #  change format for downstream
