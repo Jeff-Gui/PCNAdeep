@@ -118,7 +118,7 @@ if __name__ == "__main__":
         mask_out = np.stack(mask_out, axis=0)
 
         logger.info('Tracking...')
-        track_out = track(df=table_out, discharge=args.displace, gap_fill=args.gap_fill)
+        track_out = track(df=table_out, discharge=int(args.displace), gap_fill=int(args.gap_fill))
         track_out[0].to_csv(os.path.join(args.output,'tracks.csv'), index=0)
         io.imsave(os.path.join(args.output,'mask.tif'), mask_out)
 
