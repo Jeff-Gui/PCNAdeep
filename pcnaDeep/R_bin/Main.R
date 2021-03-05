@@ -69,7 +69,7 @@ for (i in 1:length(track)){
   print(paste("Refining tracks:",prefix[i]))
   refined_tracks[[i]] = trackRefine(merged_tracks[[i]], distance_tolerance, dist_factor, frame_tolerance, window_length)
   fp = file.path(out_dir, paste(prefix[i], '-refined.csv', sep=''))
-  write.csv(refined_tracks[[i]], fp)
+  write.csv(refined_tracks[[i]], fp, row.names = F)
   print(paste("Refined tracks saved at:", fp))
   print('##============================================================')
 }

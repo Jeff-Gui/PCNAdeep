@@ -226,31 +226,3 @@ def lineage_dic2txt(lineage_dic):
             dic.loc[dic.index[dic['id']==d], 'parents'] = d
     
     return dic
-
-'''
-    # 2021/3/4
-    # 1. From detection and tracking output, generate RES folder files
-    mask = io.imread('/Users/jefft/Desktop/Chan lab/SRTP/ImageAnalysis/PCNAdeep/pcnaDeep/examples/10A_20200902_s1_cpd_trackPy/mask_tracked.tif')
-    mask.dtype
-    track = pd.read_csv('/Users/jefft/Desktop/Chan lab/SRTP/ImageAnalysis/PCNAdeep/pcnaDeep/examples/10A_20200902_s1_cpd_trackPy/output/tracks-refined.csv')
-    track
-    track_new = relabel_trackID(track.copy())
-    tracked_mask = label_by_track(mask.copy(), track_new.copy())
-    txt = get_lineage_txt(track_new)
-    # write out processed files for RES folder
-    io.imsave('/Users/jefft/Desktop/mask_tracked.tif', tracked_mask.astype('uint16'))
-    txt.to_csv('/Users/jefft/Desktop/res_track.txt', sep=' ', index=0, header=False)
-    
-    # 2. From ground truth mask, generate Caliban files for annotating tracks, eventually for GT folder files
-    # Ground truth mask may be annotated by VIA2
-    mask = io.imread('/Users/jefft/Desktop/mask_GT.tif')
-    raw = io.imread('/Users/jefft/Desktop/raw.tif')
-    from tracker import track_mask
-    out = track_mask(mask, dis)
-    track_new = relabel_trackID(out.copy())
-    tracked_mask = label_by_track(mask.copy(), track_new.copy())
-    #txt = get_lineage_txt(track_new.copy())
-    dic = get_lineage_dict(track_new.copy())
-    save_trks('/Users/jefft/Desktop/001.trk', dic, np.expand_dims(raw, axis=3), np.expand_dims(tracked_mask, axis=3))
-
-'''
