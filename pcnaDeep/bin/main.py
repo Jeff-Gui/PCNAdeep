@@ -57,6 +57,16 @@ def get_parser():
         action="store_true"
     )
     parser.add_argument(
+        "--displace",
+        default=40,
+        help='Tracking: maximum displacement of objects between frames',
+    )
+    parser.add_argument(
+        "--gap_fill",
+        default=5,
+        help='Tracking: memory frames of objects to fill gaps',
+    )
+    parser.add_argument(
         "--batch",
         action="store_true"
     )
@@ -108,8 +118,8 @@ if __name__ == "__main__":
         mask_out = np.stack(mask_out, axis=0)
 
         logger.info('Tracking...')
-        track_out = track(df=table_out, discharge=40, gap_fill=5)
+        track_out = track(df=table_out, discharge=args.displace, gap_fill=args.gap_fill)
         track_out[0].to_csv(os.path.join(args.output,'tracks.csv'), index=0)
         io.imsave(os.path.join(args.output,'mask.tif'), mask_out)
 
-        print('Finished: '+time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()))
+        logger.info('Finished: '+time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()))
