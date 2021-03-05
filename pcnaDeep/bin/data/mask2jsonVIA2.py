@@ -36,7 +36,7 @@ def json2mask(ip, out, height, width, out_phase=False):
                 phase = o['region_attributes']['phase']
                 draw.polygon(xys, fill=PHASE_DIS[phase], outline=0)
             img = np.array(img)
-            prop_dt = measure.regionprops_table(measure.label(img), intensity_image=img, properties=('centroid', 'mean_intensity'))
+            prop_dt = measure.regionprops_table(measure.label(img, connectivity=1), intensity_image=img, properties=('centroid', 'mean_intensity'))
             prop_dt = pd.DataFrame(prop_dt)
             prop_dt['mean_intensity'] = list(map(lambda x:PHASE_TRANS[x], prop_dt['mean_intensity']))
             prop_dt.columns = ['Center_of_the_object_0', 'Center_of_the_object_1', 'phase']
@@ -69,7 +69,7 @@ def mask2json(home, picture_home, outpath):
             #img = binary_erosion(binary_erosion(img.astype('bool')))
             img = img.astype('bool')
             tmp = {"filename":os.path.join(i),"size":img.size,"regions":[],"file_attributes":{}}
-            regions = measure.regionprops(measure.label(img))
+            regions = measure.regionprops(measure.label(img, connectivity=1))
             for region in regions:
                 
                 if region.image.shape[0]<2 or region.image.shape[1]<2:

@@ -52,7 +52,7 @@ def label_by_track(mask, label_table):
     for i in np.unique(label_table['frame']):
         sub_table = label_table[label_table['frame']==i]
         sl = mask[i,:,:].copy()
-        sl = measure.label(sl)
+        sl = measure.label(sl, connectivity=1)
         props = measure.regionprops(sl)
         for p in props:
             y, x = np.floor(p.centroid)

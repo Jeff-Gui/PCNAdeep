@@ -182,7 +182,7 @@ def pred2json(masks, labels, fp):
 
     tmp = {"filename":fp,"size":masks[0].astype('bool').size,"regions":[],"file_attributes":{}}
     for i in range(len(masks)):
-        region = measure.regionprops(measure.label(masks[i]))[0]
+        region = measure.regionprops(measure.label(masks[i], connectivity=1))[0]
         if region.image.shape[0]<2 or region.image.shape[1]<2:
             continue
         # register regions
@@ -278,7 +278,7 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000):
     props = pd.DataFrame(props)
     props.columns = ['label','bbox-0','bbox-1','bbox-2','bbox-3','Center_of_the_object_0','Center_of_the_object_1','mean_intensity']
 
-    img_relabel = measure.label(mask_slice)
+    img_relabel = measure.label(mask_slice, connectivity=1)
     props_relabel = measure.regionprops_table(img_relabel, properties=('label','centroid'))
     props_relabel = pd.DataFrame(props_relabel)
     props_relabel.columns = ['continuous_label','Center_of_the_object_0', 'Center_of_the_object_1']
