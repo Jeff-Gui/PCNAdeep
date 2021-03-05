@@ -2,15 +2,13 @@ import argparse
 import multiprocessing as mp
 import time
 import numpy as np
-import json, os
+import os
 
 from detectron2.config import get_cfg
 from detectron2.utils.logger import setup_logger
 from predictor import VisualizationDemo, predictFrame
 
 import skimage.io as io
-import skimage.measure as measure
-from skimage.morphology import remove_small_objects
 import pandas as pd
 from tracker import track
 
