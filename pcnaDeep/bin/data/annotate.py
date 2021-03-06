@@ -5,12 +5,10 @@ Created on Mon Feb  22 09:03:20 2021
 @author: Yifan Gui
 """
 import pandas as pd
-import sys, getopt, re, os, tarfile, tempfile, json
+import os, tarfile, tempfile, json
 from io import BytesIO
-import skimage.io as io
 import skimage.measure as measure
 import numpy as np
-from skimage.util import img_as_float64
 
 def relabel_trackID(label_table):
     """Relabel trackID in tracking table, starting from 1
@@ -65,8 +63,12 @@ def label_by_track(mask, label_table):
     
     return mask
 
-def get_lineage_dict(label_table):
+def get_lineage_dict(label_table, rel):
     """Generate lineage dictionary in deepcell tracking format
+    
+    Args:
+        label_table: table processed
+        rel: mitosis relationship, use to determine frame of division
     """
 
     out = {}
@@ -77,16 +79,16 @@ def get_lineage_dict(label_table):
         if list(sub_table['parentTrackId'])[0] != 0:
             out[i]['parent'] = list(sub_table['parentTrackId'])[0]
     
-    for i in list(np.unique(label_table['trackId'])):
-        i = int(i)
+    for i in list(rel.keys()):
+        out[i]['capped'] = True
+        out[i]['frame_div'] = rel[i][1]
+        out[i]['daughters'].extend(rel[i][0])
+    
+    for i in list(out.keys()):
         if out[i]['parent'] is not None:
             par = out[i]['parent']
-            out[par]['daughters'].append(i)
-            out[par]['capped'] = True
-            if out[par]['frame_div'] is None:
-                out[par]['frame_div'] = int(np.min(out[i]['frames']) - 1)
-            else:
-                out[par]['frame_div'] = int(np.min((np.min(out[i]['frames']) - 1, out[par]['frame_div'])))
+            if i not in out[par]['daughters']:
+                out[par]['daughters'].append(i)
             
     return out
     
@@ -226,3 +228,114 @@ def lineage_dic2txt(lineage_dic):
             dic.loc[dic.index[dic['id']==d], 'parents'] = d
     
     return dic
+
+def break_track(label_table):
+    """Break tracks in a lineage table into single tracks, where
+    No gapped tracks allowed. All gap must be transferred into parent-daughter
+    relationship.
+    
+    Algorithm:
+        Rename raw parentTrackId to mtParTrk
+        Initiate new parentTrackId column with 0
+        Separate all tracks individually
+    
+    (In original lineage table, single track can be gapped, lineage only associates
+     mitosis tracks, not gapped tracks.)
+    
+    Returns:
+        processed table
+        {parentId:[[daughter ids], mitosis frame]}
+    """
+    
+    max_trackId = np.max(label_table['trackId'])
+    label_table['mtParTrk'] = label_table['parentTrackId']
+    label_table['parentTrackId'] = 0
+    label_table['ori_trackId'] = label_table['trackId']
+    new_table = pd.DataFrame()
+    
+    for l in np.unique(label_table['trackId']):
+        tr = label_table[label_table['trackId']==l].copy()
+        
+        if np.max(tr['frame']) - np.min(tr['frame']) + 1 != tr.shape[0]:
+            sep, max_trackId = separate(list(tr['frame']).copy(), list(tr['mtParTrk']).copy(), l, base=max_trackId)
+            tr.loc[:,['frame']] = sep['frame']
+            tr.loc[:,['trackId']] = sep['trackId']
+            tr.loc[:,['parentTrackId']] = sep['parentTrackId']
+            tr.loc[:,['mtParTrk']] = sep['mtParTrk']
+            
+        new_table = new_table.append(tr)
+          
+    # For tracks that have mitosis parents, find new ID of their parents
+    # Currently, we do not handle mitosis track loss daughter, 
+    # though the mitosis duration is count by cell cycle resolver ResolveClass.R
+
+    rel = {}  # relation lookup, parent:([daug], div frame)
+    for l in np.unique(new_table['trackId']):
+        tr = new_table[new_table['trackId']==l].copy()
+        
+        ori_par = list(tr['mtParTrk'])[0]
+        if ori_par != 0:
+            app = np.min(tr['frame'])
+            search = new_table[new_table['ori_trackId']==ori_par]
+            new_par = search.iloc[np.argmin(abs(search['frame']-app))]['trackId']
+            new_table.loc[tr.index,['mtParTrk']] = new_par
+            if new_par in rel.keys():
+                rel[new_par][0].append(l)
+            else:
+                rel[new_par] = [[l], None]
+                
+    # break parent if the parent have only one daughter
+    # also deduce mitosis frame
+    for parent in list(rel.keys()):
+        if len(rel[parent][0])==1:
+            m_entry = np.min(new_table[new_table['trackId']==rel[parent][0][0]]['frame'])
+            rel[parent][1] = m_entry
+            # break parent at m_entry + 1
+            idx = new_table[(new_table['trackId']==parent) & (new_table['frame']>=m_entry+1)].index
+            if len(idx):
+                new_table.loc[idx, ['trackId']] = max_trackId + 1
+                new_table.loc[idx, ['parentTrackId']] = parent
+                new_table.loc[idx, ['mtParTrk']] = parent
+                rel[parent][0].append(max_trackId+1)
+                max_trackId += 1
+                # for non-mitosis tracks that are daughters of the parent, point the first daughter
+                # to new track
+                idx = new_table[(new_table['parentTrackId']==parent) & (new_table['trackId'] != max_trackId)].index
+                new_table.loc[idx, ['parentTrackId']] = max_trackId
+            else:
+                # if mitosis happens at the end of a parent track, any track following the parent will be mitosis daughter
+                idx = new_table[(new_table['parentTrackId']==parent) & (new_table['frame'] >=m_entry+1)].index
+                if len(idx):
+                    rel[parent][0].append(np.unique(new_table.loc[idx, ['trackId']])[0])
+                    new_table.loc[idx, ['mtParTrk']] = parent
+         
+        else:
+            assert len(rel[parent][0])==2
+            m_entry = np.max(new_table[new_table['trackId']==parent]['frame'])
+            rel[parent][1] = m_entry
+    
+    for i in range(new_table.shape[0]):
+        new_table.loc[i,['parentTrackId']] = np.max(((new_table['parentTrackId'][i]), new_table['mtParTrk'][i]))  # merge mitosis information in to parent
+    
+    return new_table, rel
+
+def separate(frame_list, mtPar_list, ori_id, base):
+    """For single track, separate into all complete tracks
+    
+    Args:
+        frame_list: frames of exist, length equalt to label table
+        mtPar_list: mitosis parent list, for solving mitosis relationship
+        ori_id: original track ID
+        base: base track ID, will assign new track ID sequentially from base + 1
+    """
+    
+    trackId = [ori_id for i in range(len(frame_list))]
+    parentTrackId = [0 for i in range(len(frame_list))]
+    for i in range(1,len(frame_list)):
+        if frame_list[i] - frame_list[i-1] != 1:
+            trackId[i:] = [base + 1 for s in range(i,len(trackId))]
+            parentTrackId[i:] = [trackId[i-1] for s in range(i, len(trackId))]
+            mtPar_list[i:] = [0 for s in range(i, len(trackId))]
+            base += 1
+    rt = {'frame':frame_list, 'trackId':trackId, 'parentTrackId':parentTrackId, 'mtParTrk':mtPar_list}
+    return rt, base
