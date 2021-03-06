@@ -258,10 +258,10 @@ def break_track(label_table):
         
         if np.max(tr['frame']) - np.min(tr['frame']) + 1 != tr.shape[0]:
             sep, max_trackId = separate(list(tr['frame']).copy(), list(tr['mtParTrk']).copy(), l, base=max_trackId)
-            tr.loc[:,['frame']] = sep['frame']
-            tr.loc[:,['trackId']] = sep['trackId']
-            tr.loc[:,['parentTrackId']] = sep['parentTrackId']
-            tr.loc[:,['mtParTrk']] = sep['mtParTrk']
+            tr.loc[:,'frame'] = sep['frame']
+            tr.loc[:,'trackId'] = sep['trackId']
+            tr.loc[:,'parentTrackId'] = sep['parentTrackId']
+            tr.loc[:,'mtParTrk'] = sep['mtParTrk']
             
         new_table = new_table.append(tr)
           
@@ -278,7 +278,7 @@ def break_track(label_table):
             app = np.min(tr['frame'])
             search = new_table[new_table['ori_trackId']==ori_par]
             new_par = search.iloc[np.argmin(abs(search['frame']-app))]['trackId']
-            new_table.loc[tr.index,['mtParTrk']] = new_par
+            new_table.loc[tr.index,'mtParTrk'] = new_par
             if new_par in rel.keys():
                 rel[new_par][0].append(l)
             else:
@@ -293,21 +293,21 @@ def break_track(label_table):
             # break parent at m_entry + 1
             idx = new_table[(new_table['trackId']==parent) & (new_table['frame']>=m_entry+1)].index
             if len(idx):
-                new_table.loc[idx, ['trackId']] = max_trackId + 1
-                new_table.loc[idx, ['parentTrackId']] = parent
-                new_table.loc[idx, ['mtParTrk']] = parent
+                new_table.loc[idx, 'trackId'] = max_trackId + 1
+                new_table.loc[idx, 'parentTrackId'] = parent
+                new_table.loc[idx, 'mtParTrk'] = parent
                 rel[parent][0].append(max_trackId+1)
                 max_trackId += 1
                 # for non-mitosis tracks that are daughters of the parent, point the first daughter
                 # to new track
                 idx = new_table[(new_table['parentTrackId']==parent) & (new_table['trackId'] != max_trackId)].index
-                new_table.loc[idx, ['parentTrackId']] = max_trackId
+                new_table.loc[idx, 'parentTrackId'] = max_trackId
             else:
                 # if mitosis happens at the end of a parent track, any track following the parent will be mitosis daughter
                 idx = new_table[(new_table['parentTrackId']==parent) & (new_table['frame'] >=m_entry+1)].index
                 if len(idx):
-                    rel[parent][0].append(np.unique(new_table.loc[idx, ['trackId']])[0])
-                    new_table.loc[idx, ['mtParTrk']] = parent
+                    rel[parent][0].append(np.unique(new_table.loc[idx, 'trackId'])[0])
+                    new_table.loc[idx, 'mtParTrk'] = parent
          
         else:
             assert len(rel[parent][0])==2
@@ -315,7 +315,7 @@ def break_track(label_table):
             rel[parent][1] = m_entry
     
     for i in range(new_table.shape[0]):
-        new_table.loc[i,['parentTrackId']] = np.max(((new_table['parentTrackId'][i]), new_table['mtParTrk'][i]))  # merge mitosis information in to parent
+        new_table.loc[i,'parentTrackId'] = np.max(((new_table['parentTrackId'][i]), new_table['mtParTrk'][i]))  # merge mitosis information in to parent
     
     return new_table, rel
 
