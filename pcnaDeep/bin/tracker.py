@@ -48,7 +48,7 @@ def track(df, discharge=40, gap_fill=5):
     out.columns = names
     out = out.sort_values(by=['trackId','frame'])
 
-    return out.drop('continuous_label', axis=1)
+    return out
 
 def track_mask(mask, discharge=40, gap_fill=5, render_phase=False, phase_dic={10:'G1/G2',50:'S',100:'M',200:'G1/G2'}):
     """Track binary mask objects
