@@ -8,6 +8,7 @@ import pandas as pd
 import os, tarfile, tempfile, json
 from io import BytesIO
 import skimage.measure as measure
+import skimage.io as io
 import numpy as np
 
 def relabel_trackID(label_table):
@@ -51,7 +52,7 @@ def label_by_track(mask, label_table):
         sub_table = label_table[label_table['frame']==i]
         sl = mask[i,:,:].copy()
         sl = measure.label(sl, connectivity=1)
-        props = measure.regionprops(sl)
+        props = measure.regionprops(mask)
         for p in props:
             y, x = np.floor(p.centroid)
             tar = sub_table[(np.floor(sub_table['Center_of_the_object_0'])==x) & (np.floor(sub_table['Center_of_the_object_1'])==y)]
@@ -207,7 +208,7 @@ def lineage_dic2txt(lineage_dic):
     
     lineage_dic = lineage_dic[0]
     dic = {'id':[], 'appear':[], 'disappear':[]}
-    pars = []
+    pars = {}
     for d in lineage_dic.values():
         i = d['label']
         begin = np.min(d['frames'])
@@ -217,15 +218,15 @@ def lineage_dic2txt(lineage_dic):
         dic['appear'].append(int(begin))
         dic['disappear'].append(int(end))
         if d['daughters']:
-            pars.append(d)
+            for dg in d['daughters']:
+                pars[dg] = i
 
     dic = pd.DataFrame(dic)
     dic['parents'] = 0
 
     # resolve parents
-    for p in pars:
-        for d in d['daughters']:
-            dic.loc[dic.index[dic['id']==d], 'parents'] = d
+    for dg in list(pars.keys()):
+        dic.loc[dic.index[dic['id']==dg], 'parents'] = pars[dg]
     
     return dic
 
@@ -290,8 +291,8 @@ def break_track(label_table):
         if len(rel[parent][0])==1:
             m_entry = np.min(new_table[new_table['trackId']==rel[parent][0][0]]['frame'])
             rel[parent][1] = m_entry
-            # break parent at m_entry + 1
-            idx = new_table[(new_table['trackId']==parent) & (new_table['frame']>=m_entry+1)].index
+            # break parent at m_entry
+            idx = new_table[(new_table['trackId']==parent) & (new_table['frame']>=m_entry)].index
             if len(idx):
                 new_table.loc[idx, 'trackId'] = max_trackId + 1
                 new_table.loc[idx, 'parentTrackId'] = parent
@@ -304,7 +305,7 @@ def break_track(label_table):
                 new_table.loc[idx, 'parentTrackId'] = max_trackId
             else:
                 # if mitosis happens at the end of a parent track, any track following the parent will be mitosis daughter
-                idx = new_table[(new_table['parentTrackId']==parent) & (new_table['frame'] >=m_entry+1)].index
+                idx = new_table[(new_table['parentTrackId']==parent) & (new_table['frame'] >=m_entry)].index
                 if len(idx):
                     rel[parent][0].append(np.unique(new_table.loc[idx, 'trackId'])[0])
                     new_table.loc[idx, 'mtParTrk'] = parent
@@ -339,3 +340,24 @@ def separate(frame_list, mtPar_list, ori_id, base):
             base += 1
     rt = {'frame':frame_list, 'trackId':trackId, 'parentTrackId':parentTrackId, 'mtParTrk':mtPar_list}
     return rt, base
+
+def save_seq(stack, out_dir, prefix, dig_num=3, dtype='uint16', base=0):
+    """Save image stack and label sequentially
+    
+    Args:
+        stack: nparray, THW
+        out_dir: output directory
+        prefix: prefix of single slice
+        dig_num = digit number (3 -> 00x) for labeling image sequentially
+        dtype: data type to save
+        base: base number of the label (starting from)
+    """
+    if len(stack.shape)==4:
+        stack = stack[:,:,:,0]
+
+    for i in range(stack.shape[0]):
+        fm = ("%0" + str(dig_num) + "d") % (i + base)
+        name = os.path.join(out_dir, prefix + fm + '.tif')
+        io.imsave(name, stack[i,:,:].astype(dtype))
+    
+    return
