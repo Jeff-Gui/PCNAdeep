@@ -30,7 +30,7 @@ dic = get_lineage_dict(track_new.copy(), rel)
 save_trks('/Users/jefft/Desktop/001.trk', dic, np.expand_dims(raw, axis=3), np.expand_dims(tracked_mask, axis=3))
 
 # 3. After editing in caliban, restore tracks and the mask
-t = load_trks('/Users/jefft/Desktop/001.trk')
+t = load_trks('/Users/jefft/Desktop/001-pcd.trk')
 lin = t['lineages']
 mask = t['y']
 txt = lineage_dic2txt(lin)

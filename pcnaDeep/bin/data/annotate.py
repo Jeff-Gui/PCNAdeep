@@ -7,7 +7,6 @@ Created on Mon Feb  22 09:03:20 2021
 import pandas as pd
 import os, tarfile, tempfile, json
 from io import BytesIO
-import skimage.measure as measure
 import skimage.io as io
 import numpy as np
 
@@ -34,7 +33,7 @@ def label_by_track(mask, label_table):
     """Label objects in mask with track ID
 
     Args:
-        mask: uint8 np array
+        mask: uint8 np array, output from main model
         label_table: track table
     
     Return:
@@ -44,23 +43,21 @@ def label_by_track(mask, label_table):
     assert mask.shape[0] == np.max(label_table['frame']+1)
     assert mask.dtype == np.dtype('uint8')
     
-    mask = mask.astype('bool').astype('uint8')
-    if np.max(label_table['trackId']) > 254:
-        mask = mask.astype('bool').astype('uint16')
-        
+    if np.max(label_table['trackId']) * 2 > 254:
+        mask = mask.astype('uint16')
+    
     for i in np.unique(label_table['frame']):
         sub_table = label_table[label_table['frame']==i]
         sl = mask[i,:,:].copy()
-        sl = measure.label(sl, connectivity=1)
-        props = measure.regionprops(mask)
-        for p in props:
-            y, x = np.floor(p.centroid)
-            tar = sub_table[(np.floor(sub_table['Center_of_the_object_0'])==x) & (np.floor(sub_table['Center_of_the_object_1'])==y)]
-            assert tar.shape[0] <= 1
-            if tar.shape[0] == 0:
-                mask[i,:,:][sl==p.label] = 0  # untracked, should not exist
-            else:
-                mask[i,:,:][sl==p.label] = int(tar['trackId'])
+        ori_labels = set(np.unique(sl)) - set([0])
+        untracked = list(ori_labels - set(list(sub_table['continuous_label'])))
+        #  remove untracked
+        for j in untracked:
+            sl[mask[i,:,:]==j] = 0
+        #  update tracked
+        for j in sub_table.index:
+            sl[mask[i,:,:]==sub_table.loc[j, 'continuous_label']] = sub_table.loc[j, 'trackId']
+        mask[i,:,:] = sl.copy()
     
     return mask
 
