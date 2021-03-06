@@ -276,7 +276,7 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
     if (nrow(cdd_parent)>0 & cur_info$mitosis_identity!="daughter"){
       for (j in 1:nrow(cdd_parent)){
         cdd_crd = c(cdd_parent$disapp_x[j], cdd_parent$disapp_y[j])
-        if (dist(rbind(app_crd,cdd_crd))<=DIST_TOLERANCE){
+        if (dist(rbind(app_crd,cdd_crd)) <=DIST_TOLERANCE * abs(cdd_parent$disapp_frame[j] - app_frame)){
           # location constraint
           parent = c(parent, cdd_parent$track[j])
         }
@@ -291,7 +291,7 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
     if (nrow(cdd_daughter)>0 & cur_info$mitosis_identity!="parent"){
       for (j in 1:nrow(cdd_daughter)){
         cdd_crd = c(cdd_daughter$app_x[j], cdd_daughter$app_y[j])
-        if (dist(rbind(disapp_crd,cdd_crd))<=DIST_TOLERANCE &
+        if (dist(rbind(disapp_crd,cdd_crd)) <= DIST_TOLERANCE * abs(cdd_daughter$app_frame[j] - disapp_frame) &
             cdd_daughter$mitosis_identity[j]!='daughter'){
           daughters = c(daughters, cdd_daughter$track[j])
         }
