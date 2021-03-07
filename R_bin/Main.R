@@ -87,9 +87,12 @@ for (i in 1:length(track)){
   plot_pcna(refined_tracks[[i]], out_dir, prefix[i], m)
   print('##=====================Resolving Class=========================')
   s = doResolveTrack(refined_tracks[[i]], length_filter=min_resolve, minGS=rm_short_G_S)
-  s = cbind('stage'=rep(prefix[i],nrow(s)), s)
-  print(paste("Resolved",as.character(nrow(s)),"tracks."))
-  phase = rbind(phase, s)
+  s1 = s$duration
+  s2 = s$resolved_table
+  s1 = cbind('stage'=rep(prefix[i],nrow(s1)), s1)
+  print(paste("Resolved",as.character(nrow(s1)),"tracks."))
+  write.csv(s2, file.path(out_dir, paste(prefix[i], '-resolved_track.csv', sep='')), row.names = F)
+  phase = rbind(phase, s1)
   print('##============================================================')
 }
 colnames(phase) = c('stage','lineage','type','G1','S','M','G2')

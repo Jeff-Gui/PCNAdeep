@@ -39,12 +39,15 @@ resolve_phase = function(track, base=0, end=288, s_min=10){
     
     out_parent = resolve_phase(parent, base=BASE, end=as.numeric(max(parent$frame)), S_MIN)
     trans_par = out_parent$transition
+    lt_par = out_parent$lineage_table
     out_parent = out_parent$out
     out_daug1 = resolve_phase(daug1, base=m_entry, end=as.numeric(max(daug1$frame)), S_MIN)
     trans_daug1 = out_daug1$transition
+    lt_daug1 = out_daug1$lineage_table
     out_daug1 = out_daug1$out
     out_daug2 = resolve_phase(daug2, base=m_entry, end=as.numeric(max(daug2$frame)), S_MIN)
     trans_daug2 = out_daug2$transition
+    lt_daug2 = out_daug2$lineage_table
     out_daug2 = out_daug2$out
     
     if(is.null(out_parent) | is.null(out_daug1) | is.null(out_daug2)){return(NULL)}
@@ -79,7 +82,7 @@ resolve_phase = function(track, base=0, end=288, s_min=10){
     m_exit = mean(c_l)
     
     out['M'][[1]] = m_exit - m_entry
-    return(list('out'=out,'transition'=list('parent'=trans_par, 'daug1'=trans_daug1, 'daug2'=trans_daug2)))
+    return(list('out'=out,'transition'=list('parent'=trans_par, 'daug1'=trans_daug1, 'daug2'=trans_daug2), 'lineage_table'=rbind(lt_par, lt_daug1, lt_daug2)))
   }
   if(count_lineage==2){
     lineages = unique(track$trackId)
@@ -102,9 +105,11 @@ resolve_phase = function(track, base=0, end=288, s_min=10){
 
     out_parent = resolve_phase(parent, base=BASE, end=as.numeric(max(parent$frame)), S_MIN)
     trans_par = out_parent$transition
+    lt_par = out_parent$lineage_table
     out_parent = out_parent$out
     out_daughter = resolve_phase(daughter, base=m_entry, end=as.numeric(max(daughter$frame)), S_MIN)
     trans_daug = out_daughter$transition
+    lt_daug = out_daughter$lineage_table
     out_daughter = out_daughter$out
     if(is.null(out_parent) | is.null(out_daughter)){return(NULL)}
     
@@ -139,7 +144,7 @@ resolve_phase = function(track, base=0, end=288, s_min=10){
     m_exit = mean(c_l)
     
     out['M'][[1]] = m_exit - m_entry
-    return(list('out'=out,'transition'=list('parent'=trans_par, 'daug'=trans_daug)))
+    return(list('out'=out,'transition'=list('parent'=trans_par, 'daug'=trans_daug), 'lineage_table'=rbind(lt_par, lt_daug)))
     
   }else{
     flag = F
@@ -187,12 +192,13 @@ resolve_phase = function(track, base=0, end=288, s_min=10){
     trs_track[which(trs_track$trans=='M->G1/G2'),'trans'] = 'M->G1'
     trs_track[which(trs_track$trans=='S->G1/G2'),'trans'] = 'S->G2'
     
+    lineage_tb = annotate_track(track, trs_track)
     # deduce duration
     if(nrow(trs_track)==2){
       # arrest
       out = list()
       out[trs_track$trans[1]] = 'arrest'
-      return(list('out'=out, 'transition'=list('single'=trs_track)))
+      return(list('out'=out, 'transition'=list('single'=trs_track), 'lineage_table'=lineage_tb))
     }
     if(nrow(trs_track)==3){
       # single transition
@@ -200,7 +206,7 @@ resolve_phase = function(track, base=0, end=288, s_min=10){
       phs = strsplit(trs_track$trans[2],'->')[[1]]
       out[phs[1]] = paste('>',trs_track$frame[2]-BASE,sep='')
       out[phs[2]] = paste('>',END-trs_track$frame[2],sep='')
-      return(list('out'=out, 'transition'=list('single'=trs_track)))
+      return(list('out'=out, 'transition'=list('single'=trs_track), 'lineage_table'=lineage_tb))
     }
     out = list()
     phs = strsplit(trs_track$trans[2],'->')[[1]]
@@ -217,11 +223,12 @@ resolve_phase = function(track, base=0, end=288, s_min=10){
         out[trs_state][[1]] = trs_track$frame[i]-trs_track$frame[i-1]
       }
     }
-    return(list('out'=out, 'transition'=list('single'=trs_track)))
+    return(list('out'=out, 'transition'=list('single'=trs_track), 'lineage_table'=lineage_tb))
   }
 }
 
 doResolveTrack = function(track, length_filter=200, minGS=10){
+  lts = track[c(),]
   lineage_count = length(unique(track$lineageId))
   out = data.frame('lineage'=unique(track$lineageId),
                    'type'=rep(NA, lineage_count),
@@ -233,8 +240,11 @@ doResolveTrack = function(track, length_filter=200, minGS=10){
     d = subset(track, track$lineageId==i)
     if(length(unique(d$trackId))==1 & (max(d$frame)-min(d$frame))<length_filter){next}
     idx = which(out$lineage==i)
-    rsd = resolve_phase(d, base=as.numeric(min(d$frame)), end=as.numeric(max(d$frame)), s_min=minGS)$out
+    rsd = resolve_phase(d, base=as.numeric(min(d$frame)), end=as.numeric(max(d$frame)), s_min=minGS)
     if(is.null(rsd)){next}
+    lt = rsd$lineage_table
+    lts = rbind(lts, lt)
+    rsd = rsd$out
     if(length(rsd)==1){
       out$type[idx] = paste(names(rsd),'arrest',max(d$frame)-min(d$frame),sep='_')
     } else {
@@ -300,5 +310,27 @@ doResolveTrack = function(track, length_filter=200, minGS=10){
     }
   }
   out = subset(out, !is.na(out$type))
-  return(out)
+  return(list('duration'=out, 'resolved_table'=lts))
+}
+
+annotate_track = function(track, trs_track){
+  # Annotate track with resolved cell cycle class
+  # Args:
+  #   track, trs_track (transition table of the track)
+  resolved_class = c()
+  lk = list('G1->S'='G1', 'G2->M'='G2', 'M->G1'='M', 'S->G2'='S')
+  if (nrow(trs_track)==2){
+    # if arrest
+    resolved_class = rep(trs_track$trans[1], nrow(track))
+  } else {
+    resolved_class = c(resolved_class, rep(strsplit(trs_track[2, 'trans'], '->')[[1]][1], sum(track$frame<trs_track$frame[2])))
+    if (nrow(trs_track)>=4){
+      for (i in 3:(nrow(trs_track)-1)){
+        resolved_class = c(resolved_class, rep(lk[trs_track[i, 'trans']][[1]], sum(track$frame<trs_track$frame[i] & track$frame>=trs_track$frame[i-1])))
+      }
+    }
+    i = nrow(trs_track)-1
+    resolved_class = c(resolved_class, rep(strsplit(trs_track[i, 'trans'], '->')[[1]][2], sum(track$frame>=trs_track$frame[i])))
+  }
+  return(cbind(track, resolved_class))
 }

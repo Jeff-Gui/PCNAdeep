@@ -189,7 +189,12 @@ trackRefine = function(track, distance_tolerance, dist_factor, frame_tolerance, 
       searching = subset(searching, searching$predicted_class=="M" & searching$trackId!=potential_daughter_trackId[i])
       searching_filtered = data.frame()
       for (p in unique(searching$trackId)){
-        if(ann[which(ann$track==p),'mitosis_identity'] == 'parent'){next}
+        if(ann[which(ann$track==p),'mitosis_identity']=='parent'){next}
+        if(ann[which(ann$track==p),'mitosis_identity']=='daughter' &
+           !is.na(ann[which(ann$track==p), 'mitosis_parent'])){next}
+        # parent/daughter that has already involved in a relationship excluded from searching,
+        # this prevents the daughter cell linked to parent 1 divides (secondary mitosis)
+        # But, daughter cell that cannot be related to any parent in mitosis search 1 is allowed.
         dif = abs(searching[searching$trackId==p,'frame']-target_info$app_frame)
         mf = searching[searching$trackId==p,'frame'][which(dif==min(dif))][1]
         searching_filtered = rbind(searching_filtered, searching[searching$trackId==p & searching$frame==mf,])
