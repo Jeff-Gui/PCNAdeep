@@ -2,23 +2,19 @@
 import atexit
 import bisect
 import multiprocessing as mp
-from collections import deque
-import cv2
 import torch
 import numpy as np
 import skimage.measure as measure
-from skimage.morphology import remove_small_objects
 import copy
 import pandas as pd
 
 from detectron2.data import MetadataCatalog
 from detectron2.engine.defaults import DefaultPredictor
-from detectron2.utils.video_visualizer import VideoVisualizer
 from detectron2.utils.visualizer import ColorMode, Visualizer
 
 
 class VisualizationDemo(object):
-    def __init__(self, cfg, instance_mode=ColorMode.IMAGE, parallel=False, thing_class=['G1/G2','S','M','E']):
+    def __init__(self, cfg, instance_mode=ColorMode.IMAGE, parallel=False):
         """
         Args:
             cfg (CfgNode):
@@ -28,7 +24,7 @@ class VisualizationDemo(object):
         """
         self.metadata = MetadataCatalog.get(
             cfg.DATASETS.TEST[0] if len(cfg.DATASETS.TEST) else "__unused"
-        ).set(thing_classes=thing_class)
+        ).set(thing_classes=['G1/G2', 'S', 'M', 'E'])
         self.cpu_device = torch.device("cpu")
         self.instance_mode = instance_mode
 
@@ -183,7 +179,7 @@ def pred2json(masks, labels, fp):
 
     tmp = {"filename":fp,"size":masks[0].astype('bool').size,"regions":[],"file_attributes":{}}
     for i in range(len(masks)):
-        region = measure.regionprops(measure.label(masks[i]))[0]
+        region = measure.regionprops(measure.label(masks[i], connectivity=1))[0]
         if region.image.shape[0]<2 or region.image.shape[1]<2:
             continue
         # register regions
@@ -239,7 +235,7 @@ def pred2json(masks, labels, fp):
     return tmp
 
 def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000):
-    """predict single frame and deduce meta information
+    """Predict single frame and deduce meta information
     
     Args:
         img: uint8 image slice, ndarray
@@ -249,7 +245,6 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000):
         is_gray: whether the slice is gray. If true, will convert to 3 channels at first
 
     """
-
     if is_gray:
         img = np.stack([img, img, img], axis=2)  # convert gray to 3 channels
     # Generate mask or visualized output
@@ -264,9 +259,9 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000):
     # 0: G1/G2, 1: S, 2: M, 3: E-early G1
     cls = predictions['instances'].pred_classes
     conf = predictions['instances'].scores
-    factor = {0:0, 1:1, 2:2, 3:0}
+    factor = {0:'G1/G2', 1:'S', 2:'M', 3:'G1/G2'}
     for s in range(mask.shape[0]):
-        if np.sum(mask[s,:,:]) < size_flt:
+        if np.sum(mask[s,:,:]) < 1000:
             continue
         sc = conf[s].item()
         ori = np.max(mask_slice[mask[s,:,:]!=0])
@@ -280,7 +275,7 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000):
     props = pd.DataFrame(props)
     props.columns = ['label','bbox-0','bbox-1','bbox-2','bbox-3','Center_of_the_object_0','Center_of_the_object_1','mean_intensity']
 
-    img_relabel = measure.label(mask_slice)
+    img_relabel = measure.label(mask_slice, connectivity=1)
     props_relabel = measure.regionprops_table(img_relabel, properties=('label','centroid'))
     props_relabel = pd.DataFrame(props_relabel)
     props_relabel.columns = ['continuous_label','Center_of_the_object_0', 'Center_of_the_object_1']
@@ -288,15 +283,32 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000):
     out_props = pd.merge(props, props_relabel, on=['Center_of_the_object_0','Center_of_the_object_1'])
     out_props['frame'] = frame_id
     phase = []
-    confid = []
+    G_confid = []
+    S_confid = []
+    M_confid = []
     for row in range(out_props.shape[0]):
         lb = int(out_props.iloc[row][0])
-        phase.append(factor[cls[lb-1].item()])
-        confid.append(conf[lb-1].item())
+        p = factor[cls[lb-1].item()]
+        confid = conf[lb-1].item()
+        phase.append(p)
+        if p=='G1/G2':
+            G_confid.append(confid)
+            S_confid.append((1-confid)/2)
+            M_confid.append((1-confid)/2)
+        elif p=='S':
+            S_confid.append(confid)
+            G_confid.append((1-confid)/2)
+            M_confid.append((1-confid)/2)
+        else:
+            M_confid.append(confid)
+            G_confid.append((1-confid)/2)
+            S_confid.append((1-confid)/2)
+        
     out_props['phase'] = phase
-    out_props['confid'] = confid
-    out_props['Center_of_the_object_0'] = np.round(out_props['Center_of_the_object_0'])
-    out_props['Center_of_the_object_1'] = np.round(out_props['Center_of_the_object_1'])
+    out_props['Probability of G1/G2'] = G_confid
+    out_props['Probability of S'] = S_confid
+    out_props['Probability of M'] = M_confid
+    
     del out_props['label']
 
     return img_relabel.astype('uint8'), out_props 

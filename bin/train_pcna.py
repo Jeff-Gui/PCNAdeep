@@ -38,7 +38,7 @@ from detectron2.evaluation import (
     verify_results,
 )
 from detectron2.modeling import GeneralizedRCNNWithTTA
-from preparePCNA import load_PCNAs_json
+from pcnaDeep.data.preparePCNA import load_PCNAs_json
 from detectron2 import model_zoo
 import detectron2.data.transforms as T
 

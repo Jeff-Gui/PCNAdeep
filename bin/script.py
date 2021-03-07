@@ -1,8 +1,8 @@
 import pandas as pd
 import numpy as np
 import skimage.io as io
-from data.annotate import relabel_trackID, label_by_track, get_lineage_dict, get_lineage_txt, save_trks, load_trks, lineage_dic2txt, break_track, save_seq
-from tracker import track_mask
+from pcnaDeep.data.annotate import relabel_trackID, label_by_track, get_lineage_dict, get_lineage_txt, save_trks, load_trks, lineage_dic2txt, break_track, save_seq
+from pcnaDeep.tracker import track_mask
 
 # 2021/3/4
 # 1. From detection and tracking output, generate RES folder files
