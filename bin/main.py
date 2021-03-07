@@ -1,15 +1,13 @@
-import argparse
 import multiprocessing as mp
-import time
 import numpy as np
-import os
+import os, re, time, argparse
 
 import skimage.io as io
 import pandas as pd
 from detectron2.config import get_cfg
 from detectron2.utils.logger import setup_logger
 from pcnaDeep.predictor import VisualizationDemo, predictFrame
-from pcanDeep.tracker import track
+from pcnaDeep.tracker import track
 
 def setup_cfg(args):
     # load config from file and command-line arguments
@@ -89,6 +87,8 @@ if __name__ == "__main__":
     
     logger.info("Start infering.")
     if args.input and not args.batch:
+        prefix = os.path.basename(args.input)
+        prefix = re.match('(.+)\.\w+',prefix).group(1)
         gray = args.is_gray # gray: THW; non-gray: THWC
         # Input image must be uint8
         imgs = io.imread(args.input)
@@ -116,7 +116,7 @@ if __name__ == "__main__":
 
         logger.info('Tracking...')
         track_out = track(df=table_out, discharge=int(args.displace), gap_fill=int(args.gap_fill))
-        track_out.to_csv(os.path.join(args.output,'tracks.csv'), index=0)
-        io.imsave(os.path.join(args.output,'mask.tif'), mask_out)
+        track_out.to_csv(os.path.join(args.output, prefix + '_tracks.csv'), index=0)
+        io.imsave(os.path.join(args.output, prefix + '_mask.tif'), mask_out)
 
         logger.info('Finished: '+time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()))
