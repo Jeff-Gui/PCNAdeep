@@ -2,7 +2,7 @@
 """
 Created on Tue Dec 15 19:03:45 2020
 
-@author: CellDivision
+@author: Yifan Gui
 """
 
 import pandas as pd
@@ -13,7 +13,55 @@ import re
 def dist(x1,y1,x2,y2):
     return math.sqrt((float(x1)-float(x2))**2 + (float(y1)-float(y2))**2)
 
-# Author: Jeff Gui Yifan
+def deduce_transition(l, tar, confidence, min_tar, max_res, escape=0):
+        """ Deduce mitosis exit and entry based on adaptive searching
+        
+        Args:
+            l: list of the target cell cycle phase
+            target: target cell cycle phase
+            min_tar: minimum duration of an entire target phase
+            confidence: matrix of confidence
+            max_tar: maximum accumulative duration of unwanted phase
+            escape: do not consider the first n instance
+            
+        Return:
+            (entry, exit), index of index list that resolved as entry and exit
+        """
+        mp = {'G1/G2':0, 'S':1, 'M':2}
+        confid_cls = list(map(lambda x:confidence[x,mp[l[x]]], range(confidence.shape[0])))
+        idx = np.where(np.array(l)==tar)[0]
+        idx = idx[idx>=escape].tolist()
+        if len(idx)==0: return None
+        if len(idx)==1: return (0, 0)
+        found = False
+        i = 0
+        g_panelty = 0
+        acc_m = confid_cls[idx[0]]
+        cur_m_entry = idx[i]
+        while i < len(idx)-1:
+            acc_m += confid_cls[idx[i+1]]
+            g_panelty += np.sum(confid_cls[idx[i]+1:idx[i+1]])
+            if acc_m >= min_tar:
+                found = True
+            if g_panelty >= max_res:
+                if found:
+                    m_exit = idx[i]
+                    break
+                else:
+                    g_panelty = 0
+                    acc_m = 0
+                    cur_m_entry = idx[i+1]
+            i += 1
+        if i==(len(idx)-1) and found:
+            m_exit = idx[-1]
+        elif i==(len(idx)-1) and g_panelty < max_res and found==False and cur_m_entry != idx[-1]:
+            found = True
+            m_exit = idx[-1]
+        
+        if found:
+            return (cur_m_entry, m_exit)
+        else:
+            return None
 
 
 # The script does two things: find potential parent-daughter cells, and wipes out
@@ -44,50 +92,6 @@ class refiner:
         self.mt_dic = {}  # mitosis dictionary: trackId: [[daughterId], [mt_entry, mt_exit]] for primarily mitosis break only  {'div':m_entry, 'daug':{daug1: m_exit, daug2: m_exit}}
         self.ann = pd.DataFrame(columns=['track','app_frame','disapp_frame','app_x','app_y','disapp_x','disapp_y','app_stage', 'disapp_stage','predicted_parent'])
     
-    def deduce_transition(self, idx, min_tar, max_res):
-        """ Deduce mitosis exit and entry based on adaptive searching
-        
-        Args:
-            idx: index list of the target cell cycle phase
-            min_tar: minimum duration of an entire target phase
-            max_tar: maximum accumulative duration of unwanted phase
-            
-        Return:
-            (entry, exit), index of index list that resolved as entry and exit
-        """
-        found = False
-        i = 0
-        g_panelty = 0
-        acc_m = 0
-        cur_m_entry = idx[i]
-        if len(idx)==1:
-            return (0, 0)
-        while i < len(idx)-1:
-            acc_m += 1
-            g_panelty += idx[i+1] - idx[i] - 1
-            if acc_m >= min_tar:
-                found = True
-            if g_panelty >= max_res:
-                if found:
-                    m_exit = idx[i]
-                    break
-                else:
-                    g_panelty = 0
-                    acc_m = 0
-                    cur_m_entry = idx[i+1]
-            i += 1
-        if i==(len(idx)-1) and found:
-            m_exit = idx[-1]
-        elif i==(len(idx)-1) and g_panelty < max_res and found==False and cur_m_entry != idx[-1]:
-            found = True
-            m_exit = idx[-1]
-        
-        if found:
-            return (cur_m_entry, m_exit)
-        else:
-            return None
-        
-    
     def break_mitosis(self):
         """break mitosis tracks
         iterate until no track is broken
@@ -105,34 +109,32 @@ class refiner:
             
             found = False
             if sub.shape[0] > self.MIN_GS and 'M' in list(sub['predicted_class']):
-                cls = np.array(sub['predicted_class'])
-                idx = np.where(cls=='M')[0]
-                idx = list(idx[idx>self.MIN_GS])
+                cls = sub['predicted_class'].tolist()
+                confid = np.array(sub[['Probability of G1/G2', 'Probability of S', 'Probability of M']])
+                out = deduce_transition(l=cls, tar='M', confidence=confid, min_tar=self.MIN_M, max_res=self.MIN_GS, escape=self.MIN_M)
                 
-                if len(idx) >= self.MIN_M:
-                    out = self.deduce_transition(idx, self.MIN_M, self.MIN_GS)
-                    if out:
-                        found = True
-                        cur_m_entry, m_exit = out
-                        # split mitosis track, keep parent track with 2 'M' prediction
-                        # this makes cytokinesis unpredictable...
-                        m_entry = list(sub['frame'])[cur_m_entry]
-                        sp_time = list(sub['frame'])[m_exit]
-                        new_track = sub[sub['frame']>=sp_time].copy()
-                        new_track.loc[:, 'trackId'] = cur_max
-                        new_track.loc[:, 'lineageId'] = list(sub['lineageId'])[0]  # inherit the lineage
-                        new_track.loc[:, 'parentTrackId'] = trk  # mitosis parent asigned
-                        # register to the class
-                        x1 = sub.iloc[m_exit]['Center_of_the_object_0']
-                        y1 = sub.iloc[m_exit]['Center_of_the_object_1']
-                        x2 = sub.iloc[m_exit-1]['Center_of_the_object_0']
-                        y2 = sub.iloc[m_exit-1]['Center_of_the_object_1']
-                        self.mt_dic[trk] = {'div':m_entry, 'daug':{cur_max:{'m_exit':sp_time, 'dist':dist(x1,y1,x2,y2)}}}
-                        cur_max += 1
-                        count += 1
-                        old_track = sub[sub['frame']<sp_time].copy()
-                        filtered_track = filtered_track.append(old_track.copy())
-                        filtered_track = filtered_track.append(new_track.copy())
+                if out is not None and out != (0,0) and out[1] != len(cls)-1:
+                    found = True
+                    cur_m_entry, m_exit = out
+                    # split mitosis track, keep parent track with 2 'M' prediction
+                    # this makes cytokinesis unpredictable...
+                    m_entry = list(sub['frame'])[cur_m_entry]
+                    sp_time = list(sub['frame'])[m_exit]
+                    new_track = sub[sub['frame']>=sp_time].copy()
+                    new_track.loc[:, 'trackId'] = cur_max
+                    new_track.loc[:, 'lineageId'] = list(sub['lineageId'])[0]  # inherit the lineage
+                    new_track.loc[:, 'parentTrackId'] = trk  # mitosis parent asigned
+                    # register to the class
+                    x1 = sub.iloc[m_exit]['Center_of_the_object_0']
+                    y1 = sub.iloc[m_exit]['Center_of_the_object_1']
+                    x2 = sub.iloc[m_exit-1]['Center_of_the_object_0']
+                    y2 = sub.iloc[m_exit-1]['Center_of_the_object_1']
+                    self.mt_dic[trk] = {'div':m_entry, 'daug':{cur_max:{'m_exit':sp_time, 'dist':dist(x1,y1,x2,y2)}}}
+                    cur_max += 1
+                    count += 1
+                    old_track = sub[sub['frame']<sp_time].copy()
+                    filtered_track = filtered_track.append(old_track.copy())
+                    filtered_track = filtered_track.append(new_track.copy())
             if not found:
                 filtered_track = filtered_track.append(sub.copy())
         
@@ -208,6 +210,42 @@ class refiner:
       
         return track, short_tracks, ann
     
+    def compete(self, mt_dic, parentId, daughterId, dist):
+        # check if a track ID can be registered into the mitosis
+        # if a parent already have two parents, compete with distance
+        """
+        Args:
+            idn: id number of the track
+            if successful compete out some track, return trackID to revert
+        """
+
+        dg_list = mt_dic[parentId]['daug']
+        if daughterId in dg_list.keys():
+            return None
+        
+        
+    
+    
+    def revert(self, ann, mt_dic, parentId, daughterId):
+        # remove information of a relationship registered to ann and mt_dic
+            # parent
+        mt_dic[parentId]['daug'].pop(daughterId)
+        ori = ann.loc[ann['track']==parentId]['mitosis_identity'].values[0]
+        ori = ori[:re.search('/parent$', ori).span()[0]]
+        ann.loc[ann['track']==parentId, 'mitosis_identity'] = ori
+        ori_daug = ann.loc[ann['track']==parentId]['mitosis_daughter'].values[0]
+        ori_daug = ori_daug.split('/')
+        ori_daug.remove(str(daughterId))
+        ann.loc[ann['track']==parentId, 'mitosis_daughter'] = '/'.join(ori_daug)
+            # daughter
+        ori = ann.loc[ann['track']==daughterId]['mitosis_identity'].values[0]
+        ori = ori[:re.search('/daughter$', ori).span()[0]]
+        ann.loc[ann['track']==daughterId, 'mitosis_identity'] = ori
+        ann.loc[ann['track']==daughterId, 'm_exit'] = None
+        ann.loc[ann['track']==daughterId, 'mitosis_parent'] = None
+        
+        return ann, mt_dic
+    
     def search_pdd(self):
         ann = self.ann.copy()
         track = self.track.copy()
@@ -244,6 +282,10 @@ class refiner:
                     for k in range(len(potential_parent)):
                         if potential_parent[k] == potential_daughter_pair_id[i] or potential_parent[k] == potential_daughter_pair_id[j]:
                             continue
+                        if potential_parent[k] in mt_dic.keys():
+                            if len(list(mt_dic[potential_parent[k]]['daug'].keys())) == 2:
+                                # if the parent already have two daughters, will not 
+                                continue
                         # spatial condition
                         parent_x = int(ann[ann['track']==potential_parent[k]]["disapp_x"])
                         parent_y = int(ann[ann['track']==potential_parent[k]]["disapp_y"])
@@ -263,17 +305,19 @@ class refiner:
                                 
                                 # deduce M_entry and M_exit
                                 c1 = list(track[track['trackId']==int(target_info_1['track'].values)]['predicted_class'])
-                                c1 = list(np.where(np.array(c1)=='M')[0])
+                                c1_confid = np.array(track[track['trackId']==int(target_info_1['track'].values)][['Probability of G1/G2', 'Probability of S', 'Probability of M']])
                                 c2 = list(track[track['trackId']==int(target_info_2['track'].values)]['predicted_class'])
-                                c2 = list(np.where(np.array(c2)=='M')[0])
-                                c1_exit = self.deduce_transition(c1, min_tar=1, max_res=self.MIN_GS)[1]
+                                c2_confid = np.array(track[track['trackId']==int(target_info_2['track'].values)][['Probability of G1/G2', 'Probability of S', 'Probability of M']])
+                                c1_exit = deduce_transition(c1, tar='M', confidence=c1_confid, min_tar=1, max_res=self.MIN_GS)[1]
                                 c1_exit = list(track[track['trackId']==int(target_info_1['track'].values)]['frame'])[c1_exit]
-                                c2_exit = self.deduce_transition(c2, min_tar=1, max_res=self.MIN_GS)[1]
+                                c2_exit = deduce_transition(c2, tar='M', confidence=c2_confid, min_tar=1, max_res=self.MIN_GS)[1]
                                 c2_exit = list(track[track['trackId']==int(target_info_2['track'].values)]['frame'])[c2_exit]
                                 if ann.loc[ann['track']==parent_id,"m_entry"].values[0] is None:
                                     c3 = list(track[track['trackId']==parent_id]['predicted_class'])
+                                    c3_class = c3
+                                    c3_confid = np.array(track[track['trackId']==parent_id][['Probability of G1/G2', 'Probability of S', 'Probability of M']])
                                     c3 = list(np.where(np.array(c3[::-1])=='M'))[0]
-                                    c3_entry = -(1+self.deduce_transition(c3, min_tar=1, max_res=self.MIN_GS)[1])
+                                    c3_entry = -(1+self.deduce_transition(c3_class, tar='M',confidence=c3_confid, min_tar=1, max_res=self.MIN_GS)[1])
                                     c3_entry = list(track[track['trackId']==parent_id]['frame'])[c3_entry]
                                     ann.loc[ann['track']==parent_id,"m_entry"] = c3_entry
                                     
