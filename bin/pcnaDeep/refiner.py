@@ -210,19 +210,40 @@ class refiner:
       
         return track, short_tracks, ann
     
-    def compete(self, mt_dic, parentId, daughterId, dist):
+    def compete(self, mt_dic, parentId, daughterId_1, dist1, daughterId_2, dist2):
         # check if a track ID can be registered into the mitosis
         # if a parent already have two parents, compete with distance
         """
         Args:
             idn: id number of the track
-            if successful compete out some track, return trackID to revert
+            id, distance of parent and daughter tracks
+            
+        Return:
+            {register: id to register; revert: id to revert}
         """
 
         dg_list = mt_dic[parentId]['daug']
-        if daughterId in dg_list.keys():
-            return None
+        ids = [daughterId_1, daughterId_2]
+        dist = [dist1, dist2]
+        for i in list(dg_list.keys()):
+            if i not in ids:
+                ids.append(i)
+                dist.append(dg_list[i]['dist'])
+        rs = np.argsort(dist)[:2]
+        ids = [ids[rs[0]], ids[rs[1]]]
+        rt = ids.copy()
         
+        if ids[0] in dg_list.keys():
+            rt.remove(ids[0])
+        if ids[1] in dg_list.keys():
+            rt.remove(ids[1])
+        
+        rm = []
+        for i in list(dg_list.keys()):
+            if i not in ids:
+                rm.append(i)
+        
+        return {'register':rt, 'revert':rm}
         
     
     
@@ -233,7 +254,7 @@ class refiner:
         ori = ann.loc[ann['track']==parentId]['mitosis_identity'].values[0]
         ori = ori[:re.search('/parent$', ori).span()[0]]
         ann.loc[ann['track']==parentId, 'mitosis_identity'] = ori
-        ori_daug = ann.loc[ann['track']==parentId]['mitosis_daughter'].values[0]
+        ori_daug = str(ann.loc[ann['track']==parentId]['mitosis_daughter'].values[0])
         ori_daug = ori_daug.split('/')
         ori_daug.remove(str(daughterId))
         ann.loc[ann['track']==parentId, 'mitosis_daughter'] = '/'.join(ori_daug)
@@ -264,12 +285,11 @@ class refiner:
                 if target_info_1.shape[0]==0 or target_info_2.shape[1]==0: continue
                 time_dif = abs(int(target_info_1['app_frame']) - int(target_info_2['app_frame']))
                 if dist(target_info_1['app_x'], target_info_1['app_y'], target_info_2['app_x'], target_info_2['app_y']) <= time_dif * self.DIST_MT_TOLERANCE and time_dif < self.FRAME_MT_TOLERANCE:
-                    
                     # Constraint A: close distance
                     # Constraint B: close appearing time
                     
                     # Find potential parent that disappear at M
-                    if target_info_1['mitosis_parent'].values == '' and target_info_2['mitosis_parent'].values == '':
+                    if target_info_1['mitosis_parent'].values[0] is None and target_info_2['mitosis_parent'].values[0] is None:
                         potential_parent = list(ann[list(map(lambda x:re.search('M', ann['disapp_stage'].iloc[x]) is not None and ann['mitosis_identity'].iloc[x]=='', range(ann.shape[0])))]['track'])
                     else:
                         potential_parent = []
@@ -282,10 +302,7 @@ class refiner:
                     for k in range(len(potential_parent)):
                         if potential_parent[k] == potential_daughter_pair_id[i] or potential_parent[k] == potential_daughter_pair_id[j]:
                             continue
-                        if potential_parent[k] in mt_dic.keys():
-                            if len(list(mt_dic[potential_parent[k]]['daug'].keys())) == 2:
-                                # if the parent already have two daughters, will not 
-                                continue
+                        
                         # spatial condition
                         parent_x = int(ann[ann['track']==potential_parent[k]]["disapp_x"])
                         parent_y = int(ann[ann['track']==potential_parent[k]]["disapp_y"])
@@ -302,7 +319,6 @@ class refiner:
                             # Constraint A: parent close to both daughter tracks' appearance
                             if time_dif1 < self.FRAME_MT_TOLERANCE and time_dif2 < self.FRAME_MT_TOLERANCE:
                                 # Constraint B: parent disappearance time close to daughter's appearance
-                                
                                 # deduce M_entry and M_exit
                                 c1 = list(track[track['trackId']==int(target_info_1['track'].values)]['predicted_class'])
                                 c1_confid = np.array(track[track['trackId']==int(target_info_1['track'].values)][['Probability of G1/G2', 'Probability of S', 'Probability of M']])
@@ -312,39 +328,64 @@ class refiner:
                                 c1_exit = list(track[track['trackId']==int(target_info_1['track'].values)]['frame'])[c1_exit]
                                 c2_exit = deduce_transition(c2, tar='M', confidence=c2_confid, min_tar=1, max_res=self.MIN_GS)[1]
                                 c2_exit = list(track[track['trackId']==int(target_info_2['track'].values)]['frame'])[c2_exit]
+
                                 if ann.loc[ann['track']==parent_id,"m_entry"].values[0] is None:
+                                    # parent has not been registered yet
                                     c3 = list(track[track['trackId']==parent_id]['predicted_class'])
                                     c3_class = c3
                                     c3_confid = np.array(track[track['trackId']==parent_id][['Probability of G1/G2', 'Probability of S', 'Probability of M']])
-                                    c3 = list(np.where(np.array(c3[::-1])=='M'))[0]
-                                    c3_entry = -(1+self.deduce_transition(c3_class, tar='M',confidence=c3_confid, min_tar=1, max_res=self.MIN_GS)[1])
+                                    c3_entry = -(1+deduce_transition(c3_class[::-1], tar='M',confidence=c3_confid[::-1,:], min_tar=1, max_res=self.MIN_GS)[1])
                                     c3_entry = list(track[track['trackId']==parent_id]['frame'])[c3_entry]
                                     ann.loc[ann['track']==parent_id,"m_entry"] = c3_entry
+                                    # update information in ann table
+                                        # daughter
+                                    s1 = ann.loc[ann['track']==potential_daughter_pair_id[i],"mitosis_identity"].values
+                                    s2 = ann.loc[ann['track']==potential_daughter_pair_id[j],"mitosis_identity"].values
+                                    ann.loc[ann['track']==potential_daughter_pair_id[i],"mitosis_identity"] = s1 + "/daughter"
+                                    ann.loc[ann['track']==potential_daughter_pair_id[j],"mitosis_identity"] = s2 + "/daughter"
+                                    ann.loc[ann['track']==potential_daughter_pair_id[i],"m_exit"] = c1_exit
+                                    ann.loc[ann['track']==potential_daughter_pair_id[j],"m_exit"] = c2_exit
+                                        # parent
+                                    ann.loc[ann['track']==int(target_info_1['track']),"mitosis_parent"] = parent_id
+                                    ann.loc[ann['track']==int(target_info_2['track']), "mitosis_parent"] = parent_id
+                                    s3 = ann.loc[ann['track']==parent_id,"mitosis_identity"].values
+                                    ann.loc[ann['track']==parent_id, "mitosis_identity"] = s3 + "/parent" + "/parent"
+                                    ann.loc[ann['track']==parent_id, "mitosis_daughter"] = '/'.join([str(target_info_1['track'].values[0]), str(target_info_2['track'].values[0])])
                                     
-                                # update information in ann table
-                                    # daughter
-                                s1 = ann.loc[ann['track']==potential_daughter_pair_id[i],"mitosis_identity"].values
-                                s2 = ann.loc[ann['track']==potential_daughter_pair_id[j],"mitosis_identity"].values
-                                ann.loc[ann['track']==potential_daughter_pair_id[i],"mitosis_identity"] = s1 + "/daughter"
-                                ann.loc[ann['track']==potential_daughter_pair_id[j],"mitosis_identity"] = s2 + "/daughter"
-                                ann.loc[ann['track']==potential_daughter_pair_id[i],"m_exit"] = c1_exit
-                                ann.loc[ann['track']==potential_daughter_pair_id[j],"m_exit"] = c2_exit
-                                    # parent
-                                ann.loc[ann['track']==int(target_info_1['track']),"mitosis_parent"] = parent_id
-                                ann.loc[ann['track']==int(target_info_2['track']), "mitosis_parent"] = parent_id
-                                s3 = ann.loc[ann['track']==parent_id,"mitosis_identity"].values
-                                ann.loc[ann['track']==parent_id, "mitosis_identity"] = s3 + "/parent"
-                                ann.loc[ann['track']==parent_id, "mitosis_daughter"] = '/'.join([str(target_info_1['track'].values[0]), str(target_info_2['track'].values[0])])
-                                
-                                # register on mt dict parent
-                                if parent_id in mt_dic.keys():
-                                    alr = mt_dic[parent_id]['daug'].keys()
-                                    if int(target_info_1['track']) not in alr:
-                                        mt_dic[parent_id]['daug'][int(target_info_1['track'])] = {'m_exit': c1_exit, 'dist':dist_dif1}
-                                    if int(target_info_2['track']) not in alr:
-                                        mt_dic[parent_id]['daug'][int(target_info_2['track'])] = {'m_exit': c2_exit, 'dist':dist_dif2}
-                                
-                                count = count + 1
+                                    mt_dic[parent_id] = {'div':c3_entry, 'daug':{}}
+                                    mt_dic[parent_id]['daug'][potential_daughter_pair_id[i]] = {'m_exit':c1_exit, 'dist':dist_dif1}
+                                    mt_dic[parent_id]['daug'][potential_daughter_pair_id[j]] = {'m_exit':c2_exit, 'dist':dist_dif2}
+                                    
+                                    count += 2
+                                else:
+                                    result = self.compete(mt_dic, parent_id, potential_daughter_pair_id[i], dist_dif1, potential_daughter_pair_id[j], dist_dif2)
+                                    
+                                    for rv in result['revert']:
+                                        ann, mt_dic = self.revert(ann, mt_dic, parent_id, rv)
+                                        count -= 1
+                                    for rg in result['register']:
+                                        if rg == potential_daughter_pair_id[i]:
+                                            ori = ann.loc[ann['track']==parent_id, "mitosis_daughter"].values[0]
+                                            ori_idt =  ann.loc[ann['track']==parent_id, "mitosis_identity"].values[0]
+                                            s1 = ann.loc[ann['track']==potential_daughter_pair_id[i],"mitosis_identity"].values
+                                            ann.loc[ann['track']==potential_daughter_pair_id[i],"mitosis_identity"] = s1 + "/daughter"
+                                            ann.loc[ann['track']==potential_daughter_pair_id[i],"m_exit"] = c1_exit
+                                            ann.loc[ann['track']==int(target_info_1['track']),"mitosis_parent"] = parent_id
+                                            ann.loc[ann['track']==parent_id, "mitosis_daughter"] = str(ori) + '/' + str(target_info_1['track'].values[0])
+                                            ann.loc[ann['track']==parent_id, "mitosis_identity"] = str(ori_idt) + '/parent'
+                                            mt_dic[parent_id]['daug'][int(target_info_1['track'])] = {'m_exit': c1_exit, 'dist':dist_dif1}
+                                        elif rg == potential_daughter_pair_id[j]:
+                                            ori = ann.loc[ann['track']==parent_id, "mitosis_daughter"].values[0]
+                                            ori_idt =  ann.loc[ann['track']==parent_id, "mitosis_identity"].values[0]
+                                            s2 = ann.loc[ann['track']==potential_daughter_pair_id[j],"mitosis_identity"].values
+                                            ann.loc[ann['track']==potential_daughter_pair_id[j],"mitosis_identity"] = s2 + "/daughter"
+                                            ann.loc[ann['track']==potential_daughter_pair_id[j],"m_exit"] = c2_exit
+                                            ann.loc[ann['track']==int(target_info_2['track']), "mitosis_parent"] = parent_id
+                                            ann.loc[ann['track']==parent_id, "mitosis_daughter"] = str(ori) + '/' + str(target_info_2['track'].values[0])
+                                            ann.loc[ann['track']==parent_id, "mitosis_identity"] = str(ori_idt) + '/parent'
+                                            mt_dic[parent_id]['daug'][int(target_info_2['track'])] = {'m_exit': c2_exit, 'dist':dist_dif2}
+
+                                        count += 1
             
         print("Parent-Daughter-Daughter mitosis relations found: " + str(count))
         track = track.sort_values(by=['lineageId','trackId','frame'])
