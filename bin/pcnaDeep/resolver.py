@@ -23,7 +23,7 @@ def list_dist(a,b):
             
     return count
 
-def deduce_transition(l, tar, confidence, min_tar, max_res):
+def deduce_transition(l, tar, confidence, min_tar, max_res, escape=0):
         """ Deduce mitosis exit and entry based on adaptive searching
         
         Args:
@@ -32,13 +32,15 @@ def deduce_transition(l, tar, confidence, min_tar, max_res):
             min_tar: minimum duration of an entire target phase
             confidence: matrix of confidence
             max_tar: maximum accumulative duration of unwanted phase
+            escape: do not consider the first n instance
             
         Return:
             (entry, exit), index of index list that resolved as entry and exit
         """
         mp = {'G1/G2':0, 'S':1, 'M':2}
         confid_cls = list(map(lambda x:confidence[x,mp[l[x]]], range(confidence.shape[0])))
-        idx = np.where(np.array(l)==tar)[0].tolist()
+        idx = np.where(np.array(l)==tar)[0]
+        idx = idx[idx>=escape].tolist()
         if len(idx)==0: return None
         if len(idx)==1: return (0, 0)
         found = False
