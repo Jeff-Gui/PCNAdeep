@@ -32,7 +32,7 @@ def deduce_transition(l, tar, confidence, min_tar, max_res, escape=0):
         idx = np.where(np.array(l)==tar)[0]
         idx = idx[idx>=escape].tolist()
         if len(idx)==0: return None
-        if len(idx)==1: return (0, 0)
+        if len(idx)==1: return (idx[0], idx[0])
         found = False
         i = 0
         g_panelty = 0
@@ -113,7 +113,7 @@ class refiner:
                 confid = np.array(sub[['Probability of G1/G2', 'Probability of S', 'Probability of M']])
                 out = deduce_transition(l=cls, tar='M', confidence=confid, min_tar=self.MIN_M, max_res=self.MIN_GS, escape=self.MIN_M)
                 
-                if out is not None and out != (0,0) and out[1] != len(cls)-1:
+                if out is not None and out[0] != out[1] and out[1] != len(cls)-1:
                     found = True
                     cur_m_entry, m_exit = out
                     # split mitosis track, keep parent track with 2 'M' prediction
