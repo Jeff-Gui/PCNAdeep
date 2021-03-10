@@ -175,7 +175,7 @@ resolve_phase = function(track, base=0, end=288, s_min=10){
       if (trs_track$trans[i+1]=='G1/G2->S'){
         if (trs_track$frame[i+1]-trs_track$frame[i]<S_MIN){
           track$predicted_class[which(track$frame==trs_track$frame[i]):
-                                  which(track$frame==trs_track$frame[i+1])] = 'G1/G2'
+                                  which(track$frame==trs_track$frame[i+1])] = 'S'
           print(paste('omitted short G1/G2:',trs_track$frame[i+1]-trs_track$frame[i]))
           flag = T
         }
