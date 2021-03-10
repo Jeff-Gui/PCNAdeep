@@ -42,7 +42,7 @@ def deduce_transition(l, tar, confidence, min_tar, max_res, escape=0):
         idx = np.where(np.array(l)==tar)[0]
         idx = idx[idx>=escape].tolist()
         if len(idx)==0: return None
-        if len(idx)==1: return (0, 0)
+        if len(idx)==1: return (idx[0], idx[0])
         found = False
         i = 0
         g_panelty = 0
@@ -148,10 +148,12 @@ class resolver:
         UNRESOLVED_FRACTION = 0.2  # after resolving the class, if more than x% class has been corrected, label with unresolved
         
         resolved_class = ['G1/G2' for i in range(trk.shape[0])]
+        
         cls = trk['predicted_class'].tolist()
         confid = np.array(trk[['Probability of G1/G2', 'Probability of S', 'Probability of M']])
         out = deduce_transition(l=cls, tar='S', confidence=confid, min_tar=self.minS, max_res=np.max((self.minM, self.minG)))
-        if not (out is None or out == (0,0)): 
+        
+        if not (out is None or out[0]==out[1]): 
             a = (out[0], np.min((out[1]+1, len(resolved_class)-1)))
             resolved_class[a[0]:a[1]+1] = ['S' for i in range(a[0], a[1]+1)]
         
@@ -159,14 +161,14 @@ class resolver:
                 resolved_class[:a[0]] = ['G1' for _ in range(a[0])]
             if a[1] < len(resolved_class)-1:
                 resolved_class[a[1]:] = ['G2' for _ in range(len(resolved_class)-a[1])]
-            
+        
         frame = trk['frame'].tolist()
         if m_exit is not None:
             resolved_class[:frame.index(m_exit)+1] = ['M' for _ in range(frame.index(m_exit)+1)]
             i = frame.index(m_exit)+1
             while i<len(resolved_class):
                 if resolved_class[i] == 'G1/G2':
-                    resolved_class[i] = 'G2'
+                    resolved_class[i] = 'G1'
                 else: 
                     break
                 i += 1
@@ -175,11 +177,31 @@ class resolver:
             i = frame.index(m_entry) - 1
             while i>=0:
                 if resolved_class[i] == 'G1/G2':
-                    resolved_class[i] = 'G1'
+                    resolved_class[i] = 'G2'
                 else:
                     break
                 i -= 1
         
+        if m_exit is None and m_entry is None:
+            # some tracks begin/end with mitosis and not associated during refinement. In this case, override any classification at terminal
+            mt_out_begin = deduce_transition(l=cls, tar='M', confidence=confid, min_tar=1, max_res=np.max((self.minS, self.minG)))
+            mt_out_end = deduce_transition(l=cls[::-1], tar='M', confidence=confid[::-1,:], min_tar=1, max_res=np.max((self.minS, self.minG)))
+    
+            if mt_out_begin is not None:
+                if mt_out_begin[0] == 0:
+                    resolved_class[mt_out_begin[0]: mt_out_begin[1]+1] = ['M' for _ in range(mt_out_begin[0], mt_out_begin[1]+1)]
+                # if followed with G1/G2 only, change to G1
+                if np.unique(resolved_class[mt_out_begin[1]+1:]).tolist() == ['G1/G2']:
+                    resolved_class = ['G1' if i =='G1/G2' else i for i in resolved_class]
+            if mt_out_end is not None:
+                if mt_out_end[0] == 0:
+                    resolved_class = resolved_class[::-1]
+                    resolved_class[mt_out_end[0]: mt_out_end[1]+1] = ['M' for _ in range(mt_out_end[0], mt_out_end[1]+1)]
+                    if np.unique(resolved_class[mt_out_end[1]+1:]).tolist() == ['G1/G2']:
+                        resolved_class = ['G2' if i =='G1/G2' else i for i in resolved_class]
+                    resolved_class = resolved_class[::-1]
+
+            
         trk['resolved_class'] = resolved_class
         if list_dist(cls, resolved_class) > UNRESOLVED_FRACTION * len(resolved_class):
             print('Too different, check: '+ str(trk['trackId'].tolist()[0]))
@@ -226,7 +248,7 @@ class resolver:
                 cls = np.unique(sub['resolved_class']).tolist()
                 remain = ['G1', 'G2', 'S']
                 for c in cls:
-                    if c == 'M': continue
+                    if c == 'M' or c=='G1/G2': continue
                     l = np.sum(sub['resolved_class'] == c)
                     if sub['resolved_class'].tolist()[0]==c:
                         l = '>'+str(l)
