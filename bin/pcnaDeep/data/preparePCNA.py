@@ -177,7 +177,7 @@ def inspect_PCNA_data(json_path, image_path, out_dir='../inspect/pcna'):
     from detectron2.data import DatasetCatalog, MetadataCatalog
 
     DatasetCatalog.register("pcna", lambda d:load_PCNA_from_json(json_path, image_path))
-    metadata = MetadataCatalog.get("pcna").set(thing_classes=['G1/G2', 'S', 'M'])
+    metadata = MetadataCatalog.get("pcna").set(thing_classes=['G1/G2', 'S', 'M', 'E'])
 
     dataset_dicts = load_PCNA_from_json(json_path, image_path)
     for d in random.sample(dataset_dicts, 3):

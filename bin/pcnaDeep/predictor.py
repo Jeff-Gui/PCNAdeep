@@ -271,9 +271,9 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000):
         else:
             mask_slice[mask[s,:,:]!=0] = s+1
     
-    props = measure.regionprops_table(mask_slice, intensity_image=img[:,:,0], properties=('label','bbox','centroid','mean_intensity'))
+    props = measure.regionprops_table(mask_slice, intensity_image=img[:,:,0], properties=('label','bbox','centroid','mean_intensity','major_axis_length','minor_axis_length'))
     props = pd.DataFrame(props)
-    props.columns = ['label','bbox-0','bbox-1','bbox-2','bbox-3','Center_of_the_object_0','Center_of_the_object_1','mean_intensity']
+    props.columns = ['label','bbox-0','bbox-1','bbox-2','bbox-3','Center_of_the_object_0','Center_of_the_object_1','mean_intensity','major_axis','minor_axis']
 
     img_relabel = measure.label(mask_slice, connectivity=1)
     props_relabel = measure.regionprops_table(img_relabel, properties=('label','centroid'))
