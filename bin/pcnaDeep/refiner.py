@@ -1,9 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Tue Dec 15 19:03:45 2020
-
-@author: Yifan Gui
-"""
 
 import pandas as pd
 import numpy as np
@@ -78,14 +73,12 @@ def deduce_transition(l, tar, confidence, min_tar, max_res, escape=0):
 # - 3. Temporal loss of signal or segmentation issue
 # - 4. Mitosis
 
-class refiner:
+class Refiner:
 
-    def __init__(self, track, threshold_F=60, threshold_mt_F=150, threshold_T=4, threshold_mt_T=5, smooth=5, minGS=3,
+    def __init__(self, track, threshold_mt_F=150, threshold_mt_T=5, smooth=5, minGS=3,
                  minM=3):
         self.track = track.copy()
         self.count = np.unique(track['trackId'])
-        self.DIST_TOLERANCE = threshold_F
-        self.FRAME_TOLERANCE = threshold_T
         self.FRAME_MT_TOLERANCE = threshold_mt_T
         self.DIST_MT_TOLERANCE = threshold_mt_F
         self.SMOOTH = smooth

@@ -1,10 +1,4 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Jan 28 12:31:29 2021
-
-@author: Cell division
-"""
 
 import trackpy as tp
 import skimage.measure as measure

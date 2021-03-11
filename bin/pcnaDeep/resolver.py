@@ -1,10 +1,5 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Tue Mar  9 14:19:48 2021
 
-@author: Yifan Gui
-"""
 import pandas as pd
 import numpy as np
 
@@ -76,7 +71,7 @@ def deduce_transition(l, tar, confidence, min_tar, max_res, escape=0):
         return None
 
 
-class resolver:
+class Resolver:
 
     def __init__(self, track, ann, mt_dic, minG=5, minS=6, minM=3, minTrack=10):
         self.track = track

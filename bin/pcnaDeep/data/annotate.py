@@ -1,14 +1,11 @@
 # -*- coding: utf-8 -*-
-"""
-Created on Mon Feb  22 09:03:20 2021
 
-@author: Yifan Gui
-"""
 import pandas as pd
 import os, tarfile, tempfile, json
 from io import BytesIO
 import skimage.io as io
 import numpy as np
+from pcnaDeep.tracker import track_mask
 
 
 def relabel_trackID(label_table):
@@ -368,4 +365,18 @@ def save_seq(stack, out_dir, prefix, dig_num=3, dtype='uint16', base=0):
         name = os.path.join(out_dir, prefix + fm + '.tif')
         io.imsave(name, stack[i, :, :].astype(dtype))
 
+    return
+
+
+def generate_calibanTrk(mask, out_dir, dt_id, digit_num=3, track=None):
+    """Generate caliban .trk format for annotation
+    """
+    fm = ("%0" + str(digit_num) + "d") % (dt_id)
+    if track is None:
+        track = track_mask(mask, displace=100, gap_fill=3)
+    track_new = relabel_trackID(track.copy())
+    track_new, rel = break_track(track_new.copy())
+    tracked_mask = label_by_track(mask.copy(), track_new.copy())
+    dic = get_lineage_dict(track_new.copy(), rel)
+    save_trks(os.path.join(out_dir, fm+'.trk'), dic, np.expand_dims(raw, axis=3), np.expand_dims(tracked_mask, axis=3))
     return
