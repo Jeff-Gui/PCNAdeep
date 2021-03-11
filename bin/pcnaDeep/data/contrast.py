@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-"""
-@author: Yifan Gui
-"""
 
 import skimage.exposure as exposure
 from skimage.util import img_as_float32

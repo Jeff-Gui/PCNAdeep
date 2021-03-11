@@ -47,7 +47,7 @@ class VisualizationDemo(object):
         """
         vis_output = None
         predictions = self.predictor(image)
-        if vis==False:
+        if vis == False:
             return predictions
         # Convert image from OpenCV BGR format to Matplotlib RGB format.
         image = image[:, :, ::-1]
@@ -61,13 +61,12 @@ class VisualizationDemo(object):
             if "sem_seg" in predictions:
                 vis_output = visualizer.draw_sem_seg(
                     predictions["sem_seg"].argmax(dim=0).to(self.cpu_device)
-                )            
+                )
             if "instances" in predictions:
                 instances = predictions["instances"].to(self.cpu_device)
                 vis_output = visualizer.draw_instance_predictions(predictions=instances)
 
         return predictions, vis_output
-
 
 
 class AsyncPredictor:
@@ -162,89 +161,94 @@ class AsyncPredictor:
 
 
 def pred2json(masks, labels, fp):
-    """Transform detectron2 prediction to via2 json format
+    """Transform detectron2 prediction to VIA2 (VGG Image Annotator) json format
     Args:
-        masks: list of instance mask in the frame, each mask should contain only one object.
-        labels: list of instance label in the frame, should be corresponsing to the mask in order.
-        fp: file name for this frame
+        masks (numpy.array): list of instance mask in the frame, each mask should contain only one object.
+        labels (list): list of instance label in the frame, should be corresponding to the mask in order.
+        fp (str) : file name for this frame
     
-    Return:
+    Returns:
         json format readable by VIA2 annotator
     """
-    cc_stage = {0:'G1/G2', 1:'S', 2:'M', 3:"E"}
-    region_tmp = {"shape_attributes":{"name":"polygon","all_points_x":[],"all_points_y":[]}, "region_attributes":{"phase":''}}
 
-    if len(masks)<1:
+    cc_stage = {0: 'G1/G2', 1: 'S', 2: 'M', 3: "E"}
+    region_tmp = {"shape_attributes": {"name": "polygon", "all_points_x": [], "all_points_y": []},
+                  "region_attributes": {"phase": ''}}
+
+    if len(masks) < 1:
         return {}
 
-    tmp = {"filename":fp,"size":masks[0].astype('bool').size,"regions":[],"file_attributes":{}}
+    tmp = {"filename": fp, "size": masks[0].astype('bool').size, "regions": [], "file_attributes": {}}
     for i in range(len(masks)):
         region = measure.regionprops(measure.label(masks[i], connectivity=1))[0]
-        if region.image.shape[0]<2 or region.image.shape[1]<2:
+        if region.image.shape[0] < 2 or region.image.shape[1] < 2:
             continue
         # register regions
         cur_tmp = copy.deepcopy(region_tmp)
         bbox = list(region.bbox)
-        bbox[0],bbox[1] = bbox[1], bbox[0] # swap x and y
-        bbox[2],bbox[3] = bbox[3], bbox[2]
+        bbox[0], bbox[1] = bbox[1], bbox[0]  # swap x and y
+        bbox[2], bbox[3] = bbox[3], bbox[2]
         ct = measure.find_contours(region.image, 0.5)
-        if len(ct)<1:
+        if len(ct) < 1:
             continue
         ct = ct[0]
         if ct[0][0] != ct[-1][0] or ct[0][1] != ct[-1][1]:
             # non connected
-            ct_image = np.zeros((bbox[3]-bbox[1]+2, bbox[2]-bbox[0]+2))
-            ct_image[1:-1,1:-1] = region.image.copy()
+            ct_image = np.zeros((bbox[3] - bbox[1] + 2, bbox[2] - bbox[0] + 2))
+            ct_image[1:-1, 1:-1] = region.image.copy()
             ct = measure.find_contours(ct_image, 0.5)[0]
             # edge = measure.approximate_polygon(ct, tolerance=0.001)
             edge = ct
-            for k in range(len(edge)): # swap x and y
+            for k in range(len(edge)):  # swap x and y
                 x = edge[k][0] - 1
-                if x<0: 
-                    x=0
-                elif x>region.image.shape[0]-1:
-                    x = region.image.shape[0]-1
+                if x < 0:
+                    x = 0
+                elif x > region.image.shape[0] - 1:
+                    x = region.image.shape[0] - 1
                 y = edge[k][1] - 1
-                if y<0:
-                    y=0
-                elif y> region.image.shape[1]-1:
-                    y = region.image.shape[1]-1
-                edge[k] = [y,x]
+                if y < 0:
+                    y = 0
+                elif y > region.image.shape[1] - 1:
+                    y = region.image.shape[1] - 1
+                edge[k] = [y, x]
             edge = edge.tolist()
-            elements = list(map(lambda x:tuple(x), edge))
+            elements = list(map(lambda x: tuple(x), edge))
             edge = list(set(elements))
             edge.sort(key=elements.index)
             edge = np.array(edge)
-            edge[:,0] += bbox[0]
-            edge[:,1] += bbox[1]
+            edge[:, 0] += bbox[0]
+            edge[:, 1] += bbox[1]
             edge = list(edge.ravel())
             edge += edge[0:2]
         else:
-            # edge = measure.approximate_polygon(ct, tolerance=0.4)
             edge = ct
-            for k in range(len(edge)): # swap x and y
-                edge[k] = [edge[k][1], edge[k][0]]   
-            edge[:,0] += bbox[0]
-            edge[:,1] += bbox[1]
+            for k in range(len(edge)):  # swap x and y
+                edge[k] = [edge[k][1], edge[k][0]]
+            edge[:, 0] += bbox[0]
+            edge[:, 1] += bbox[1]
             edge = list(edge.ravel())
         cur_tmp['shape_attributes']['all_points_x'] = edge[::2]
         cur_tmp['shape_attributes']['all_points_y'] = edge[1::2]
         cur_tmp['region_attributes']['phase'] = cc_stage[int(labels[i])]
         tmp['regions'].append(cur_tmp)
-        
+
     return tmp
+
 
 def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000):
     """Predict single frame and deduce meta information
     
     Args:
-        img (numpy.array): uint8 image slice
-        frame_id (int): index of the slice, int from 0
-        demonstrator: an detectron2 demonstrator object
+        img (numpy.array): __uint8__ image slice
+        frame_id (int): index of the slice, start from 0
+        demonstrator (VisualizationDemo): an detectron2 demonstrator object
         size_flt (int): size filter
         is_gray (bool): whether the slice is gray. If true, will convert to 3 channels at first
 
+    Returns:
+        (tuple) labeled mask and corresponding table
     """
+
     if is_gray:
         img = np.stack([img, img, img], axis=2)  # convert gray to 3 channels
     # Generate mask or visualized output
@@ -259,56 +263,58 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000):
     # 0: G1/G2, 1: S, 2: M, 3: E-early G1
     cls = predictions['instances'].pred_classes
     conf = predictions['instances'].scores
-    factor = {0:'G1/G2', 1:'S', 2:'M', 3:'G1/G2'}
+    factor = {0: 'G1/G2', 1: 'S', 2: 'M', 3: 'G1/G2'}
     for s in range(mask.shape[0]):
-        if np.sum(mask[s,:,:]) < 1000:
+        if np.sum(mask[s, :, :]) < size_flt:
             continue
         sc = conf[s].item()
-        ori = np.max(mask_slice[mask[s,:,:]!=0])
-        if ori!=0:
-            if sc>conf[ori-1].item():
-                mask_slice[mask[s,:,:]!=0] = s+1
+        ori = np.max(mask_slice[mask[s, :, :] != 0])
+        if ori != 0:
+            if sc > conf[ori - 1].item():
+                mask_slice[mask[s, :, :] != 0] = s + 1
         else:
-            mask_slice[mask[s,:,:]!=0] = s+1
-    
-    props = measure.regionprops_table(mask_slice, intensity_image=img[:,:,0], properties=('label','bbox','centroid','mean_intensity','major_axis_length','minor_axis_length'))
+            mask_slice[mask[s, :, :] != 0] = s + 1
+
+    props = measure.regionprops_table(mask_slice, intensity_image=img[:, :, 0], properties=(
+        'label', 'bbox', 'centroid', 'mean_intensity', 'major_axis_length', 'minor_axis_length'))
     props = pd.DataFrame(props)
-    props.columns = ['label','bbox-0','bbox-1','bbox-2','bbox-3','Center_of_the_object_0','Center_of_the_object_1','mean_intensity','major_axis','minor_axis']
+    props.columns = ['label', 'bbox-0', 'bbox-1', 'bbox-2', 'bbox-3', 'Center_of_the_object_0',
+                     'Center_of_the_object_1', 'mean_intensity', 'major_axis', 'minor_axis']
 
     img_relabel = measure.label(mask_slice, connectivity=1)
-    props_relabel = measure.regionprops_table(img_relabel, properties=('label','centroid'))
+    props_relabel = measure.regionprops_table(img_relabel, properties=('label', 'centroid'))
     props_relabel = pd.DataFrame(props_relabel)
-    props_relabel.columns = ['continuous_label','Center_of_the_object_0', 'Center_of_the_object_1']
+    props_relabel.columns = ['continuous_label', 'Center_of_the_object_0', 'Center_of_the_object_1']
 
-    out_props = pd.merge(props, props_relabel, on=['Center_of_the_object_0','Center_of_the_object_1'])
+    out_props = pd.merge(props, props_relabel, on=['Center_of_the_object_0', 'Center_of_the_object_1'])
     out_props['frame'] = frame_id
     phase = []
-    G_confid = []
-    S_confid = []
-    M_confid = []
+    g_confid = []
+    s_confid = []
+    m_confid = []
     for row in range(out_props.shape[0]):
         lb = int(out_props.iloc[row][0])
-        p = factor[cls[lb-1].item()]
-        confid = conf[lb-1].item()
+        p = factor[cls[lb - 1].item()]
+        confid = conf[lb - 1].item()
         phase.append(p)
-        if p=='G1/G2':
-            G_confid.append(confid)
-            S_confid.append((1-confid)/2)
-            M_confid.append((1-confid)/2)
-        elif p=='S':
-            S_confid.append(confid)
-            G_confid.append((1-confid)/2)
-            M_confid.append((1-confid)/2)
+        if p == 'G1/G2':
+            g_confid.append(confid)
+            s_confid.append((1 - confid) / 2)
+            m_confid.append((1 - confid) / 2)
+        elif p == 'S':
+            s_confid.append(confid)
+            g_confid.append((1 - confid) / 2)
+            m_confid.append((1 - confid) / 2)
         else:
-            M_confid.append(confid)
-            G_confid.append((1-confid)/2)
-            S_confid.append((1-confid)/2)
-        
+            m_confid.append(confid)
+            g_confid.append((1 - confid) / 2)
+            s_confid.append((1 - confid) / 2)
+
     out_props['phase'] = phase
-    out_props['Probability of G1/G2'] = G_confid
-    out_props['Probability of S'] = S_confid
-    out_props['Probability of M'] = M_confid
-    
+    out_props['Probability of G1/G2'] = g_confid
+    out_props['Probability of S'] = s_confid
+    out_props['Probability of M'] = m_confid
+
     del out_props['label']
 
-    return img_relabel.astype('uint8'), out_props 
+    return img_relabel.astype('uint8'), out_props

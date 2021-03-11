@@ -1,13 +1,9 @@
-#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Jan 14 10:22:40 2021
 
-@author: Yifan Gui
-"""
-import re, json, os, sys, getopt
+import re, json, os
 import skimage.io as io
 import skimage.measure as measure
+import skimage.exposure as exposure
 from skimage.util import img_as_ubyte
 import copy
 import numpy as np
@@ -15,14 +11,32 @@ import pandas as pd
 from PIL import Image, ImageDraw
 
 
-def json2mask(ip, out, height, width, out_phase=False):
-    OUT_PHASE = out_phase
+def json2mask(ip, out, height, width, label_phase=False):
+    """Draw mask according to VIA2 annotation and summarize information
+
+    Args:
+        in_dir (str): input directory of the json file
+        out_dir (str): output directory of the image and summary table
+        height (int): image height
+        width (int): image width
+        label_phase (bool): whether to label the mask with values corresponding to cell cycle classification or not. 
+            If true, will label as the following values: 'G1/G2':10, 'S':50, 'M':100;
+            If false, will output binary masks
+
+    Outputs:
+        .png files of object masks
+        .csv file of object information in json file
+    """
+
+    OUT_PHASE = label_phase
     PHASE_DIS = {"G1/G2":10, "S":50, "M":100, "E":10}
     PHASE_TRANS = {10:"G1/G2", 50:"S", 100:"M"}
     
     dt = pd.DataFrame()
     with open(ip,'r',encoding='utf8')as fp:
         j = json.load(fp)
+        if '_via_img_metadata' in list(j.keys()):
+            j = j['_via_img_metadata']
         for key in list(j.keys()):
             img = Image.new('L',(height,width))
             dic = j[key]
@@ -57,27 +71,40 @@ def json2mask(ip, out, height, width, out_phase=False):
     return
 
 
-def mask2json(home, picture_home, outpath):
+def mask2json(in_dir, out_dir, phase_labeled=False, phase_dic={10:"G1/G2", 50:"S", 100:"M"}, prefix='object_info'):
+    """Generate VIA2-readable json file from masks
+
+    Args:
+        in_dir (str): input directory of mask slices in .png format. Stack input is not implemented.
+        out_dir (str): output directory for .json output
+        phase_labeled (bool): whether cell cycle phase has already been labeled. 
+            If true, a phase_dic variable should be supplied to resolve phase information.
+        phase_dic (dic): lookup dictionary of cell cycle phase labeling on the mask.
+        prefix (str): prefix of .json output.
+    
+    Outputs:
+        prefix.json in VIA2 format. Note the output is not a VIA2 project, so default image directory
+            must be set for the first time of labeling.
+    """
     out = {}
     region_tmp = {"shape_attributes":{"name":"polygon","all_points_x":[],"all_points_y":[]}, "region_attributes":{"phase":"G1/G2"}}
 
-    #home = '/Users/jefft/Desktop/Chan lab/SRTP/ImageAnalysis/Mask_RCNN/datasets/pcna/processing/ground_truth_refined/'
-    #picture_home = '/Users/jefft/Desktop/Chan lab/SRTP/ImageAnalysis/Mask_RCNN/datasets/pcna/processing/raw_contrast_refined/'
-    imgs = os.listdir(home)
+    imgs = os.listdir(in_dir)
     for i in imgs:
         if re.search('.png',i):
             
-            img = io.imread(os.path.join(home, i))
+            img = io.imread(os.path.join(in_dir, i))
             #img = binary_erosion(binary_erosion(img.astype('bool')))
             img = img.astype('bool')
             tmp = {"filename":os.path.join(i),"size":img.size,"regions":[],"file_attributes":{}}
-            regions = measure.regionprops(measure.label(img, connectivity=1))
+            regions = measure.regionprops(measure.label(img, connectivity=1), img)
             for region in regions:
-                
                 if region.image.shape[0]<2 or region.image.shape[1]<2:
                     continue
                 # register regions
                 cur_tmp = copy.deepcopy(region_tmp)
+                if phase_labeled:
+                    cur_tmp['region_attributes']['phase'] = phase_dic[int(region.mean_intensity)]
                 bbox = list(region.bbox)
                 bbox[0],bbox[1] = bbox[1], bbox[0] # swap x and y
                 bbox[2],bbox[3] = bbox[3], bbox[2]
@@ -126,37 +153,46 @@ def mask2json(home, picture_home, outpath):
                 tmp['regions'].append(cur_tmp)
             out[i] = tmp
         
-    #with(open('/Users/jefft/Desktop/Chan lab/SRTP/ImageAnalysis/Mask_RCNN/datasets/pcna/processing/refined_new.json', 'w', encoding='utf8')) as fp:
-    with(open(outpath, 'w', encoding='utf8')) as fp:
+    with(open(os.path.join(out_dir, prefix+'.json'), 'w', encoding='utf8')) as fp:
         json.dump(out,fp)
     return
 
 
-if __name__ == "__main__":
-    argv = sys.argv[1:]
-    rev = False
-    try:
-        opts, args = getopt.getopt(argv, "hri:m:o:", ["indir=", "mask=", "outdir="])
-        # h: switch-type parameter, help
-        # i: / o: parameter must with some values
-        # m: mask dir
-    except getopt.GetoptError:
-        print('mask2jsonVIA2.py -i <inputfile> -o <outputfile> -m <mask>')
-        sys.exit(2)
-    for opt, arg in opts:
-        if opt == '-h':
-            print('mask2jsonVIA2.py -i <inputfile> -o <outputfile> -m <mask>')
-            sys.exit()
-        elif opt == '-r':
-            rev = True
-        elif opt in ("-i", "--indir"):
-            ip = arg
-        elif opt in ("-o", "--outdir"):
-            out = arg
-        elif opt in ("-m", "--mask"):
-            mask = arg
-    
-    if not rev:
-        mask2json(mask, ip, out)
-    else:
-        json2mask(ip, out, 1200, 1200)
+def getModelInput(pcna, dic):
+    """Generate pcna-mScarlet and DIC channel to RGB format for model prediction
+
+    Args:
+        pcna (numpy.array): uint16 PCNA-mScarlet image stack (T*H*W)
+        dic (numpy.array): uint16 DIC or phase contrast image stack
+
+    Returns:
+        (numpy.array): uint8 composite image (T*H*W*C)
+    """
+    stack = pcna
+    dic_img = dic
+    print("Input shape: " + str(stack.shape))
+    if len(stack.shape) < 3:
+        stack = np.expand_dims(stack, axis=0)
+        dic_img = np.expand_dims(dic_img, axis=0)
+
+    outs = []
+    for f in range(stack.shape[0]):
+        # rescale mCherry intensity
+        fme = exposure.rescale_intensity(stack[f, :, :], in_range=tuple(np.percentile(stack[f, :, :], (2, 98))))
+        dic_img[f, :, :] = exposure.rescale_intensity(dic_img[f, :, :],
+                                                      in_range=tuple(np.percentile(dic_img[f, :, :], (2, 98))))
+
+        # save two-channel image for downstream
+        fme = fme / 65535 * 255
+        dic_slice = dic_img[f, :, :] / 65535 * 255
+        fme = fme.astype('uint8')
+        dic_slice = dic_slice.astype('uint8')
+
+        slice_list = [fme, fme, dic_slice]
+
+        s = np.stack(slice_list, axis=2)
+        outs.append(s)
+
+    final_out = np.stack(outs, axis=0)
+    print("Output shape: ", final_out.shape)
+    return outs
