@@ -1,17 +1,19 @@
 import argparse
+import json
 import multiprocessing as mp
+import os
 import time
+
 import numpy as np
-import json, os
-
-from detectron2.config import get_cfg
-from detectron2.utils.logger import setup_logger
-from pcnaDeep.predictor import VisualizationDemo, pred2json
-
+import pandas as pd
 import skimage.io as io
 import skimage.measure as measure
+from detectron2.config import get_cfg
+from detectron2.utils.logger import setup_logger
 from skimage.morphology import remove_small_objects
-import pandas as pd
+
+from pcnaDeep.predictor import VisualizationDemo, pred2json
+
 
 def setup_cfg(args):
     # load config from file and command-line arguments

@@ -22,7 +22,7 @@ txt.to_csv('/Users/jefft/Desktop/res_track.txt', sep=' ', index=0, header=False)
 # Ground truth mask may be annotated by VIA2
 mask = io.imread('/Users/jefft/Desktop/mask_GT.tif')
 raw = io.imread('/Users/jefft/Desktop/raw.tif')
-out = track_mask(mask, discharge=100, gap_fill=3)
+out = track_mask(mask, displace=100, gap_fill=3)
 track_new = relabel_trackID(out.copy())
 track_new, rel = break_track(track_new.copy())
 tracked_mask = label_by_track(mask.copy(), track_new.copy())

@@ -42,6 +42,7 @@ from pcnaDeep.data.preparePCNA import load_PCNAs_json
 from detectron2 import model_zoo
 import detectron2.data.transforms as T
 
+
 def build_sem_seg_train_aug(cfg):
     augs = [
         T.ResizeShortestEdge(
@@ -141,6 +142,7 @@ class Trainer(DefaultTrainer):
 def plain_register_dataset():
     DatasetCatalog.register("pcna", lambda: load_PCNAs_json(TRAIN_ANN_PATH, TRAIN_PATH))
     MetadataCatalog.get("pcna").set(thing_classes=CLASS_NAMES, evaluator_type='coco')
+
 
 def setup(args):
     """

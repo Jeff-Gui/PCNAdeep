@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 from PIL import Image, ImageDraw
 
+
 def json2mask(ip, out, height, width, out_phase=False):
     OUT_PHASE = out_phase
     PHASE_DIS = {"G1/G2":10, "S":50, "M":100, "E":10}
@@ -54,6 +55,7 @@ def json2mask(ip, out, height, width, out_phase=False):
         dt = dt[['Center_of_the_object_0','Center_of_the_object_1','frame','phase','Probability of G1/G2', 'Probability of S', 'Probability of M']]
         dt.to_csv(os.path.join(out, 'cls.csv'), index=0)
     return
+
 
 def mask2json(home, picture_home, outpath):
     out = {}
@@ -128,6 +130,7 @@ def mask2json(home, picture_home, outpath):
     with(open(outpath, 'w', encoding='utf8')) as fp:
         json.dump(out,fp)
     return
+
 
 if __name__ == "__main__":
     argv = sys.argv[1:]

@@ -35,4 +35,3 @@ class PCNAEvaluator:
             
         val_loader = build_detection_test_loader(self.cfg, "pcna")
         inference_on_dataset(self.model, val_loader, evaluator)
-        

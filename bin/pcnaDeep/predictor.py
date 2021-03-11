@@ -238,18 +238,18 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000):
     """Predict single frame and deduce meta information
     
     Args:
-        img: uint8 image slice, ndarray
-        frame_id: index of the slice, int from 0
-        demostrator
-        size_flt: size filter, int
-        is_gray: whether the slice is gray. If true, will convert to 3 channels at first
+        img (numpy.array): uint8 image slice
+        frame_id (int): index of the slice, int from 0
+        demonstrator: an detectron2 demonstrator object
+        size_flt (int): size filter
+        is_gray (bool): whether the slice is gray. If true, will convert to 3 channels at first
 
     """
     if is_gray:
         img = np.stack([img, img, img], axis=2)  # convert gray to 3 channels
     # Generate mask or visualized output
     predictions = demonstrator.run_on_image(img)[0]
-    #print(predictions['instances'].pred_classes)
+
     # Generate mask
     mask = predictions['instances'].pred_masks
     mask = mask.char().cpu().numpy()

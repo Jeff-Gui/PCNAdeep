@@ -4,9 +4,9 @@
 """
 
 import skimage.exposure as exposure
-import sklearn.preprocessing.normalize as norm
 from skimage.util import img_as_float32
 import numpy as np
+
 
 def enhance_contrast(img):
     """Enhance contrast by rescaling
@@ -17,7 +17,8 @@ def enhance_contrast(img):
         ndarray
     """
     return exposure.rescale_intensity(img, in_range=tuple(np.percentile(img, (0.5, 99.5))))
-    
+
+
 def enhance_contrast_stack(stack):
     """Enhance contrast of a stack
     """
@@ -25,6 +26,7 @@ def enhance_contrast_stack(stack):
     for i in range(stack.shape[0]):
         stack[i,:] = enhance_contrast(stack[i,:])
     return stack
+
 
 def normalize(image, epsilon=1e-07):
     """Normalize image data by dividing by the maximum pixel value

@@ -10,6 +10,7 @@ import re
 import random
 import json
 
+
 def get_files(dir):
     files = []
     for filepath, dirnames, filenames in os.walk(dir):
@@ -17,6 +18,7 @@ def get_files(dir):
             if re.search('_mask', filename):
                 files.append(os.path.join(filepath, filename))
     return files
+
 
 def load_PCNA(root):
     """
@@ -106,6 +108,7 @@ def load_PCNA(root):
             print("Loaded " + str(count) + " images.")
     return outs
 
+
 def load_PCNA_from_json(json_path, image_path, width=1200, height=1200):
     import numpy as np
     import detectron2.structures as st
@@ -142,6 +145,7 @@ def load_PCNA_from_json(json_path, image_path, width=1200, height=1200):
         count += 1
     return outs
 
+
 def load_PCNAs_json(json_paths, image_paths):
     """Load multiple training dataset
     """
@@ -170,6 +174,7 @@ def inspect_PCNA_simple_data(root,out_dir='../inspect/pcna'):
         visualizer = Visualizer(img, metadata=metadata, scale=0.5)
         vis = visualizer.draw_dataset_dict(d)
         cv2.imwrite(out_dir + d["image_id"] + '.png', vis.get_image())
+
 
 def inspect_PCNA_data(json_path, image_path, out_dir='../inspect/pcna'):
     import cv2
