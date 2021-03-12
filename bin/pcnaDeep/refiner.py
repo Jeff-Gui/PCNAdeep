@@ -28,8 +28,10 @@ def deduce_transition(l, tar, confidence, min_tar, max_res, escape=0):
     confid_cls = list(map(lambda x: confidence[x, mp[l[x]]], range(confidence.shape[0])))
     idx = np.where(np.array(l) == tar)[0]
     idx = idx[idx >= escape].tolist()
-    if len(idx) == 0: return None
-    if len(idx) == 1: return idx[0], idx[0]
+    if len(idx) == 0:
+        return None
+    if len(idx) == 1:
+        return idx[0], idx[0]
     found = False
     i = 0
     g_panelty = 0
@@ -189,7 +191,7 @@ class Refiner:
                                                   (cur_track.shape[0] - self.FRAME_MT_TOLERANCE): cur_track.shape[0]])
             else:
                 ann['app_stage'][i] = '-'.join(
-                    cur_track['predicted_class'].iloc[0:min(self.FRAME_TOLERANCE, cur_track.shape[0])])
+                    cur_track['predicted_class'].iloc[0:min(self.FRAME_MT_TOLERANCE, cur_track.shape[0])])
                 ann['disapp_stage'][i] = '-'.join(
                     cur_track['predicted_class'].iloc[max(0, cur_track.shape[0] - self.FRAME_MT_TOLERANCE):])
                 short_tracks.append(i)

@@ -30,6 +30,7 @@ def setup_cfg(args):
     cfg.freeze()
     return cfg
 
+
 def get_parser():
     parser = argparse.ArgumentParser(description="Detectron2 demo for builtin configs")
     parser.add_argument(
@@ -168,11 +169,11 @@ if __name__ == "__main__":
                     imgs_out.append(visualized_output.get_image())
             logger.info(
                 "{}: {} in {:.2f}s".format(
-                'frame'+str(i),
-                "detected {} instances".format(len(predictions["instances"]))
-                if "instances" in predictions
-                else "finished",
-                time.time() - start_time,
+                    'frame'+str(i),
+                    "detected {} instances".format(len(predictions["instances"]))
+                    if "instances" in predictions
+                    else "finished",
+                    time.time() - start_time,
                 )
             )
         if args.json_out:

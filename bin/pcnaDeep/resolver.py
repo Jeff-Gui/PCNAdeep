@@ -2,6 +2,7 @@
 
 import pandas as pd
 import numpy as np
+from pcnaDeep.refiner import deduce_transition
 
 
 def list_dist(a, b):
@@ -18,57 +19,6 @@ def list_dist(a, b):
             count -= 1
 
     return count
-
-
-def deduce_transition(l, tar, confidence, min_tar, max_res, escape=0):
-    """ Deduce mitosis exit and entry based on adaptive searching
-        
-        Args:
-            l (list): list of the target cell cycle phase
-            tar (str) target searching phase
-            min_tar: minimum duration of an entire target phase
-            confidence: matrix of confidence
-            max_res: maximum accumulative duration of unwanted phase
-            escape: do not consider the first n instance
-            
-        Returns:
-            (entry, exit), index of index list that resolved as entry and exit
-        """
-    mp = {'G1/G2': 0, 'S': 1, 'M': 2}
-    confid_cls = list(map(lambda x: confidence[x, mp[l[x]]], range(confidence.shape[0])))
-    idx = np.where(np.array(l) == tar)[0]
-    idx = idx[idx >= escape].tolist()
-    if len(idx) == 0: return None
-    if len(idx) == 1: return idx[0], idx[0]
-    found = False
-    i = 0
-    g_panelty = 0
-    acc_m = confid_cls[idx[0]]
-    cur_m_entry = idx[i]
-    while i < len(idx) - 1:
-        acc_m += confid_cls[idx[i + 1]]
-        g_panelty += np.sum(confid_cls[idx[i] + 1:idx[i + 1]])
-        if acc_m >= min_tar:
-            found = True
-        if g_panelty >= max_res:
-            if found:
-                m_exit = idx[i]
-                break
-            else:
-                g_panelty = 0
-                acc_m = 0
-                cur_m_entry = idx[i + 1]
-        i += 1
-    if i == (len(idx) - 1) and found:
-        m_exit = idx[-1]
-    elif i == (len(idx) - 1) and g_panelty < max_res and found == False and cur_m_entry != idx[-1]:
-        found = True
-        m_exit = idx[-1]
-
-    if found:
-        return cur_m_entry, m_exit
-    else:
-        return None
 
 
 class Resolver:
@@ -144,7 +94,8 @@ class Resolver:
             table with addition column of resolved class
         """
 
-        UNRESOLVED_FRACTION = 0.2  # after resolving the class, if more than x% class has been corrected, label with unresolved
+        UNRESOLVED_FRACTION = 0.2  # after resolving the class, if more than x% class has been corrected, label with
+        # unresolved
 
         resolved_class = ['G1/G2' for i in range(trk.shape[0])]
 
@@ -183,7 +134,8 @@ class Resolver:
                 i -= 1
 
         if m_exit is None and m_entry is None:
-            # some tracks begin/end with mitosis and not associated during refinement. In this case, override any classification at terminal
+            # some tracks begin/end with mitosis and not associated during refinement. In this case, override any
+            # classification at terminal
             mt_out_begin = deduce_transition(l=cls, tar='M', confidence=confid, min_tar=1,
                                              max_res=np.max((self.minS, self.minG)))
             mt_out_end = deduce_transition(l=cls[::-1], tar='M', confidence=confid[::-1, :], min_tar=1,

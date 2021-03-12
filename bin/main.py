@@ -8,6 +8,8 @@ from detectron2.config import get_cfg
 from detectron2.utils.logger import setup_logger
 from pcnaDeep.predictor import VisualizationDemo, predictFrame
 from pcnaDeep.tracker import track
+from pcnaDeep.resolver import Resolver
+from pcnaDeep.refiner import Refiner
 
 def setup_cfg(args):
     # load config from file and command-line arguments
@@ -24,13 +26,14 @@ def setup_cfg(args):
     cfg.freeze()
     return cfg
 
+
 def get_parser():
     parser = argparse.ArgumentParser(description="Detectron2 demo for builtin configs")
     parser.add_argument(
         "--config-file",
-        default="configs/quick_schedules/mask_rcnn_R_50_FPN_inference_acc_test.yaml",
+        default="../config/pcna_res50.yaml",
         metavar="FILE",
-        help="path to config file",
+        help="path to detectron2 model config file",
     )
     parser.add_argument(
         "--input",
@@ -38,18 +41,13 @@ def get_parser():
     )
     parser.add_argument(
         "--output",
-        help="A file or directory to save output visualizations. "
-        "If not given, will show output in an OpenCV window.",
+        help="Output directory",
     )
     parser.add_argument(
         "--confidence-threshold",
         type=float,
         default=0.5,
         help="Minimum score for instance predictions to be shown",
-    )
-    parser.add_argument(
-        "--is_gray",
-        action="store_true"
     )
     parser.add_argument(
         "--displace",
@@ -62,12 +60,47 @@ def get_parser():
         help='Tracking: memory frames of objects to fill gaps',
     )
     parser.add_argument(
+        "--minG",
+        default=6,
+        help='Refinement/Resolver: minimum G1/G2 duration',
+    )
+    parser.add_argument(
+        "--minS",
+        default=5,
+        help='Refinement/Resolver: minimum S duration',
+    )
+    parser.add_argument(
+        "--minM",
+        default=3,
+        help='Refinement/Resolver: minimum M duration',
+    )
+    parser.add_argument(
+        "--d_trh",
+        default=150,
+        help='Refinement: maximum mitosis distance tolerance',
+    )
+    parser.add_argument(
+        "--t_trh",
+        default=5,
+        help='Refinement: maximum mitosis frame tolerance',
+    )
+    parser.add_argument(
+        "--smooth",
+        default=5,
+        help='Refinement: smoothing window of classification',
+    )
+    parser.add_argument(
+        "--minTrack",
+        default=10,
+        help='Resolver: minimum track length to report cell cycle duration',
+    )
+    parser.add_argument(
         "--batch",
         action="store_true"
     )
     parser.add_argument(
         "--opts",
-        help="Modify config options using the command-line 'KEY VALUE' pairs",
+        help="Modify detectron2 config options using the command-line 'KEY VALUE' pairs",
         default=[],
         nargs=argparse.REMAINDER,
     )
@@ -85,11 +118,10 @@ if __name__ == "__main__":
 
     demo = VisualizationDemo(cfg)
     
-    logger.info("Start infering.")
+    logger.info("Start inferring.")
     if args.input and not args.batch:
         prefix = os.path.basename(args.input)
         prefix = re.match('(.+)\.\w+',prefix).group(1)
-        gray = args.is_gray # gray: THW; non-gray: THWC
         # Input image must be uint8
         imgs = io.imread(args.input)
         logger.info("Run on image shape: "+str(imgs.shape))
@@ -105,18 +137,28 @@ if __name__ == "__main__":
             
             logger.info(
                 "{}: {} in {:.2f}s".format(
-                'frame'+str(i),
-                "detected {} instances".format(out_props.shape[0]),
-                time.time() - start_time,
+                    'frame'+str(i),
+                    "detected {} instances".format(out_props.shape[0]),
+                    time.time() - start_time,
                 )
             )
         
-        del(imgs)  # save memory space TODO: use image buffer input
+        del imgs  # save memory space TODO: use image buffer input
         mask_out = np.stack(mask_out, axis=0)
 
         logger.info('Tracking...')
         track_out = track(df=table_out, displace=int(args.displace), gap_fill=int(args.gap_fill))
         track_out.to_csv(os.path.join(args.output, prefix + '_tracks.csv'), index=0)
         io.imsave(os.path.join(args.output, prefix + '_mask.tif'), mask_out)
+
+        logger.info('Refining and Resolving...')
+        myRefiner = Refiner(track, threshold_mt_F=args.d_trh, threshold_mt_T=args.t_trh, smooth=args.smooth,
+                            minGS=np.max((args.minG, args.minS)), minM=args.minM)
+        ann, track, mt_dic = myRefiner.doTrackRefine()
+
+        myResolver = Resolver(track, ann, mt_dic, minG=args.minG, minS=args.minS, minM=args.minM, minTrack=args.minTrack)
+        track, phase = myResolver.doResolve()
+        track.to_csv(os.path.join(args.output, prefix + '_tracks_refined.csv'), index=0)
+        phase.to_csv(os.path.join(args.output, prefix + '_phase.csv'), index=0)
 
         logger.info('Finished: '+time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()))
