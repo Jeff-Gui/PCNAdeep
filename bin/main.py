@@ -152,13 +152,13 @@ if __name__ == "__main__":
         io.imsave(os.path.join(args.output, prefix + '_mask.tif'), mask_out)
 
         logger.info('Refining and Resolving...')
-        myRefiner = Refiner(track, threshold_mt_F=args.d_trh, threshold_mt_T=args.t_trh, smooth=args.smooth,
+        myRefiner = Refiner(track_out, threshold_mt_F=args.d_trh, threshold_mt_T=args.t_trh, smooth=args.smooth,
                             minGS=np.max((args.minG, args.minS)), minM=args.minM)
-        ann, track, mt_dic = myRefiner.doTrackRefine()
+        ann, track_rfd, mt_dic = myRefiner.doTrackRefine()
 
-        myResolver = Resolver(track, ann, mt_dic, minG=args.minG, minS=args.minS, minM=args.minM, minTrack=args.minTrack)
-        track, phase = myResolver.doResolve()
-        track.to_csv(os.path.join(args.output, prefix + '_tracks_refined.csv'), index=0)
+        myResolver = Resolver(track_rfd, ann, mt_dic, minG=args.minG, minS=args.minS, minM=args.minM, minTrack=args.minTrack)
+        track_rsd, phase = myResolver.doResolve()
+        track_rsd.to_csv(os.path.join(args.output, prefix + '_tracks_refined.csv'), index=0)
         phase.to_csv(os.path.join(args.output, prefix + '_phase.csv'), index=0)
 
         logger.info('Finished: '+time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()))
