@@ -7,10 +7,8 @@ import time
 import numpy as np
 import pandas as pd
 import skimage.io as io
-import skimage.measure as measure
 from detectron2.config import get_cfg
 from detectron2.utils.logger import setup_logger
-from skimage.morphology import remove_small_objects
 
 from pcnaDeep.predictor import VisualizationDemo, pred2json
 
@@ -18,9 +16,6 @@ from pcnaDeep.predictor import VisualizationDemo, pred2json
 def setup_cfg(args):
     # load config from file and command-line arguments
     cfg = get_cfg()
-    # To use demo for Panoptic-DeepLab, please uncomment the following two lines.
-    # from detectron2.projects.panoptic_deeplab import add_panoptic_deeplab_config  # noqa
-    # add_panoptic_deeplab_config(cfg)
     cfg.merge_from_file(args.config_file)
     cfg.merge_from_list(args.opts)
     # Set score_threshold for builtin models
@@ -53,10 +48,6 @@ def get_parser():
         type=float,
         default=0.5,
         help="Minimum score for instance predictions to be shown",
-    )
-    parser.add_argument(
-        "--mask_off",
-        action="store_true"
     )
     parser.add_argument(
         "--is_gray",
@@ -99,7 +90,6 @@ if __name__ == "__main__":
             imgs = np.expand_dims(imgs, axis=0)
         imgs_out = []
         table_out = pd.DataFrame()
-        mask_out = []
         json_out = {}
         for i in range(imgs.shape[0]):
             img = imgs[i,:]
@@ -116,57 +106,9 @@ if __name__ == "__main__":
                 dic_frame = pred2json(masks, labels, file_name)
                 json_out[file_name] = dic_frame
             else:
-                # Generate mask or visualized output
+                # Generate visualized output
                 predictions, visualized_output = demo.run_on_image(img)
-                #print(predictions['instances'].pred_classes)
-                if m:
-                    # Generate mask
-                    mask = predictions['instances'].pred_masks
-                    mask = mask.char().cpu().numpy()
-                    mask_slice = np.zeros((mask.shape[1], mask.shape[2])).astype('uint8')
-                
-                    # For visualising class prediction
-                    # 0: G1/G2, 1: S, 2: M, 3: E-early G1
-                    cls = predictions['instances'].pred_classes
-                    conf = predictions['instances'].scores
-                    factor = {0:0, 1:1, 2:2, 3:0}
-                    for s in range(mask.shape[0]):
-                        f = factor[cls[s].item()]
-                        sc = conf[s].item()
-                        ori = np.max(mask_slice[mask[s,:,:]!=0])
-                        if ori!=0:
-                            if sc>conf[ori-1].item():
-                                mask_slice[mask[s,:,:,]!=0] = s+1
-                        else:
-                            mask_slice[mask[s,:,:]!=0] = s+1
-                    
-                    img = remove_small_objects(mask_slice,1000)
-                    props = measure.regionprops_table(img, properties=('label','bbox','centroid'))
-                    props = pd.DataFrame(props)
-
-                    img_relabel = measure.label(img)
-                    props_relabel = measure.regionprops_table(img_relabel, properties=('label','centroid'))
-                    props_relabel = pd.DataFrame(props_relabel)
-                    props_relabel.columns = ['continuous_label','Center_of_the_object_0', 'Center_of_the_object_1']
-
-                    out_props = pd.merge(props, props_relabel, on=['Center_of_the_object_0','Center_of_the_object_1'])
-                    out_props['frame'] = i
-                    phase = []
-                    confid = []
-                    for row in range(out_props.shape[0]):
-                        lb = int(out_props.iloc[row][0])
-                        phase.append(cls[lb-1].item())
-                        confid.append(conf[lb-1].item())
-                    out_props['phase'] = phase
-                    out_props['confid'] = confid
-                    out_props['Center_of_the_object_0'] = np.round(out_props['Center_of_the_object_0'])
-                    out_props['Center_of_the_object_1'] = np.round(out_props['Center_of_the_object_1'])
-                    del out_props['label']
-                    
-                    table_out = table_out.append(out_props)
-                    mask_out.append(img_relabel.astype('uint8'))
-                else:
-                    imgs_out.append(visualized_output.get_image())
+                imgs_out.append(visualized_output.get_image())
             logger.info(
                 "{}: {} in {:.2f}s".format(
                     'frame'+str(i),
@@ -179,10 +121,6 @@ if __name__ == "__main__":
         if args.json_out:
             with(open(args.output, 'w', encoding='utf8')) as file:
                 json.dump(json_out, file)
-        elif m:
-            out = np.stack(mask_out, axis=0)
-            io.imsave(args.output, out)
-            table_out.to_csv(args.output[:-3]+'csv')
         else:
             out = np.stack(imgs_out, axis=0)
             io.imsave(args.output, out)
