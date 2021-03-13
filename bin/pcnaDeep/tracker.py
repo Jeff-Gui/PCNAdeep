@@ -3,6 +3,7 @@
 import trackpy as tp
 import skimage.measure as measure
 import pandas as pd
+import numpy as np
 
 
 def track(df, displace=40, gap_fill=5):
@@ -60,11 +61,16 @@ def track_mask(mask, displace=40, gap_fill=5, render_phase=False,
     """
 
     p = pd.DataFrame()
+    mask_lbd = np.zeros(mask.shape)
+    for i in range(mask.shape[0]):
+        mask_lbd[i, :, :] = measure.label(mask[i, :, :], connectivity=1)
+    assert np.max(mask_lbd) <= 255
+    mask_lbd = mask_lbd.astype('uint8')
+        
     if render_phase:
         for i in range(mask.shape[0]):
-            props = measure.regionprops_table(measure.label(mask[i, :, :], connectivity=1),
-                                              intensity_image=mask[i, :, :], properties=(
-                    'centroid', 'label', 'max_intensity', 'major_axis_length', 'minor_axis_length'))
+            props = measure.regionprops_table(mask_lbd[i, :, :], intensity_image=mask[i, :, :], 
+                                              properties=('centroid', 'label', 'max_intensity', 'major_axis_length', 'minor_axis_length'))
             props = pd.DataFrame(props)
             props.columns = ['Center_of_the_object_0', 'Center_of_the_object_1', 'continuous_label', 'mean_intensity',
                              'major_axis', 'minor_axis']
@@ -112,4 +118,4 @@ def track_mask(mask, displace=40, gap_fill=5, render_phase=False,
             p = p.append(props)
 
     track_out = track(p, displace=displace, gap_fill=gap_fill)
-    return track_out
+    return track_out, mask_lbd

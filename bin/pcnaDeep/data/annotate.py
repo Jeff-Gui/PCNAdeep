@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*-
 
-import pandas as pd
-import os, tarfile, tempfile, json
+import json
+import os
+import tarfile
+import tempfile
 from io import BytesIO
-import skimage.io as io
+
 import numpy as np
+import pandas as pd
+import skimage.io as io
 from pcnaDeep.tracker import track_mask
 
 
@@ -48,7 +52,12 @@ def label_by_track(mask, label_table):
     for i in np.unique(label_table['frame']):
         sub_table = label_table[label_table['frame'] == i]
         sl = mask[i, :, :].copy()
-        ori_labels = set(np.unique(sl)) - {0}
+        lbs = np.unique(sl).tolist()
+        
+        if lbs[-1]+1 != len(lbs):
+            raise ValueError('Mask is not continuously or wrongly labeled.')
+            
+        ori_labels = set(lbs) - {0}
         untracked = list(ori_labels - set(list(sub_table['continuous_label'])))
         #  remove untracked
         for j in untracked:
@@ -61,12 +70,11 @@ def label_by_track(mask, label_table):
     return mask
 
 
-def get_lineage_dict(label_table, rel):
+def get_lineage_dict(label_table):
     """Generate lineage dictionary in deepcell tracking format
     
     Args:
         label_table: table processed
-        rel: mitosis relationship, use to determine frame of division
     """
 
     out = {}
@@ -77,17 +85,6 @@ def get_lineage_dict(label_table, rel):
                   'parent': None}
         if list(sub_table['parentTrackId'])[0] != 0:
             out[i]['parent'] = list(sub_table['parentTrackId'])[0]
-
-    for i in list(rel.keys()):
-        out[i]['capped'] = True
-        out[i]['frame_div'] = rel[i][1]
-        out[i]['daughters'].extend(rel[i][0])
-
-    for i in list(out.keys()):
-        if out[i]['parent'] is not None:
-            par = out[i]['parent']
-            if i not in out[par]['daughters']:
-                out[par]['daughters'].append(i)
 
     return out
 
@@ -246,10 +243,39 @@ def break_track(label_table):
      mitosis tracks, not gapped tracks.)
     
     Returns:
-        processed table
-        {parentId:[[daughter ids], mitosis frame]}
+        processed tracked object table
     """
 
+    # For parent track that have one daughter extrude into the parent frame, 
+    #       e.g. parent: t1-10; daughter1: t8-20; daughter2: t11-20.
+    # re-organize the track by triming parent and add to daughter,
+    #       i.e. parent: t1-7; daughter1: t8-20; daughter2: t8-10, t11-20
+    # If both daughter extrude, e.g. daughter2: t9-20, then trim parent directly
+    # to t1-8. Since this indicages faulty track, warning shown
+    
+    for l in np.unique(label_table['trackId']):
+        daugs = np.unique(label_table[label_table['parentTrackId']==l]['trackId'])
+        if len(daugs)==2:
+            daug1 = label_table[label_table['trackId']==daugs[0]]['frame'].iloc[0]
+            daug2 = label_table[label_table['trackId']==daugs[1]]['frame'].iloc[0]
+            par = label_table[label_table['trackId']==l]
+            par_frame = par['frame'].iloc[-1]
+            if par_frame >= daug1 and par_frame >= daug2:
+                raise UserWarning('Faluty mitosis, check parent: ' + str(l) + 
+                                ', daughters: ' + str(daugs[0]) + '/' + str(daugs[1]))
+                label_table.drop(par[(par['frame']>=daug1) | (par['frame']>=daug2)].index, inplace=True)
+            elif par_frame >= daug1:
+                # migrate par to daug2
+                label_table.loc[par[par['frame']>=daug1].index, 'trackId'] = daugs[1]
+                label_table.loc[par[par['frame']>=daug1].index, 'parentTrackId'] = l
+            elif par_frame >= daug2:
+                # migrate par to daug1
+                label_table.loc[par[par['frame']>=daug2].index, 'trackId'] = daugs[0]
+                label_table.loc[par[par['frame']>=daug2].index, 'parentTrackId'] = l
+    
+    label_table = label_table.sort_values(by=['trackId', 'frame'])   
+
+    # break tracks individually
     max_trackId = np.max(label_table['trackId'])
     label_table['mtParTrk'] = label_table['parentTrackId']
     label_table['parentTrackId'] = 0
@@ -266,13 +292,10 @@ def break_track(label_table):
             tr.loc[:, 'parentTrackId'] = sep['parentTrackId']
             tr.loc[:, 'mtParTrk'] = sep['mtParTrk']
 
-        new_table = new_table.append(tr)
-
+        new_table = new_table.append(tr)    
+    
+    
     # For tracks that have mitosis parents, find new ID of their parents
-    # Currently, we do not handle mitosis track loss daughter, 
-    # though the mitosis duration is count by cell cycle resolver ResolveClass.R
-
-    rel = {}  # relation lookup, parent:([daug], div frame)
     for l in np.unique(new_table['trackId']):
         tr = new_table[new_table['trackId'] == l].copy()
 
@@ -282,46 +305,12 @@ def break_track(label_table):
             search = new_table[new_table['ori_trackId'] == ori_par]
             new_par = search.iloc[np.argmin(abs(search['frame'] - app))]['trackId']
             new_table.loc[tr.index, 'mtParTrk'] = new_par
-            if new_par in rel.keys():
-                rel[new_par][0].append(l)
-            else:
-                rel[new_par] = [[l], None]
-
-    # break parent if the parent have only one daughter
-    # also deduce mitosis frame
-    for parent in list(rel.keys()):
-        if len(rel[parent][0]) == 1:
-            m_entry = np.min(new_table[new_table['trackId'] == rel[parent][0][0]]['frame'])
-            rel[parent][1] = m_entry
-            # break parent at m_entry
-            idx = new_table[(new_table['trackId'] == parent) & (new_table['frame'] >= m_entry)].index
-            if len(idx):
-                new_table.loc[idx, 'trackId'] = max_trackId + 1
-                new_table.loc[idx, 'parentTrackId'] = parent
-                new_table.loc[idx, 'mtParTrk'] = parent
-                rel[parent][0].append(max_trackId + 1)
-                max_trackId += 1
-                # for non-mitosis tracks that are daughters of the parent, point the first daughter
-                # to new track
-                idx = new_table[(new_table['parentTrackId'] == parent) & (new_table['trackId'] != max_trackId)].index
-                new_table.loc[idx, 'parentTrackId'] = max_trackId
-            else:
-                # if mitosis happens at the end of a parent track, any track following the parent will be mitosis daughter
-                idx = new_table[(new_table['parentTrackId'] == parent) & (new_table['frame'] >= m_entry)].index
-                if len(idx):
-                    rel[parent][0].append(np.unique(new_table.loc[idx, 'trackId'])[0])
-                    new_table.loc[idx, 'mtParTrk'] = parent
-
-        else:
-            assert len(rel[parent][0]) == 2
-            m_entry = np.max(new_table[new_table['trackId'] == parent]['frame'])
-            rel[parent][1] = m_entry
 
     for i in range(new_table.shape[0]):
         new_table.loc[i, 'parentTrackId'] = np.max(
             ((new_table['parentTrackId'][i]), new_table['mtParTrk'][i]))  # merge mitosis information in to parent
 
-    return new_table, rel
+    return new_table
 
 
 def separate(frame_list, mtPar_list, ori_id, base):
@@ -350,12 +339,12 @@ def save_seq(stack, out_dir, prefix, dig_num=3, dtype='uint16', base=0):
     """Save image stack and label sequentially
     
     Args:
-        stack: nparray, THW
-        out_dir: output directory
-        prefix: prefix of single slice
-        dig_num = digit number (3 -> 00x) for labeling image sequentially
-        dtype: data type to save
-        base: base number of the label (starting from)
+        stack (numpy array) : nparray, THW
+        out_dir (str) : output directory
+        prefix (str) : prefix of single slice
+        dig_num (int) : digit number (3 -> 00x) for labeling image sequentially
+        dtype (numpy.dtype) : data type to save
+        base (int) : base number of the label (starting from)
     """
     if len(stack.shape) == 4:
         stack = stack[:, :, :, 0]
@@ -368,15 +357,15 @@ def save_seq(stack, out_dir, prefix, dig_num=3, dtype='uint16', base=0):
     return
 
 
-def generate_calibanTrk(mask, out_dir, dt_id, digit_num=3, track=None):
+def generate_calibanTrk(raw, mask, out_dir, dt_id, digit_num=3, displace=100, gap_fill=3, track=None):
     """Generate caliban .trk format for annotation
     """
-    fm = ("%0" + str(digit_num) + "d") % (dt_id)
+    fm = ("%0" + str(digit_num) + "d") % dt_id
     if track is None:
-        track = track_mask(mask, displace=100, gap_fill=3)
+        track, mask = track_mask(mask, displace=displace, gap_fill=gap_fill)
     track_new = relabel_trackID(track.copy())
-    track_new, rel = break_track(track_new.copy())
+    track_new = break_track(track_new.copy())
     tracked_mask = label_by_track(mask.copy(), track_new.copy())
-    dic = get_lineage_dict(track_new.copy(), rel)
+    dic = get_lineage_dict(track_new.copy())
     save_trks(os.path.join(out_dir, fm+'.trk'), dic, np.expand_dims(raw, axis=3), np.expand_dims(tracked_mask, axis=3))
     return

@@ -11,6 +11,7 @@ from pcnaDeep.tracker import track
 from pcnaDeep.resolver import Resolver
 from pcnaDeep.refiner import Refiner
 
+
 def setup_cfg(args):
     # load config from file and command-line arguments
     cfg = get_cfg()

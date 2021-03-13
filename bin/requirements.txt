@@ -1,0 +1,8 @@
+detectron2
+torch
+scikit-image
+matplotlib
+numpy
+pandas
+iopath
+trackpy
