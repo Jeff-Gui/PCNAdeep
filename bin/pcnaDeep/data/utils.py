@@ -158,8 +158,8 @@ def mask2json(in_dir, out_dir, phase_labeled=False, phase_dic={10:"G1/G2", 50:"S
     return
 
 
-def getModelInput(pcna, dic):
-    """Generate pcna-mScarlet and DIC channel to RGB format for model prediction
+def getDetectInput(pcna, dic):
+    """Generate pcna-mScarlet and DIC channel to RGB format for detectron2 model prediction
 
     Args:
         pcna (numpy.array): uint16 PCNA-mScarlet image stack (T*H*W)
@@ -196,3 +196,68 @@ def getModelInput(pcna, dic):
     final_out = np.stack(outs, axis=0)
     print("Output shape: ", final_out.shape)
     return outs
+
+
+def retrieve(table, mask, image, rp_fields=[], funcs=[]):
+    """Retrieve extra skimage.measure.regionprops fields of every object;
+        Or apply customized functions to extract features form the masked object.
+        
+    Args:
+        table (pandas.DataFrame): object table tracked or untracked, 
+            should have 2 fields:
+            1. frame: time location; 
+            2. continuous label: region label on mask
+        mask (numpy.array): labeled mask corresponding to table
+        image (numpy.array): intensity image, only the first channel allowed
+        rp_fields (list(str)): skimage.measure.regionpprops allowed fields
+        funcs (list(function)): customized function that outputs one value from
+            an array input
+            
+    Returns:
+        labeled object table with additional columns
+    """
+    track = table
+    if rp_fields == [] and funcs == []:
+        return track
+
+    new_track = pd.DataFrame()
+    track = track.sort_values(by=['frame', 'continuous_label'])
+    for f in np.unique(track['frame']).tolist():
+        sl = mask[f, :, :]
+        img = image[f, :, :]
+        sub = track[track['frame']==f]
+        
+        if rp_fields:
+            if 'label' not in rp_fields:
+                rp_fields.append('label')
+            props = pd.DataFrame(measure.regionprops_table(sl, img, properties=tuple(rp_fields)))
+            new = pd.merge(sub, props, left_on='continuous_label', right_on='label')
+            new = new.drop(['label'], axis=1)
+        
+        if funcs:
+            p = measure.regionprops(sl, img)
+            out = {'label':[]}
+            for fn in funcs:
+                out[fn.__name__] = []
+            for i in p:
+                out['label'].append(i.label)
+                i_img = img.copy()
+                i_img[sl!=i.label] = 0
+                for fn in funcs:
+                    out[fn.__name__].append(fn(i_img))
+            new2 = pd.DataFrame(out)
+            if rp_fields:
+                new2 = pd.merge(new, new2, left_on='continuous_label', right_on='label')
+                new2 = new2.drop(['label'], axis=1)
+            else:
+                new2 = pd.merge(sub, new2, left_on='continuous_label', right_on='label')
+        
+        if rp_fields != []:
+            if funcs != []:
+                new_track = new_track.append(new2)
+            else:
+                new_track = new_track.append(new)
+        elif funcs != []:
+            new_track = new_track.append(new2)
+    
+    return new_track
