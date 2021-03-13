@@ -2,6 +2,7 @@ import argparse
 import json
 import multiprocessing as mp
 import os
+import re
 import time
 
 import numpy as np
@@ -81,7 +82,6 @@ if __name__ == "__main__":
     demo = VisualizationDemo(cfg)
 
     if args.input:
-        m = not args.mask_off
         gray = args.is_gray # gray: THW; non-gray: THWC
         # Input image must be uint8
         imgs = io.imread(args.input)
@@ -119,7 +119,8 @@ if __name__ == "__main__":
                 )
             )
         if args.json_out:
-            with(open(args.output, 'w', encoding='utf8')) as file:
+            prefix = re.search('(.*)\..*', os.path.basename(args.input)).group(1)
+            with(open(args.output+prefix+'.json', 'w', encoding='utf8')) as file:
                 json.dump(json_out, file)
         else:
             out = np.stack(imgs_out, axis=0)
