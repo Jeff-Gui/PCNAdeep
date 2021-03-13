@@ -71,7 +71,7 @@ def json2mask(ip, out, height, width, label_phase=False):
     return
 
 
-def mask2json(in_dir, out_dir, phase_labeled=False, phase_dic={10:"G1/G2", 50:"S", 100:"M"}, prefix='object_info'):
+def mask2json(in_dir, out_dir, phase_labeled=False, phase_dic={10:"G1/G2", 50:"S", 100:"M", 200:'E'}, prefix='object_info'):
     """Generate VIA2-readable json file from masks
 
     Args:

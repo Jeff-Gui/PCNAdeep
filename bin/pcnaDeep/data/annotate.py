@@ -9,6 +9,8 @@ from io import BytesIO
 import numpy as np
 import pandas as pd
 import skimage.io as io
+from skimage.util import img_as_uint
+from skimage.util import img_as_ubyte
 from pcnaDeep.tracker import track_mask
 
 
@@ -335,7 +337,7 @@ def separate(frame_list, mtPar_list, ori_id, base):
     return rt, base
 
 
-def save_seq(stack, out_dir, prefix, dig_num=3, dtype='uint16', base=0):
+def save_seq(stack, out_dir, prefix, dig_num=3, dtype='uint16', base=0, img_format='.tif', keep_chn=True):
     """Save image stack and label sequentially
     
     Args:
@@ -343,16 +345,24 @@ def save_seq(stack, out_dir, prefix, dig_num=3, dtype='uint16', base=0):
         out_dir (str) : output directory
         prefix (str) : prefix of single slice
         dig_num (int) : digit number (3 -> 00x) for labeling image sequentially
-        dtype (numpy.dtype) : data type to save
+        dtype (numpy.dtype) : data type to save, either 'uint8' or 'uint16'
         base (int) : base number of the label (starting from)
+        img_formt (str): image format, '.tif' or '.png', remind the dot
+        keep_chn (bool): whether to keep full channel or not
     """
-    if len(stack.shape) == 4:
+    if len(stack.shape) == 4 and not keep_chn:
         stack = stack[:, :, :, 0]
 
     for i in range(stack.shape[0]):
         fm = ("%0" + str(dig_num) + "d") % (i + base)
-        name = os.path.join(out_dir, prefix + fm + '.tif')
-        io.imsave(name, stack[i, :, :].astype(dtype))
+        name = os.path.join(out_dir, prefix + fm + img_format)
+        if dtype=='uint16':
+            img = img_as_uint(stack[i, :])
+        elif dtype=='uint8':
+            img = img_as_ubyte(stack[i, :])
+        else:
+            raise ValueError("Seq save only accepts uint8 or uint16 format.")
+        io.imsave(name, img)
 
     return
 
