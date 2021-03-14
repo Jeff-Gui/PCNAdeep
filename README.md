@@ -1,6 +1,6 @@
 # pcnaDeep: a deep-learning based single-cell cycle profiler with PCNA signal
 
-![Banner](/bin/assets/icon.png)
+<img src="/bin/assets/icon.png" alt="banner" width="100" height="100" align="top" />
 
 Welcome! pcnaDeep integrates cutting-edge detection techniques with tracking and cell cycle resolving models.
 With pre-trained Detectron2 maskRCNN model, pcnaDeep is able to detect and resolve very dense PCNA-fluorescent expressing cell tracks.
