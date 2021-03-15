@@ -151,7 +151,7 @@ if __name__ == "__main__":
 
         logger.info('Refining and Resolving...')
         myRefiner = Refiner(track_out, threshold_mt_F=args.d_trh, threshold_mt_T=args.t_trh, smooth=args.smooth,
-                            minGS=np.max((args.minG, args.minS)), minM=args.minM)
+                            minGS=np.max((args.minG, args.minS)), minM=args.minM, mode='TRH')
         ann, track_rfd, mt_dic = myRefiner.doTrackRefine()
 
         myResolver = Resolver(track_rfd, ann, mt_dic, minG=args.minG, minS=args.minS, minM=args.minM, minTrack=args.minTrack)
