@@ -7,3 +7,4 @@ pandas
 iopath
 trackpy>=0.4.2
 opencv-python
+scikit-learn

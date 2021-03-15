@@ -78,14 +78,13 @@ class Resolver:
                     self.resolveLineage(lineage[(lineage['trackId'] == i) | (lineage['parentTrackId'] == i)].copy(), i))
             return out
 
-        return
-
     def resolveTrack(self, trk, m_entry=None, m_exit=None):
         """Resolve single track.
         
         Args:
             trk: track table
-            m_entry/exit: time of mitosis corresponding to 'frame' column in table
+            m_entry: time of mitosis entry corresponding to 'frame' column in table
+            m_exit: time of mitosis exit corresponding to 'frame' column in table
             
             If no m time supplied, only treat as G1/G2/S track.
             Arrested track not resolved, return full G1/G2 list.
@@ -164,6 +163,8 @@ class Resolver:
         return trk
 
     def doResolvePhase(self):
+        """Resolve phase durations
+        """
         out = {'track': [], 'type': [], 'length': [], 'arrest': [], 'G1': [], 'S': [], 'M': [], 'G2': [], 'parent': []}
 
         # register tracks

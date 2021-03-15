@@ -4,9 +4,12 @@ import pandas as pd
 import numpy as np
 import math
 import re
+import joblib
 
 
 def dist(x1, y1, x2, y2):
+    """Calculate distance of a set of coordinates
+    """
     return math.sqrt((float(x1) - float(x2)) ** 2 + (float(y1) - float(y2)) ** 2)
 
 
@@ -15,10 +18,10 @@ def deduce_transition(l, tar, confidence, min_tar, max_res, escape=0):
         
         Args:
             l: list of the target cell cycle phase
-            target: target cell cycle phase
+            tar: target cell cycle phase
             min_tar: minimum duration of an entire target phase
             confidence: matrix of confidence
-            max_tar: maximum accumulative duration of unwanted phase
+            max_res: maximum accumulative duration of unwanted phase
             escape: do not consider the first n instance
             
         Returns:
@@ -63,26 +66,46 @@ def deduce_transition(l, tar, confidence, min_tar, max_res, escape=0):
         return None
 
 
-# The script does two things: find potential parent-daughter cells, and wipes out
-# random false classification in the form of A-B-A
-# To determine potential parent-daughter cells, appearance and disappearance time
-# and location of the track are examined. Tracks appearing within certain 
-# distance and time shift after another track's disappearance is considered as the daughter track.
-# Parent-daughter track does not necessary mean mitosis event. In fact, it can
-# be caused by either of the three events
-# - 1. cells moving outside the view field and then come back, therefore assigned differently
-# - 2. A mis-transition: Ilastik assign cells belong to the same lineage to two tracks
-# - 3. Temporal loss of signal or segmentation issue
-# - 4. Mitosis
-
 class Refiner:
 
-    def __init__(self, track, threshold_mt_F=150, threshold_mt_T=5, smooth=5, minGS=3,
-                 minM=3):
+    def __init__(self, track, smooth=5, minGS=3, minM=3, mode='SVM',
+                 threshold_mt_F=150, threshold_mt_T=5,
+                 search_range=5, mt_len=5, sample_freq=20, model_path=''):
+        """Refinement of the tracks
+
+        Class variables:
+            track (pandas.DataFrame): tracked object table
+            smooth (int): smoothing window on classification confidence
+            minGS (int): minimum duration of G1/G2/S phase, choose maximum if differs among three
+            mode (str): how to resolve parent-daughte relationship, either 'SVM', 'TRAIN' or 'TRH'
+            - Essential for TRH mode:
+                threshold_mt_F (int): mitosis displace maximum, can be evaluated as maximum cytokinesis distance.
+                threshold_mt_T (int): mitosis frame difference maximum,
+                    can be evaluated as maximum mitosis frame length.
+            - Essential for SVM/TRAIN mode (for normalizing different imaging conditions):
+                mt_len (int): mitosis length of the cells, evaluated manually
+                sample_freq (int): sampling frequency: x minute per frame
+                model_path (str): path to saved SVM model
+
+        """
         self.track = track.copy()
         self.count = np.unique(track['trackId'])
-        self.FRAME_MT_TOLERANCE = threshold_mt_T
-        self.DIST_MT_TOLERANCE = threshold_mt_F
+
+        self.MODE = mode
+        if mode == 'SVM' or mode == 'TRAIN':
+            self.SEARCH_RANGE = search_range
+            self.MT_DISCOUNT = 0.9
+            self.metaData = {'mt_len': mt_len, 'sample_freq': sample_freq,
+                             'meanDisplace': np.mean(self.getMeanDisplace()['mean_displace'])}
+            self.mt_score_begin, self.mt_score_end = self.getMTscore(self.SEARCH_RANGE, self.MT_DISCOUNT)
+            self.SVM_PATH = model_path
+        elif mode == 'TRH':
+            self.FRAME_MT_TOLERANCE = threshold_mt_T
+            self.DIST_MT_TOLERANCE = threshold_mt_F
+        else:
+            raise ValueError('Mode can only be SVM, TRAIN or TRH, for SVM-mitosis resolver, '
+                             'training of the resolver or threshold based resolver.')
+
         self.SMOOTH = smooth
         self.MIN_GS = minGS
         self.MIN_M = minM
@@ -148,6 +171,10 @@ class Refiner:
     def register_track(self):
         """Register track annotation table 
         """
+        if self.MODE == 'TRH':
+            frame_tolerance = self.FRAME_MT_TOLERANCE
+        else:
+            frame_tolerance = self.SEARCH_RANGE
 
         track = self.track.copy()
         # annotation table: record appearance and disappearance information of the track
@@ -184,16 +211,16 @@ class Refiner:
             ann['app_y'][i] = cur_track['Center_of_the_object_1'].iloc[0]
             ann['disapp_x'][i] = cur_track['Center_of_the_object_0'].iloc[cur_track.shape[0] - 1]
             ann['disapp_y'][i] = cur_track['Center_of_the_object_1'].iloc[cur_track.shape[0] - 1]
-            if cur_track.shape[0] >= 2 * self.FRAME_MT_TOLERANCE:
+            if cur_track.shape[0] >= 2 * frame_tolerance:
                 # record (dis-)appearance cell cycle classification, in time range equals to FRAME_TOLERANCE
-                ann['app_stage'][i] = '-'.join(cur_track['predicted_class'].iloc[0:self.FRAME_MT_TOLERANCE])
+                ann['app_stage'][i] = '-'.join(cur_track['predicted_class'].iloc[0:frame_tolerance])
                 ann['disapp_stage'][i] = '-'.join(cur_track['predicted_class'].iloc[
-                                                  (cur_track.shape[0] - self.FRAME_MT_TOLERANCE): cur_track.shape[0]])
+                                                  (cur_track.shape[0] - frame_tolerance): cur_track.shape[0]])
             else:
                 ann['app_stage'][i] = '-'.join(
-                    cur_track['predicted_class'].iloc[0:min(self.FRAME_MT_TOLERANCE, cur_track.shape[0])])
+                    cur_track['predicted_class'].iloc[0:min(frame_tolerance, cur_track.shape[0])])
                 ann['disapp_stage'][i] = '-'.join(
-                    cur_track['predicted_class'].iloc[max(0, cur_track.shape[0] - self.FRAME_MT_TOLERANCE):])
+                    cur_track['predicted_class'].iloc[max(0, cur_track.shape[0] - frame_tolerance):])
                 short_tracks.append(i)
 
         ann = pd.DataFrame(ann)
@@ -217,27 +244,27 @@ class Refiner:
 
         return track, short_tracks, ann
 
-    def compete(self, mt_dic, parentId, daughterId_1, dist1, daughterId_2, dist2):
+    def compete(self, mt_dic, parentId, daughter_ids, distance):
         # check if a track ID can be registered into the mitosis
         # if a parent already have two parents, compete with distance
         """
         Args:
             mt_dic (dict): dictionary storing mitosis information
-            parentId/daughterId_1/daughterId_2 (int): track IDs
-            dist1/dist2:distance of parent and daughter tracks
+            parentId (int): parent track ID
+            daughter_ids (list): daughter_ids to compete
+            distance (list): daughter_ids and corresponding distance / score-to-minimize
 
         Returns:
             Dictionary: {register: id to register; revert: id to revert}
         """
 
         dg_list = mt_dic[parentId]['daug']
-        ids = [daughterId_1, daughterId_2]
-        dist = [dist1, dist2]
+        ids = daughter_ids
         for i in list(dg_list.keys()):
             if i not in ids:
                 ids.append(i)
-                dist.append(dg_list[i]['dist'])
-        rs = np.argsort(dist)[:2]
+                distance.append(dg_list[i]['dist'])
+        rs = np.argsort(distance)[:2]
         ids = [ids[rs[0]], ids[rs[1]]]
         rt = ids.copy()
 
@@ -254,7 +281,8 @@ class Refiner:
         return {'register': rt, 'revert': rm}
 
     def revert(self, ann, mt_dic, parentId, daughterId):
-        # remove information of a relationship registered to ann and mt_dic
+        """remove information of a relationship registered to ann and mt_dic
+        """
         # parent
         mt_dic[parentId]['daug'].pop(daughterId)
         ori = ann.loc[ann['track'] == parentId]['mitosis_identity'].values[0]
@@ -272,6 +300,88 @@ class Refiner:
         ann.loc[ann['track'] == daughterId, 'mitosis_parent'] = None
 
         return ann, mt_dic
+
+    def register_mitosis(self, ann, mt_dic, parentId, daughterId, m_exit, dist_dif, m_entry=0):
+        """Register parent and dduahgter information to ann and mt_dic
+        """
+        ori = ann.loc[ann['track'] == parentId, "mitosis_daughter"].values[0]
+        ori_idt = ann.loc[ann['track'] == parentId, "mitosis_identity"].values[0]
+        s1 = ann.loc[ann['track'] == daughterId, "mitosis_identity"].values
+        ann.loc[ann['track'] == daughterId, "mitosis_identity"] = s1 + "/daughter"
+        ann.loc[ann['track'] == daughterId, "m_exit"] = m_exit
+        ann.loc[ann['track'] == daughterId, "mitosis_parent"] = parentId
+        ann.loc[ann['track'] == parentId, "mitosis_daughter"] = str(ori) + '/' + str(daughterId)
+        ann.loc[ann['track'] == parentId, "mitosis_identity"] = str(ori_idt) + '/parent'
+        if parentId not in list(mt_dic.keys()):
+            mt_dic[parentId] = {'div': m_entry, 'daug': {}}
+        mt_dic[parentId]['daug'][daughterId] = {'m_exit': m_exit, 'dist': dist_dif}
+        return ann, mt_dic
+
+    def getMtransition(self, trackId, direction='entry'):
+        """Get mitosis transition time by trackId
+
+        Args:
+            trackId (int): track ID
+            direction (str): either 'entry' or 'exit', mitosis entry or exit
+        """
+        c1 = list(self.track[self.track['trackId'] == trackId]['predicted_class'])
+        c1_confid = np.array(self.track[self.track['trackId'] == trackId][
+                                 ['Probability of G1/G2', 'Probability of S',
+                                  'Probability of M']])
+        if direction == 'exit':
+            trans = deduce_transition(c1, tar='M', confidence=c1_confid, min_tar=1, max_res=self.MIN_GS)[1]
+        elif direction == 'entry':
+            trans = -(1 + deduce_transition(c1[::-1], tar='M', confidence=c1_confid[::-1, :],
+                                            min_tar=1, max_res=self.MIN_GS)[1])
+        else:
+            raise ValueError('Direction can either be entry or exit')
+
+        trans = list(self.track[self.track['trackId'] == trackId]['frame'])[trans]
+
+        return trans
+
+    def svm_pdd(self):
+        count = 0
+        ann = self.ann.copy()
+        track = self.track.copy()
+        mt_dic = self.mt_dic.copy()
+        pool = np.unique(track['trackId']).tolist()
+        ipts = []
+        sample_id = []
+        for i in range(len(pool)):
+            for j in range(len(pool)):
+                if i != j:
+                    ipts.append(self.getSVMinput(pool[i], pool[j]))
+                    sample_id.append([i,j])
+        ipts = np.array(ipts)
+
+        cls = joblib.load(self.SVM_PATH)
+        res = cls.predict_proba(ipts)
+        for i in range(res.shape[0]):
+            if res[i,1] > 0.5:
+                confid = res[i, 1]
+                par, daug = sample_id[i]
+                if par in list(mt_dic.keys()):
+                    if daug in mt_dic[par]['daug'].keys():  # update daughter distance as daughter confidence
+                        mt_dic[par]['daug']['dist'] = confid
+                    else:
+                        result = self.compete(mt_dic, par, [daug], [confid])
+                        for rv in result['revert']:
+                            count -= 1
+                            ann, mt_dic = self.revert(ann, mt_dic, par, rv)
+                        for rg in result['register']:
+                            count += 1
+                            m_exit = self.getMtransition(daug, direction='exit')
+                            ann, mt_dic = self.register_mitosis(ann, mt_dic, par, rg, m_exit, confid)
+                else:
+                    count += 1
+                    m_entry = self.getMtransition(par, direction='entry')
+                    m_exit = self.getMtransition(daug, direction='exit')
+                    ann, mt_dic = self.register_mitosis(ann, mt_dic, par, daug, m_exit, confid, m_entry)
+
+        print("Parent-Daughter-Daughter mitosis relations found: " + str(count))
+        track = track.sort_values(by=['lineageId', 'trackId', 'frame'])
+        return track, ann, mt_dic
 
     def search_pdd(self):
         ann = self.ann.copy()
@@ -302,13 +412,15 @@ class Refiner:
                             0] is None:
                         potential_parent = list(ann[list(map(
                             lambda x: re.search('M', ann['disapp_stage'].iloc[x]) is not None and
-                                      ann['mitosis_identity'].iloc[x] == '', range(ann.shape[0])))]['track'])
+                            ann['mitosis_identity'].iloc[x] == '', range(ann.shape[0])))]['track'])
                     else:
                         potential_parent = []
                         v1 = target_info_1['mitosis_parent'].values[0]
                         v2 = target_info_2['mitosis_parent'].values[0]
-                        if v1 is not None: potential_parent.append(int(v1))
-                        if v2 is not None: potential_parent.append(int(v2))
+                        if v1 is not None:
+                            potential_parent.append(int(v1))
+                        if v2 is not None:
+                            potential_parent.append(int(v2))
                         if (v1 is not None) and (v2 is not None): continue
 
                     for k in range(len(potential_parent)):
@@ -333,107 +445,37 @@ class Refiner:
                             if time_dif1 < self.FRAME_MT_TOLERANCE and time_dif2 < self.FRAME_MT_TOLERANCE:
                                 # Constraint B: parent disappearance time close to daughter's appearance
                                 # deduce M_entry and M_exit
-                                c1 = list(
-                                    track[track['trackId'] == int(target_info_1['track'].values)]['predicted_class'])
-                                c1_confid = np.array(track[track['trackId'] == int(target_info_1['track'].values)][
-                                                         ['Probability of G1/G2', 'Probability of S',
-                                                          'Probability of M']])
-                                c2 = list(
-                                    track[track['trackId'] == int(target_info_2['track'].values)]['predicted_class'])
-                                c2_confid = np.array(track[track['trackId'] == int(target_info_2['track'].values)][
-                                                         ['Probability of G1/G2', 'Probability of S',
-                                                          'Probability of M']])
-                                c1_exit = \
-                                    deduce_transition(c1, tar='M', confidence=c1_confid, min_tar=1,
-                                                      max_res=self.MIN_GS)[1]
-                                c1_exit = list(track[track['trackId'] == int(target_info_1['track'].values)]['frame'])[
-                                    c1_exit]
-                                c2_exit = \
-                                    deduce_transition(c2, tar='M', confidence=c2_confid, min_tar=1,
-                                                      max_res=self.MIN_GS)[1]
-                                c2_exit = list(track[track['trackId'] == int(target_info_2['track'].values)]['frame'])[
-                                    c2_exit]
+                                c1_exit = self.getMtransition(potential_daughter_pair_id[i], direction='exit')
+                                c2_exit = self.getMtransition(potential_daughter_pair_id[j], direction='exit')
 
                                 if ann.loc[ann['track'] == parent_id, "m_entry"].values[0] is None:
                                     # parent has not been registered yet
-                                    c3 = list(track[track['trackId'] == parent_id]['predicted_class'])
-                                    c3_class = c3
-                                    c3_confid = np.array(track[track['trackId'] == parent_id][
-                                                             ['Probability of G1/G2', 'Probability of S',
-                                                              'Probability of M']])
-                                    c3_entry = -(1 + deduce_transition(c3_class[::-1], tar='M',
-                                                                       confidence=c3_confid[::-1, :], min_tar=1,
-                                                                       max_res=self.MIN_GS)[1])
-                                    c3_entry = list(track[track['trackId'] == parent_id]['frame'])[c3_entry]
-                                    ann.loc[ann['track'] == parent_id, "m_entry"] = c3_entry
-                                    # update information in ann table
-                                    # daughter
-                                    s1 = ann.loc[
-                                        ann['track'] == potential_daughter_pair_id[i], "mitosis_identity"].values
-                                    s2 = ann.loc[
-                                        ann['track'] == potential_daughter_pair_id[j], "mitosis_identity"].values
-                                    ann.loc[ann['track'] == potential_daughter_pair_id[
-                                        i], "mitosis_identity"] = s1 + "/daughter"
-                                    ann.loc[ann['track'] == potential_daughter_pair_id[
-                                        j], "mitosis_identity"] = s2 + "/daughter"
-                                    ann.loc[ann['track'] == potential_daughter_pair_id[i], "m_exit"] = c1_exit
-                                    ann.loc[ann['track'] == potential_daughter_pair_id[j], "m_exit"] = c2_exit
-                                    # parent
-                                    ann.loc[ann['track'] == int(target_info_1['track']), "mitosis_parent"] = parent_id
-                                    ann.loc[ann['track'] == int(target_info_2['track']), "mitosis_parent"] = parent_id
-                                    s3 = ann.loc[ann['track'] == parent_id, "mitosis_identity"].values
-                                    ann.loc[ann['track'] == parent_id, "mitosis_identity"] = s3 + "/parent" + "/parent"
-                                    ann.loc[ann['track'] == parent_id, "mitosis_daughter"] = '/'.join(
-                                        [str(target_info_1['track'].values[0]), str(target_info_2['track'].values[0])])
+                                    c3_entry = self.getMtransition(parent_id, direction='entry')
 
-                                    mt_dic[parent_id] = {'div': c3_entry, 'daug': {}}
-                                    mt_dic[parent_id]['daug'][potential_daughter_pair_id[i]] = {'m_exit': c1_exit,
-                                                                                                'dist': dist_dif1}
-                                    mt_dic[parent_id]['daug'][potential_daughter_pair_id[j]] = {'m_exit': c2_exit,
-                                                                                                'dist': dist_dif2}
+                                    # update information in ann and mt_dic table
+                                    ann, mt_dic = self.register_mitosis(ann, mt_dic, parent_id,
+                                                                        potential_daughter_pair_id[i],
+                                                                        c1_exit, dist_dif1, m_entry=c3_entry)
+                                    ann, mt_dic = self.register_mitosis(ann, mt_dic, parent_id,
+                                                                        potential_daughter_pair_id[j],
+                                                                        c2_exit, dist_dif2)
 
                                     count += 2
                                 else:
-                                    result = self.compete(mt_dic, parent_id, potential_daughter_pair_id[i], dist_dif1,
-                                                          potential_daughter_pair_id[j], dist_dif2)
+                                    result = self.compete(mt_dic, parent_id, [potential_daughter_pair_id[i],
+                                                                              potential_daughter_pair_id[j]],
+                                                          [dist_dif1,dist_dif2])
 
                                     for rv in result['revert']:
                                         ann, mt_dic = self.revert(ann, mt_dic, parent_id, rv)
                                         count -= 1
                                     for rg in result['register']:
                                         if rg == potential_daughter_pair_id[i]:
-                                            ori = ann.loc[ann['track'] == parent_id, "mitosis_daughter"].values[0]
-                                            ori_idt = ann.loc[ann['track'] == parent_id, "mitosis_identity"].values[0]
-                                            s1 = ann.loc[ann['track'] == potential_daughter_pair_id[
-                                                i], "mitosis_identity"].values
-                                            ann.loc[ann['track'] == potential_daughter_pair_id[
-                                                i], "mitosis_identity"] = s1 + "/daughter"
-                                            ann.loc[ann['track'] == potential_daughter_pair_id[i], "m_exit"] = c1_exit
-                                            ann.loc[ann['track'] == int(
-                                                target_info_1['track']), "mitosis_parent"] = parent_id
-                                            ann.loc[ann['track'] == parent_id, "mitosis_daughter"] = str(
-                                                ori) + '/' + str(target_info_1['track'].values[0])
-                                            ann.loc[ann['track'] == parent_id, "mitosis_identity"] = str(
-                                                ori_idt) + '/parent'
-                                            mt_dic[parent_id]['daug'][int(target_info_1['track'])] = {'m_exit': c1_exit,
-                                                                                                      'dist': dist_dif1}
+                                            ann, mt_dic = self.register_mitosis(ann, mt_dic, parent_id, rg,
+                                                                                c1_exit, dist_dif1)
                                         elif rg == potential_daughter_pair_id[j]:
-                                            ori = ann.loc[ann['track'] == parent_id, "mitosis_daughter"].values[0]
-                                            ori_idt = ann.loc[ann['track'] == parent_id, "mitosis_identity"].values[0]
-                                            s2 = ann.loc[ann['track'] == potential_daughter_pair_id[
-                                                j], "mitosis_identity"].values
-                                            ann.loc[ann['track'] == potential_daughter_pair_id[
-                                                j], "mitosis_identity"] = s2 + "/daughter"
-                                            ann.loc[ann['track'] == potential_daughter_pair_id[j], "m_exit"] = c2_exit
-                                            ann.loc[ann['track'] == int(
-                                                target_info_2['track']), "mitosis_parent"] = parent_id
-                                            ann.loc[ann['track'] == parent_id, "mitosis_daughter"] = str(
-                                                ori) + '/' + str(target_info_2['track'].values[0])
-                                            ann.loc[ann['track'] == parent_id, "mitosis_identity"] = str(
-                                                ori_idt) + '/parent'
-                                            mt_dic[parent_id]['daug'][int(target_info_2['track'])] = {'m_exit': c2_exit,
-                                                                                                      'dist': dist_dif2}
-
+                                            ann, mt_dic = self.register_mitosis(ann, mt_dic, parent_id, rg,
+                                                                                c2_exit, dist_dif2)
                                         count += 1
 
         print("Parent-Daughter-Daughter mitosis relations found: " + str(count))
@@ -441,6 +483,8 @@ class Refiner:
         return track, ann, mt_dic
 
     def update_table_with_mt(self):
+        """Update tracked object table with information in self.mt_dic (mitosis lookup dict)
+        """
         track = self.track.copy()
         dic = self.mt_dic.copy()
         for trk in list(dic.keys()):
@@ -452,6 +496,8 @@ class Refiner:
         return track
 
     def smooth_track(self):
+        """Re-assign cell cycle classification based on smoothed confidence
+        """
         count = 0
         dic = {0: 'G1/G2', 1: 'S', 2: 'M'}
         track = self.track.copy()
@@ -481,7 +527,141 @@ class Refiner:
 
         return track
 
+    def getMeanDisplace(self):
+        """Calculate mean displace of each track normalized with frame
+
+        Returns:
+            (pandas.DataFrame): trackId, mean_displace
+        """
+        d = {'trackId': [], 'mean_displace': []}
+        for i in np.unique(self.track['trackId']):
+            sub = self.track[self.track['trackId'] == i]
+            dp = []
+            for j in range(1, sub.shape[0]):
+                x1 = sub['Center_of_the_object_0'].iloc[j]
+                y1 = sub['Center_of_the_object_1'].iloc[j]
+                x2 = sub['Center_of_the_object_0'].iloc[j - 1]
+                y2 = sub['Center_of_the_object_1'].iloc[j - 1]
+                frame_diff = sub['frame'].iloc[j] - sub['frame'].iloc[j - 1]  # normalize with frame
+                dp.append(dist(x1, y1, x2, y2) / frame_diff)
+            if dp:
+                d['mean_displace'].append(np.mean(dp))
+                d['trackId'].append(i)
+
+        return pd.DataFrame(d)
+
+    def getMeanAxis(self, trackId):
+        """Calculate axis of the region
+
+        Args:
+            trackId (int): track ID
+        Returns:
+            (tuple): mean_major_axis, mean_minor_axis
+        """
+        sub = self.track[self.track['trackId'] == trackId]
+
+        return np.mean(sub['major_axis']), np.mean(sub['minor_axis'])
+
+    def getMTscore(self, search_range, discount=0.9):
+        """Measure mitosis score based on cell cycle classification
+
+        Args:
+            search_range (int): region for calculation
+            discount (float): discounting factor when calculating mitosis score
+                mitosis_score = SUM(discount^frame_diff * confidence of class 'M')
+                default shallow discount = 0.9
+        """
+        mt_score_begin = {}
+        mt_score_end = {}
+        for trackId in np.unique(self.track['trackId']):
+            sub = self.track[self.track['trackId'] == trackId]
+            idx = sub.index[: np.min((sub.shape[0], search_range))]
+
+            frame_start = sub['frame'].loc[idx[0]]
+            x_start = np.power(discount, np.abs(sub['frame'].loc[idx] - frame_start))
+            score_start = np.sum(np.multiply(x_start, sub['Probability of M'].loc[idx]))
+
+            idx2 = sub.index[np.max((0, sub.shape[0] - search_range)):][::-1]
+            frame_end = sub['frame'].loc[idx2[0]]
+            x_end = np.power(discount, np.abs(sub['frame'].loc[idx2] - frame_end))
+            score_end = np.sum(np.multiply(x_end, sub['Probability of M'].loc[idx2]))
+
+            mt_score_begin[trackId] = score_start
+            mt_score_end[trackId] = score_end
+        return mt_score_begin, mt_score_end
+
+    def getSVMinput(self, parent, daughter):
+        """Generate SVM classifier input for track 1 & 2
+
+        Args:
+            parent (int): parent track ID
+            daughter (int): daughter track ID
+
+        Returns:
+            input vector of SVM classifier:
+                [distance_diff, frame_diff, m_score_par, m_score_daug,    <-  track specific
+                ave_major_axis_diff, ave_minor_axis_diff, from_broken]    <-  track specific
+                * ave_major/minor_axis_diff = abs(parent_axis - daughter_axis) / parent_axis
+                some parameters are normalized with dataset specific features:
+                    distance_diff /= ave_displace
+                    frame_diff /= (sample_freq * mt_len)
+        """
+        par = self.track[self.track['trackId'] == parent]
+        daug = self.track[self.track['trackId'] == daughter]
+
+        x1 = par['Center_of_the_object_0'].iloc[-1]
+        y1 = par['Center_of_the_object_1'].iloc[-1]
+        x2 = daug['Center_of_the_object_0'].iloc[0]
+        y2 = daug['Center_of_the_object_1'].iloc[0]
+        distance_diff = dist(x1, y1, x2, y2)
+        frame_diff = np.abs((par['frame'].iloc[-1] - daug['frame'].iloc[0]))
+        m_score_par = self.mt_score_end[parent]
+        m_score_daug = self.mt_score_begin[daughter]
+        par_axis = self.getMeanAxis(trackId=parent)
+        daug_axis = self.getMeanAxis(trackId=daughter)
+        ave_major_axis_diff = np.abs((par_axis[0] - daug_axis[0])) / par_axis[0]
+        ave_minor_axis_diff = np.abs((par_axis[1] - daug_axis[1])) / par_axis[1]
+        from_broken = 0
+        if parent in list(self.mt_dic.keys()):
+            if daughter in list(self.mt_dic[parent]['daug'].keys()):
+                from_broken = 1
+        out = [distance_diff / self.metaData['meanDisplace'],
+               frame_diff / (self.metaData['sample_freq'] * self.metaData['mt_len']),
+               m_score_par, m_score_daug, ave_major_axis_diff, ave_minor_axis_diff,from_broken]
+
+        return out
+
+    def get_SVM_train(self, sample):
+        """Save training data for SVM classifier of this particular dataset
+
+        Args:
+            sample (numpy.array): matrix of shape (sample, (parent ID, daughter ID, y))
+
+        Returns:
+            (numpy.array): X, y
+        """
+        X = []
+        y = []
+        for i in range(sample.shape[0]):
+            r = sample[i,:]
+            X.append(self.getSVMinput(r[0], r[1]))
+            y.append(r[2])
+
+        return X, y
+
+    def setSVMpath(self, model_path):
+        self.SVM_PATH = model_path
+        return
+
     def doTrackRefine(self):
+        """Perform track refinement process
+
+        Returns:
+            If run in TRH/SVM mode, will return annotation table, tracked object table and mitosis directory
+            If run in TRAIN mode, will only return tracked object table after smoothing, mitosis breaking
+                for manual inspection. After determining the training instance, generate training data through
+                get_SVM_train(sample).
+        """
 
         self.track = self.smooth_track()
         while True:
@@ -491,7 +671,15 @@ class Refiner:
                 break
 
         self.track, self.short_tracks, self.ann = self.register_track()
-        self.track, self.ann, self.mt_dic = self.search_pdd()
+        if self.MODE == 'TRH':
+            self.track, self.ann, self.mt_dic = self.search_pdd()
+        elif self.MODE == 'SVM':
+            if self.SVM_PATH == '':
+                raise ValueError('SVM model path has not set yet, use setSVMpath() to supply a SVM model.')
+            self.track, self.ann, self.mt_dic = self.svm_pdd()
+        elif self.MODE == 'TRAIN':
+            return self.track
+
         self.track = self.update_table_with_mt()
 
         return self.ann, self.track, self.mt_dic
