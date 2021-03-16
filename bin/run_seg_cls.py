@@ -124,4 +124,4 @@ if __name__ == "__main__":
                 json.dump(json_out, file)
         else:
             out = np.stack(imgs_out, axis=0)
-            io.imsave(args.output, out)
+            io.imsave(args.output+prefix+'_vis.tif', out)

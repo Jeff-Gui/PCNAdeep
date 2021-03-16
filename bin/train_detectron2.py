@@ -156,15 +156,15 @@ def setup(args):
     cfg.DATALOADER.NUM_WORKERS = 4
     cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
     cfg.SOLVER.IMS_PER_BATCH = 2
-    cfg.SOLVER.BASE_LR = 0.001
+    cfg.SOLVER.BASE_LR = 0.01
     cfg.SOLVER.WEIGHT_DECAY = 0.0001
     cfg.SOLVER.WEIGHT_DECAY_NORM = 0.0
     cfg.SOLVER.GAMMA = 0.1
-    cfg.SOLVER.STEPS = (8000,)
+    cfg.SOLVER.STEPS = (5000,7500)
     cfg.SOLVER.CHECKPOINT_PERIOD = 3000
     cfg.TEST.EVAL_PERIOD = 3000
 
-    cfg.SOLVER.MAX_ITER = 12000
+    cfg.SOLVER.MAX_ITER = 10000
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 256
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 4 # change according to class number
     # Avoid overlapping
@@ -224,11 +224,15 @@ if __name__ == "__main__":
     DATASET_ROOT = ['/home/zje/dataset/pcna/20200902-MCF10A-dual',
                     '/home/zje/dataset/pcna/20210103-MCF10A-dual',
                     '/home/zje/dataset/pcna/20210127-MCF10A-mRels2',
-                    '/home/zje/dataset/pcna/20200902-MCF10A-dual_cpd']
+                    '/home/zje/dataset/pcna/20200902-MCF10A-dual_cpd',
+                    '/home/zje/dataset/pcna/20201118-RPE_rand',
+                    '/home/zje/dataset/pcna/20201030-MBAMD231-dual']
     TRAIN_ANN_PATH = ['/home/zje/dataset/pcna/20200902-MCF10A.json',
                     '/home/zje/dataset/pcna/20210103-MCF10A.json',
                     '/home/zje/dataset/pcna/20210127-MCF10A-mRels2.json',
-                    '/home/zje/dataset/pcna/20200902-MCF10A_cpd.json']
+                    '/home/zje/dataset/pcna/20200902-MCF10A_cpd.json',
+                    '/home/zje/dataset/pcna/20201118-RPE_rand.json',
+                    '/home/zje/dataset/pcna/20201030-MBAMD231.json']
     TRAIN_PATH = DATASET_ROOT
 
     args = default_argument_parser().parse_args()
