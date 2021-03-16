@@ -74,7 +74,7 @@ def track_mask(mask, displace=40, gap_fill=5, render_phase=False,
             props = pd.DataFrame(props)
             props.columns = ['Center_of_the_object_0', 'Center_of_the_object_1', 'continuous_label', 'mean_intensity',
                              'major_axis', 'minor_axis']
-            l = props['mi']
+            l = props['mean_intensity']
             phase = []
             probG = []
             probS = []

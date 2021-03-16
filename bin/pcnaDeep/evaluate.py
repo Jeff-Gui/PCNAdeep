@@ -104,7 +104,7 @@ class pcna_ctcEvaluator:
             raise IOError('Directory already existed.')
         return
 
-    def generate_Trk(self, raw, mask, displace=100, gap_fill=5, out_dir=None, track=None):
+    def generate_Trk(self, raw, mask, displace=100, gap_fill=5, out_dir=None, track=None, render_phase=False):
         """Generate deepcell caliban readable trk file
         Args:
             out_dir (str): output directory of the file (optional, default root)
@@ -115,12 +115,14 @@ class pcna_ctcEvaluator:
             gap_fill (int): for tracking:
                 memory track for some frames is disappeared (default: 5)
             track (pandas.DataFrame): tracked object table (optional to suppress tracking on mask)
+            render_phase (bool): if true, will resolve labels on mask into cell cycle phase, the label should 
+                follow: {10: 'G1/G2', 50: 'S', 100: 'M', 200: 'G1/G2'}
         """
         if out_dir is None:
             out_dir = self.root
-        generate_calibanTrk(raw=raw, mask=mask, out_dir=out_dir, dt_id=self.dt_id, digit_num=self.digit_num,
-                            track=track, displace=displace, gap_fill=gap_fill)
-        return
+        tracked = generate_calibanTrk(raw=raw, mask=mask, out_dir=out_dir, dt_id=self.dt_id, digit_num=self.digit_num,
+                            track=track, displace=displace, gap_fill=gap_fill, render_phase=render_phase)
+        return tracked
 
     def evaluate(self):
         """Call CTC evaluation software to run ((Unix) Linux/Mac only)

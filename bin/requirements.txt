@@ -1,6 +1,5 @@
-detectron2>=0.3
 torch>=1.7
-scikit-image>=1.17
+scikit-image>=0.17
 matplotlib
 numpy
 pandas
@@ -8,3 +7,4 @@ iopath
 trackpy>=0.4.2
 opencv-python
 scikit-learn
+scipy
