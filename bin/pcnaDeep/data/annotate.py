@@ -343,7 +343,7 @@ def save_seq(stack, out_dir, prefix, dig_num=3, dtype='uint16', base=0, img_form
     Args:
         stack (numpy array) : nparray, THW
         out_dir (str) : output directory
-        prefix (str) : prefix of single slice
+        prefix (str) : prefix of single slice, output will be prefix-000x.tif/png
         dig_num (int) : digit number (3 -> 00x) for labeling image sequentially
         dtype (numpy.dtype) : data type to save, either 'uint8' or 'uint16'
         base (int) : base number of the label (starting from)
@@ -355,7 +355,7 @@ def save_seq(stack, out_dir, prefix, dig_num=3, dtype='uint16', base=0, img_form
 
     for i in range(stack.shape[0]):
         fm = ("%0" + str(dig_num) + "d") % (i + base)
-        name = os.path.join(out_dir, prefix + fm + img_format)
+        name = os.path.join(out_dir, prefix + '-' + fm + img_format)
         if dtype=='uint16':
             img = img_as_uint(stack[i, :])
         elif dtype=='uint8':
@@ -367,15 +367,22 @@ def save_seq(stack, out_dir, prefix, dig_num=3, dtype='uint16', base=0, img_form
     return
 
 
-def generate_calibanTrk(raw, mask, out_dir, dt_id, digit_num=3, displace=100, gap_fill=3, track=None):
+def generate_calibanTrk(raw, mask, out_dir, dt_id, digit_num=3, displace=100, gap_fill=3, track=None, render_phase=False):
     """Generate caliban .trk format for annotation
     """
     fm = ("%0" + str(digit_num) + "d") % dt_id
     if track is None:
-        track, mask = track_mask(mask, displace=displace, gap_fill=gap_fill)
+        track, mask = track_mask(mask, displace=displace, gap_fill=gap_fill, render_phase=render_phase)
     track_new = relabel_trackID(track.copy())
     track_new = break_track(track_new.copy())
     tracked_mask = label_by_track(mask.copy(), track_new.copy())
     dic = get_lineage_dict(track_new.copy())
     save_trks(os.path.join(out_dir, fm+'.trk'), dic, np.expand_dims(raw, axis=3), np.expand_dims(tracked_mask, axis=3))
+    return track_new
+
+
+def mergeTrkAndTrack(trk_path, table_path):
+    trk = load_trks(trk_path)
     return
+    
+    

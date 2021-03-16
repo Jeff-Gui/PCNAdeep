@@ -25,14 +25,11 @@ def json2mask(ip, out, height, width, label_phase=False):
 
     Outputs:
         .png files of object masks
-        .csv file of object information in json file
     """
 
     OUT_PHASE = label_phase
-    PHASE_DIS = {"G1/G2":10, "S":50, "M":100, "E":10}
-    PHASE_TRANS = {10:"G1/G2", 50:"S", 100:"M"}
+    PHASE_DIS = {"G1/G2":10, "S":50, "M":100, "E":200}
     
-    dt = pd.DataFrame()
     with open(ip,'r',encoding='utf8')as fp:
         j = json.load(fp)
         if '_via_img_metadata' in list(j.keys()):
@@ -51,23 +48,11 @@ def json2mask(ip, out, height, width, label_phase=False):
                 phase = o['region_attributes']['phase']
                 draw.polygon(xys, fill=PHASE_DIS[phase], outline=0)
             img = np.array(img)
-            prop_dt = measure.regionprops_table(measure.label(img, connectivity=1), intensity_image=img, properties=('centroid', 'mean_intensity'))
-            prop_dt = pd.DataFrame(prop_dt)
-            prop_dt['mean_intensity'] = list(map(lambda x:PHASE_TRANS[x], prop_dt['mean_intensity']))
-            prop_dt.columns = ['Center_of_the_object_0', 'Center_of_the_object_1', 'phase']
-            frame = int(re.search('.*-(\d+).png', key).group(1)) - 1  # frame begins from 0, file name begins from 1
-            prop_dt['frame'] = frame
-            prop_dt['Probability of G1/G2'] = list(map(lambda x:int(x=='G1/G2'), prop_dt['phase']))
-            prop_dt['Probability of S'] = list(map(lambda x:int(x=='S'), prop_dt['phase']))
-            prop_dt['Probability of M'] = list(map(lambda x:int(x=='M'), prop_dt['phase']))
-            prop_dt['Center_of_the_object_0'] = np.round(prop_dt['Center_of_the_object_0'])
-            prop_dt['Center_of_the_object_1'] = np.round(prop_dt['Center_of_the_object_1'])
-            dt = dt.append(prop_dt)
+
             if not OUT_PHASE:
                 img = img_as_ubyte(img.astype('bool'))
             io.imsave(os.path.join(out, dic['filename']), img)
-        dt = dt[['Center_of_the_object_0','Center_of_the_object_1','frame','phase','Probability of G1/G2', 'Probability of S', 'Probability of M']]
-        dt.to_csv(os.path.join(out, 'cls.csv'), index=0)
+       
     return
 
 
