@@ -15,3 +15,8 @@ _build
 
 # idea
 .idea
+
+# pypi
+build
+*.egg-info
+dist

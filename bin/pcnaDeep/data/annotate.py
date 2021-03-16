@@ -377,7 +377,9 @@ def generate_calibanTrk(raw, mask, out_dir, dt_id, digit_num=3, displace=100, ga
     track_new = break_track(track_new.copy())
     tracked_mask = label_by_track(mask.copy(), track_new.copy())
     dic = get_lineage_dict(track_new.copy())
-    save_trks(os.path.join(out_dir, fm+'.trk'), dic, np.expand_dims(raw, axis=3), np.expand_dims(tracked_mask, axis=3))
+    if len(raw.shape)<4:
+        raw = np.expand_dims(raw, axis=3)
+    save_trks(os.path.join(out_dir, fm+'.trk'), dic, raw, np.expand_dims(tracked_mask, axis=3))
     return track_new
 
 

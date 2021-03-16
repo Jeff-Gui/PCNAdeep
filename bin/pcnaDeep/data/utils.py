@@ -11,7 +11,7 @@ import pandas as pd
 from PIL import Image, ImageDraw
 
 
-def json2mask(ip, out, height, width, label_phase=False):
+def json2mask(ip, out, height, width, label_phase=False, mask_only=False):
     """Draw mask according to VIA2 annotation and summarize information
 
     Args:
@@ -22,6 +22,7 @@ def json2mask(ip, out, height, width, label_phase=False):
         label_phase (bool): whether to label the mask with values corresponding to cell cycle classification or not. 
             If true, will label as the following values: 'G1/G2':10, 'S':50, 'M':100;
             If false, will output binary masks
+        mask_only (bool): whether to suppress file output and return mask only
 
     Outputs:
         .png files of object masks
@@ -29,7 +30,7 @@ def json2mask(ip, out, height, width, label_phase=False):
 
     OUT_PHASE = label_phase
     PHASE_DIS = {"G1/G2":10, "S":50, "M":100, "E":200}
-    
+    stack = []
     with open(ip,'r',encoding='utf8')as fp:
         j = json.load(fp)
         if '_via_img_metadata' in list(j.keys()):
@@ -51,7 +52,12 @@ def json2mask(ip, out, height, width, label_phase=False):
 
             if not OUT_PHASE:
                 img = img_as_ubyte(img.astype('bool'))
-            io.imsave(os.path.join(out, dic['filename']), img)
+            if mask_only:
+                stack.append(img)
+            else:
+                io.imsave(os.path.join(out, dic['filename']), img)
+        if mask_only:
+            return np.stack(stack, axis=0)
        
     return
 
