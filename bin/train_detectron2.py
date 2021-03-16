@@ -161,10 +161,10 @@ def setup(args):
     cfg.SOLVER.WEIGHT_DECAY_NORM = 0.0
     cfg.SOLVER.GAMMA = 0.1
     cfg.SOLVER.STEPS = (5000,7500)
-    cfg.SOLVER.CHECKPOINT_PERIOD = 3000
-    cfg.TEST.EVAL_PERIOD = 3000
+    cfg.SOLVER.CHECKPOINT_PERIOD = 5000
+    cfg.TEST.EVAL_PERIOD = 5000
 
-    cfg.SOLVER.MAX_ITER = 10000
+    cfg.SOLVER.MAX_ITER = 12000
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 256
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 4 # change according to class number
     # Avoid overlapping

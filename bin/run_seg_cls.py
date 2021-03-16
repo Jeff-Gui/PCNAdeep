@@ -118,10 +118,10 @@ if __name__ == "__main__":
                     time.time() - start_time,
                 )
             )
+        prefix = re.search('(.*)\..*', os.path.basename(args.input)).group(1)
         if args.json_out:
-            prefix = re.search('(.*)\..*', os.path.basename(args.input)).group(1)
-            with(open(args.output+prefix+'.json', 'w', encoding='utf8')) as file:
+            with(open(os.path.join(args.output, prefix+'.json'), 'w', encoding='utf8')) as file:
                 json.dump(json_out, file)
         else:
             out = np.stack(imgs_out, axis=0)
-            io.imsave(args.output+prefix+'_vis.tif', out)
+            io.imsave(os.path.join(args.output, prefix+'_vis.tif'), out)
