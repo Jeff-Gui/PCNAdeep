@@ -4,6 +4,7 @@ import json
 import os
 import tarfile
 import tempfile
+import warnings
 from io import BytesIO
 
 import numpy as np
@@ -11,6 +12,7 @@ import pandas as pd
 import skimage.io as io
 from skimage.util import img_as_uint
 from skimage.util import img_as_ubyte
+import skimage.measure as measure
 from pcnaDeep.tracker import track_mask
 
 
@@ -46,7 +48,6 @@ def label_by_track(mask, label_table):
     """
 
     assert mask.shape[0] == np.max(label_table['frame'] + 1)
-    assert mask.dtype == np.dtype('uint8')
 
     if np.max(label_table['trackId']) * 2 > 254:
         mask = mask.astype('uint16')
@@ -383,8 +384,119 @@ def generate_calibanTrk(raw, mask, out_dir, dt_id, digit_num=3, displace=100, ga
     return track_new
 
 
-def mergeTrkAndTrack(trk_path, table_path):
+def findM(gt_cls, direction='begin'):
+    """Find M exit/entry from groud truth classification
+    """
+    i = 0
+    if direction == 'begin':
+        if gt_cls[0] != 'M':
+            return None
+        while gt_cls[i]=='M':
+            i += 1
+        return i-1
+    else:
+        gt_cls = gt_cls[::-1]
+        if gt_cls[0] != 'M':
+            return None
+        while gt_cls[i]=='M':
+            i += 1
+        return -(i+1)
+    
+
+def mergeTrkAndTrack(trk_path, table_path, return_mask = False):
+    """Merge ground truth .trk and tracked table
+    
+    Args:
+        trk_path (str): path to deepcell-label .trk file
+        table_path (str): path to tracked object table
+        return_mask (bool): whether to return mask
+    
+    Returns:
+        tracked object table, trackId, parentTrackId, mtParTrk
+            corrected by ground truth
+        mt_dic: standard table for initializing pcnaDeep.resolver.Resolver()
+        mask: tracked mask
+    """
     trk = load_trks(trk_path)
-    return
+    lin = trk['lineages'][0]
+    mask = trk['y'][:,:,:,0]
+    del(trk)
+    table = pd.read_csv(table_path)
+    new_table = pd.DataFrame()
+    for i in range(mask.shape[0]):
+        props = measure.regionprops_table(label_image = mask[i,:,:], 
+                                  intensity_image = mask[i,:,:],
+                                  properties = ('centroid', 'label'))
+        props = pd.DataFrame(props)
+        props['frame'] = i
+        new_table = new_table.append(props)
+    
+    new_table['centroid-1'] = np.floor(new_table['centroid-1'])
+    new_table['centroid-0'] = np.floor(new_table['centroid-0'])
+    new_table['uid'] = range(new_table.shape[0])
+    
+    table['Center_of_the_object_0'] = np.floor(table['Center_of_the_object_0'])
+    table['Center_of_the_object_1'] = np.floor(table['Center_of_the_object_1'])
+    out = table.merge(new_table, 
+                left_on=['frame', 'Center_of_the_object_0', 'Center_of_the_object_1'], 
+                right_on=['frame', 'centroid-1', 'centroid-0'])
+    
+    ret = [ i for i in new_table['uid'].tolist() if i not in out['uid'].tolist()]
+    for j in ret:
+        lb = new_table[new_table['uid']==j]['label'].values[0]
+        frame = new_table[new_table['uid']==j]['frame'].values[0]
+        mask[frame, mask[frame,:,:]==lb] = 0
+   
+    out['trackId'] = out['label']
+    out['lineageId'] = out['lineageId']
+    out['parentTrackId'] = 0
+    out['mtParTrk'] = 0
+    
+    out = out.drop(columns=['centroid-0', 'centroid-1', 'uid', 'label'])
+    
+    # resolve lineage and mt_dic
+    mt_dic = {}
+        # if a daughter appears as 'G1/G2' then m_exit is not accurate
+    imprecise_m = []
+    for i in list(lin.keys()):
+        if lin[i]['daughters'] != []:
+            daugs = lin[i]['daughters']
+            if len(daugs)==1:
+                out.loc[out['trackId'] == daugs[0], 'parentTrackId'] = i
+                out.loc[out['lineageId'] == daugs[0], 'lineageId'] = i
+            else:
+                sub_par = out.loc[out['trackId'] == i]
+                m_entry = findM(sub_par['predicted_class'].tolist(), 'end')
+                if m_entry is None:
+                    warnings.warn('Mitosis parent no M class, check ' + str(i))
+                    continue
+                sub_daug1 = out.loc[out['trackId'] == daugs[0]]
+                sub_daug2 = out.loc[out['trackId'] == daugs[1]]
+                
+                out.loc[out['trackId'] == daugs[0], 'parentTrackId'] = i
+                out.loc[out['trackId'] == daugs[0], 'mtParTrk'] = i
+                out.loc[out['lineageId'] == daugs[0], 'lineageId'] = i
+                out.loc[out['trackId'] == daugs[1], 'parentTrackId'] = i
+                out.loc[out['trackId'] == daugs[1], 'mtParTrk'] = i
+                out.loc[out['lineageId'] == daugs[1], 'lineageId'] = i
+                
+                m_exit1 = findM(sub_daug1['predicted_class'].tolist(), 'begin')
+                m_exit2 = findM(sub_daug2['predicted_class'].tolist(), 'begin')
+                
+                if m_exit1 is None:
+                    m_exit1 = 0
+                    imprecise_m.append(daugs[0])
+                if m_exit2 is None:
+                    m_exit2 = 0
+                    imprecise_m.append(daugs[1])
+                
+                mt_dic[i] = {'div':sub_par['frame'].iloc[m_entry],
+                      'daug':{daugs[0]:{'m_exit':sub_daug1['frame'].iloc[m_exit1], 'dist':0}, 
+                              daugs[1]:{'m_exit':sub_daug2['frame'].iloc[m_exit2], 'dist':0}}}
+                
+    if return_mask:
+        return out, mask, mt_dic, imprecise_m
+    else:
+        return out, mt_dic, imprecise_m
     
     
