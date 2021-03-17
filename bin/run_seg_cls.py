@@ -102,7 +102,7 @@ if __name__ == "__main__":
                 ist = predictions['instances']
                 labels = list(ist.pred_classes.cpu().numpy())
                 masks = list(ist.pred_masks.cpu().numpy())
-                file_name = os.path.basename(args.input)[:-4] + '-' + "%04d" % (i+1) + '.png'
+                file_name = os.path.basename(args.input)[:-4] + '-' + "%04d" % i + '.png'
                 dic_frame = pred2json(masks, labels, file_name)
                 json_out[file_name] = dic_frame
             else:
