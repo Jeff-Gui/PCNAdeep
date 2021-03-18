@@ -399,8 +399,8 @@ class Refiner:
         matched_par = cost_r_idx[row_ind[::2]]
         for i in range(len(matched_par)):
             cst = cost[2*i+1, col_ind[2*i : 2*i+2]]
+            par = matched_par[i]
             if all(cst < -0.5):
-                par = matched_par[i]
                 daugs = cost_c_idx[col_ind[2*i : 2*i+2]]
                 cst = (1+cst).tolist()
                 if par in list(mt_dic.keys()):
@@ -427,6 +427,12 @@ class Refiner:
                             m_exit = self.track[self.track['trackId']==daug]['frame'].iloc[0]
                             self.imprecise.append(daug)
                         ann, mt_dic = self.register_mitosis(ann, mt_dic, par, daugs[j], m_exit, cst[j], m_entry)
+            else:
+                if par in list(mt_dic.keys()):
+                    daugs = list(mt_dic[par]['daug'].keys())
+                    for daug in daugs:
+                        ann, mt_dic = self.revert(ann, mt_dic, par, daug)
+                    del mt_dic[par]
                 
         print("Parent-Daughter-Daughter mitosis relations found: " + str(len(list(mt_dic.keys()))))
         track = track.sort_values(by=['lineageId', 'trackId', 'frame'])
@@ -628,12 +634,12 @@ class Refiner:
 
             frame_start = sub['frame'].loc[idx[0]]
             x_start = np.power(discount, np.abs(sub['frame'].loc[idx] - frame_start))
-            score_start = np.sum(np.multiply(x_start, sub['Probability of M'].loc[idx]))
+            score_start = np.sum(np.multiply(x_start, sub['Probability of M'].loc[idx] - sub['Probability of S'].loc[idx]))
 
             idx2 = sub.index[np.max((0, sub.shape[0] - search_range)):][::-1]
             frame_end = sub['frame'].loc[idx2[0]]
             x_end = np.power(discount, np.abs(sub['frame'].loc[idx2] - frame_end))
-            score_end = np.sum(np.multiply(x_end, sub['Probability of M'].loc[idx2]))
+            score_end = np.sum(np.multiply(x_end, sub['Probability of M'].loc[idx2] - sub['Probability of S'].loc[idx2]))
 
             mt_score_begin[trackId] = score_start
             mt_score_end[trackId] = score_end
@@ -715,9 +721,9 @@ class Refiner:
 
         # randomly or fully select some negative instances
         if random_negative:
-            par = np.random.choice(np.unique(self.track['trackId']).tolist() ,size = rand_size, replace=False)
-            daug = np.random.choice(np.unique(self.track['trackId']).tolist() ,size = rand_size, replace=False)
-            c = []
+            par = np.random.choice(np.unique(self.track['trackId']).tolist() ,size = rand_size, replace=True)
+            daug = np.random.choice(np.unique(self.track['trackId']).tolist() ,size = rand_size, replace=True)
+            c = set()
             for i in range(len(par)):
                 if par[i] == daug[i]:
                     continue
@@ -727,8 +733,9 @@ class Refiner:
                 if daug[i] in list(dic.keys()):
                     if par[i] in dic[daug[i]]:
                         continue
-                c.append([par[i], daug[i]])
-            c = c[:int(np.min((rand_size, len(c))))]
+                c.add((par[i], daug[i]))
+            c = list(c)
+
             for i in range(len(c)):
                 X.append(self.getSVMinput(c[i][0], c[i][1]))
                 y.append(0)
