@@ -338,25 +338,27 @@ def separate(frame_list, mtPar_list, ori_id, base):
     return rt, base
 
 
-def save_seq(stack, out_dir, prefix, dig_num=3, dtype='uint16', base=0, img_format='.tif', keep_chn=True):
+def save_seq(stack, out_dir, prefix, dig_num=3, dtype='uint16', base=0, img_format='.tif', keep_chn=True, sep='-'):
     """Save image stack and label sequentially
     
     Args:
         stack (numpy array) : nparray, THW
         out_dir (str) : output directory
         prefix (str) : prefix of single slice, output will be prefix-000x.tif/png
+            (see sep below for separater)
         dig_num (int) : digit number (3 -> 00x) for labeling image sequentially
         dtype (numpy.dtype) : data type to save, either 'uint8' or 'uint16'
         base (int) : base number of the label (starting from)
         img_formt (str): image format, '.tif' or '.png', remind the dot
         keep_chn (bool): whether to keep full channel or not
+        sep (str): separater between file name and id, default '-'
     """
     if len(stack.shape) == 4 and not keep_chn:
         stack = stack[:, :, :, 0]
 
     for i in range(stack.shape[0]):
         fm = ("%0" + str(dig_num) + "d") % (i + base)
-        name = os.path.join(out_dir, prefix + '-' + fm + img_format)
+        name = os.path.join(out_dir, prefix + sep + fm + img_format)
         if dtype=='uint16':
             img = img_as_uint(stack[i, :])
         elif dtype=='uint8':
@@ -402,6 +404,17 @@ def findM(gt_cls, direction='begin'):
             i += 1
         return -(i+1)
     
+
+def check_continuous_track(table):
+    """Check if every track is continuous (no gap)
+    """
+    out = []
+    for i in np.unique(table['trackId']).tolist():
+        f = table[table['trackId']==i]['frame'].tolist()
+        if f[-1] - f[0] != len(f) - 1:
+            out.append(i)
+    return out
+
 
 def mergeTrkAndTrack(trk_path, table_path, return_mask = False):
     """Merge ground truth .trk and tracked table
@@ -453,14 +466,26 @@ def mergeTrkAndTrack(trk_path, table_path, return_mask = False):
     out['mtParTrk'] = 0
     
     out = out.drop(columns=['centroid-0', 'centroid-1', 'uid', 'label'])
+    out.sort_values(by = ['trackId', 'frame'], inplace=True)
+    e = check_continuous_track(out)
+    if e:
+        raise ValueError('Gapped tracks found: ' + str(e))
     
     # resolve lineage and mt_dic
+    # deepcell-label does not automatically assign parent ID to daughter if 
+    # the parent ID has been changed. However, it does assign original daughter 
+    # ID to a changed parent. Therefore, we deduce relationship from daughter 
+    # field under parent information, and ignore all daughters that do not exist.
     mt_dic = {}
         # if a daughter appears as 'G1/G2' then m_exit is not accurate
     imprecise_m = []
+    all_tracks = out['trackId'].tolist()
     for i in list(lin.keys()):
         if lin[i]['daughters'] != []:
             daugs = lin[i]['daughters']
+            for k in daugs:
+                if k not in all_tracks:
+                    daugs.remove(k)
             if len(daugs)==1:
                 out.loc[out['trackId'] == daugs[0], 'parentTrackId'] = i
                 out.loc[out['lineageId'] == daugs[0], 'lineageId'] = i

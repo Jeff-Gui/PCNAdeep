@@ -68,7 +68,7 @@ class pcna_ctcEvaluator:
         txt = get_lineage_txt(track_new)
         # write out processed files for RES folder
         fm = ("%0" + str(self.digit_num) + "d") % self.dt_id
-        save_seq(tracked_mask, os.path.join(self.root, fm + '_RES'), 'mask', dig_num=self.digit_num, base=self.t_base)
+        save_seq(tracked_mask, os.path.join(self.root, fm + '_RES'), 'mask', dig_num=self.digit_num, base=self.t_base, sep='')
         txt.to_csv(os.path.join(self.root, fm + '_RES', 'res_track.txt'), sep=' ', index=0, header=False)
         return
 
@@ -84,8 +84,8 @@ class pcna_ctcEvaluator:
         fm = ("%0" + str(self.digit_num) + "d") % (self.dt_id)
         fm = os.path.join(self.root, fm + '_GT')
         txt.to_csv(os.path.join(fm, 'TRA', 'man_track.txt'), index=0, sep=' ', header=False)
-        save_seq(mask, os.path.join(fm, 'SEG'), 'man_seg', dig_num=self.digit_num, base=self.t_base)
-        save_seq(mask, os.path.join(fm, 'TRA'), 'man_track', dig_num=self.digit_num, base=self.t_base)
+        save_seq(mask, os.path.join(fm, 'SEG'), 'man_seg', dig_num=self.digit_num, base=self.t_base, sep='')
+        save_seq(mask, os.path.join(fm, 'TRA'), 'man_track', dig_num=self.digit_num, base=self.t_base, sep='')
         return
 
     def init_ctc_dir(self):
