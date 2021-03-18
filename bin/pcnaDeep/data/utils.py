@@ -252,3 +252,22 @@ def retrieve(table, mask, image, rp_fields=[], funcs=[]):
             new_track = new_track.append(new2)
     
     return new_track
+
+
+def mt_dic2mt_lookup(mt_dic):
+    """Convert mt_dic to misosis lookup
+    
+    Args:
+        mt_dic (dict): standard mitosis info dictionary in pcnaDeep
+    
+    Returns:
+        mt_lookup (pd.DataFrame): mitosis lookup table with 3 columns:
+            trackA (int) | trackB (int) | Mitosis? (int, 0/1)
+    """
+    out = {'par':[], 'daug':[], 'mitosis':[]}
+    for i in list(mt_dic.keys()):
+        for j in list(mt_dic[i]['daug'].keys()):
+            out['par'].append(i)
+            out['daug'].append(j)
+            out['mitosis'].append(1)
+    return pd.DataFrame(out)

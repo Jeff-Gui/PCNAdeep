@@ -5,6 +5,8 @@ import numpy as np
 import math
 import re
 import joblib
+from scipy.optimize import linear_sum_assignment
+from sklearn.preprocessing import StandardScaler
 
 
 def dist(x1, y1, x2, y2):
@@ -111,6 +113,7 @@ class Refiner:
         self.MIN_M = minM
         self.short_tracks = []
         self.mt_dic = {}
+        self.imprecise = []  # imprecise mitosis: daughter exit without M classification
         # mitosis dictionary: trackId: [[daughterId], [mt_entry, mt_exit]] for primarily mitosis break only  {
         # 'div':m_entry, 'daug':{daug1: m_exit, daug2: m_exit}}
         self.ann = pd.DataFrame(
@@ -326,13 +329,20 @@ class Refiner:
         """
         c1 = list(self.track[self.track['trackId'] == trackId]['predicted_class'])
         c1_confid = np.array(self.track[self.track['trackId'] == trackId][
-                                 ['Probability of G1/G2', 'Probability of S',
-                                  'Probability of M']])
+                                 ['Probability of G1/G2', 'Probability of S', 'Probability of M']])
         if direction == 'exit':
-            trans = deduce_transition(c1, tar='M', confidence=c1_confid, min_tar=1, max_res=self.MIN_GS)[1]
+            trans = deduce_transition(c1, tar='M', confidence=c1_confid, min_tar=1, max_res=self.MIN_GS)
+            if trans is not None:
+                trans = trans[1]
+            else:
+                return None
         elif direction == 'entry':
-            trans = -(1 + deduce_transition(c1[::-1], tar='M', confidence=c1_confid[::-1, :],
-                                            min_tar=1, max_res=self.MIN_GS)[1])
+            trans = deduce_transition(c1[::-1], tar='M', confidence=c1_confid[::-1, :],
+                                            min_tar=1, max_res=self.MIN_GS)
+            if trans is not None:
+                trans = -(1 + trans[1])
+            else:
+                return None
         else:
             raise ValueError('Direction can either be entry or exit')
 
@@ -341,45 +351,84 @@ class Refiner:
         return trans
 
     def svm_pdd(self):
-        count = 0
         ann = self.ann.copy()
         track = self.track.copy()
         mt_dic = self.mt_dic.copy()
-        pool = np.unique(track['trackId']).tolist()
+        # deduce candidate parents = 
+        #   mt_dic + wild parents not being parent.daughter yet
+        parent_pool = list(self.mt_dic.keys())
+        pool = np.unique(self.track['trackId']).tolist()
+        lin_par_pool = np.unique(self.track['parentTrackId'])
+        lin_daug_pool = np.unique(self.track[self.track['parentTrackId']>0]['trackId'])
+        for i in pool:
+            if i not in parent_pool and i not in lin_par_pool and i not in lin_daug_pool:
+                # wild parents: at least two M classification at the end
+                if re.search('M-M$', ann[ann['track']==i]['disapp_stage'].values[0]) is not None:
+                    parent_pool.append(i)
+        
+        print('Extracting features...')
         ipts = []
         sample_id = []
-        for i in range(len(pool)):
+        for i in parent_pool:
             for j in range(len(pool)):
-                if i != j:
-                    ipts.append(self.getSVMinput(pool[i], pool[j]))
-                    sample_id.append([i,j])
+                if i != pool[j]:
+                    ipts.append(self.getSVMinput(i, pool[j]))
+                    sample_id.append([i,pool[j]])
         ipts = np.array(ipts)
+        sample_id = np.array(sample_id)
+        print('Finished prediction.')
 
         cls = joblib.load(self.SVM_PATH)
+        scaler = StandardScaler()
+        scaler.fit(ipts)
+        ipts = scaler.transform(ipts)
         res = cls.predict_proba(ipts)
-        for i in range(res.shape[0]):
-            if res[i,1] > 0.5:
-                confid = res[i, 1]
-                par, daug = sample_id[i]
+        
+        cost_r_idx = np.array([val for val in parent_pool for i in range(2)])
+        cost_c_idx = np.unique(sample_id[:,1])
+        cost = np.zeros((cost_r_idx.shape[0], cost_c_idx.shape[0]))
+        for i in range(cost.shape[0]):
+            for j in range(cost.shape[1]):
+                if cost_r_idx[i] != cost_c_idx[j]:
+                    a = np.where(sample_id[:,0] == cost_r_idx[i])[0].tolist()
+                    b = np.where(sample_id[:,1] == cost_c_idx[j])[0].tolist()
+                    cost[i,j] = res[list(set(a) & set(b))[0]][1]
+        cost = cost*-1
+        row_ind, col_ind = linear_sum_assignment(cost)
+        
+        matched_par = cost_r_idx[row_ind[::2]]
+        for i in range(len(matched_par)):
+            cst = cost[2*i+1, col_ind[2*i : 2*i+2]]
+            if all(cst < -0.5):
+                par = matched_par[i]
+                daugs = cost_c_idx[col_ind[2*i : 2*i+2]]
+                cst = (1+cst).tolist()
                 if par in list(mt_dic.keys()):
-                    if daug in mt_dic[par]['daug'].keys():  # update daughter distance as daughter confidence
-                        mt_dic[par]['daug']['dist'] = confid
-                    else:
-                        result = self.compete(mt_dic, par, [daug], [confid])
-                        for rv in result['revert']:
-                            count -= 1
-                            ann, mt_dic = self.revert(ann, mt_dic, par, rv)
-                        for rg in result['register']:
-                            count += 1
+                    ori_daugs = list(mt_dic[par]['daug'].keys())
+                    for j in range(len(ori_daugs)):
+                        if ori_daugs[j] not in daugs:
+                            ann, mt_dic = self.revert(ann, mt_dic, par, ori_daugs[j])
+                    for j in range(len(daugs)):
+                        daug = daugs[j]
+                        if daug in mt_dic[par]['daug'].keys():  # update daughter distance as daughter confidence
+                            mt_dic[par]['daug']['dist'] = cst[j]
+                        else:
                             m_exit = self.getMtransition(daug, direction='exit')
-                            ann, mt_dic = self.register_mitosis(ann, mt_dic, par, rg, m_exit, confid)
+                            if m_exit is None:
+                                m_exit = self.track[self.track['trackId']==daug]['frame'].iloc[0]
+                                self.imprecise.append(daug)
+                            ann, mt_dic = self.register_mitosis(ann, mt_dic, par, daug, m_exit, cst[j])
+                    
                 else:
-                    count += 1
                     m_entry = self.getMtransition(par, direction='entry')
-                    m_exit = self.getMtransition(daug, direction='exit')
-                    ann, mt_dic = self.register_mitosis(ann, mt_dic, par, daug, m_exit, confid, m_entry)
-
-        print("Parent-Daughter-Daughter mitosis relations found: " + str(count))
+                    for j in range(len(daugs)):
+                        m_exit = self.getMtransition(daugs[j], direction='exit')
+                        if m_exit is None:
+                            m_exit = self.track[self.track['trackId']==daug]['frame'].iloc[0]
+                            self.imprecise.append(daug)
+                        ann, mt_dic = self.register_mitosis(ann, mt_dic, par, daugs[j], m_exit, cst[j], m_entry)
+                
+        print("Parent-Daughter-Daughter mitosis relations found: " + str(len(list(mt_dic.keys()))))
         track = track.sort_values(by=['lineageId', 'trackId', 'frame'])
         return track, ann, mt_dic
 
@@ -600,14 +649,14 @@ class Refiner:
         Returns:
             input vector of SVM classifier:
                 [distance_diff, frame_diff, m_score_par, m_score_daug,    <-  track specific
-                ave_major_axis_diff, ave_minor_axis_diff, from_broken]    <-  track specific
+                ave_major_axis_diff, ave_minor_axis_diff]                 <-  track specific
                 * ave_major/minor_axis_diff = abs(parent_axis - daughter_axis) / parent_axis
                 some parameters are normalized with dataset specific features:
                     distance_diff /= ave_displace
                     frame_diff /= (sample_freq * mt_len)
         """
-        par = self.track[self.track['trackId'] == parent]
-        daug = self.track[self.track['trackId'] == daughter]
+        par = self.track[self.track['trackId'] == parent].sort_values(by='frame')
+        daug = self.track[self.track['trackId'] == daughter].sort_values(by='frame')
 
         x1 = par['Center_of_the_object_0'].iloc[-1]
         y1 = par['Center_of_the_object_1'].iloc[-1]
@@ -619,33 +668,70 @@ class Refiner:
         m_score_daug = self.mt_score_begin[daughter]
         par_axis = self.getMeanAxis(trackId=parent)
         daug_axis = self.getMeanAxis(trackId=daughter)
-        ave_major_axis_diff = np.abs((par_axis[0] - daug_axis[0])) / par_axis[0]
-        ave_minor_axis_diff = np.abs((par_axis[1] - daug_axis[1])) / par_axis[1]
+        if par_axis[0] == 0:
+            ave_major_axis_diff = 1
+        else:
+            ave_major_axis_diff = np.abs((par_axis[0] - daug_axis[0])) / par_axis[0]
+        if par_axis[1] == 0:
+            ave_minor_axis_diff = 1
+        else:
+            ave_minor_axis_diff = np.abs((par_axis[1] - daug_axis[1])) / par_axis[1]
+        '''
+        # TODO: input broken as the last feature? 
+        # if input, external training data from .trk will not be calculated.
         from_broken = 0
         if parent in list(self.mt_dic.keys()):
             if daughter in list(self.mt_dic[parent]['daug'].keys()):
                 from_broken = 1
+        '''
         out = [distance_diff / self.metaData['meanDisplace'],
                frame_diff / (self.metaData['sample_freq'] * self.metaData['mt_len']),
-               m_score_par, m_score_daug, ave_major_axis_diff, ave_minor_axis_diff,from_broken]
+               m_score_par, m_score_daug, ave_major_axis_diff, ave_minor_axis_diff]
 
         return out
 
-    def get_SVM_train(self, sample):
+    def get_SVM_train(self, sample, random_negative=False, rand_size=100):
         """Save training data for SVM classifier of this particular dataset
 
         Args:
             sample (numpy.array): matrix of shape (sample, (parent ID, daughter ID, y))
+            random_negative (bool): randomly choose some negative instances.
+            rand_size (int): size of random negative instances, default 100.
 
         Returns:
             (numpy.array): X, y
         """
         X = []
         y = []
+        dic = {}
         for i in range(sample.shape[0]):
             r = sample[i,:]
             X.append(self.getSVMinput(r[0], r[1]))
+            if r[0] in list(dic.keys()):
+                dic[r[0]].append(r[1])
+            else:
+                dic[r[0]] = [r[1]]
             y.append(r[2])
+
+        # randomly or fully select some negative instances
+        if random_negative:
+            par = np.random.choice(np.unique(self.track['trackId']).tolist() ,size = rand_size, replace=False)
+            daug = np.random.choice(np.unique(self.track['trackId']).tolist() ,size = rand_size, replace=False)
+            c = []
+            for i in range(len(par)):
+                if par[i] == daug[i]:
+                    continue
+                if par[i] in list(dic.keys()):
+                    if daug[i] in dic[par[i]]:
+                        continue
+                if daug[i] in list(dic.keys()):
+                    if par[i] in dic[daug[i]]:
+                        continue
+                c.append([par[i], daug[i]])
+            c = c[:int(np.min((rand_size, len(c))))]
+            for i in range(len(c)):
+                X.append(self.getSVMinput(c[i][0], c[i][1]))
+                y.append(0)
 
         return X, y
 
@@ -674,10 +760,12 @@ class Refiner:
         if self.MODE == 'TRH':
             self.track, self.ann, self.mt_dic = self.search_pdd()
         elif self.MODE == 'SVM':
+            self.mt_score_begin, self.mt_score_end = self.getMTscore(self.SEARCH_RANGE, self.MT_DISCOUNT)
             if self.SVM_PATH == '':
                 raise ValueError('SVM model path has not set yet, use setSVMpath() to supply a SVM model.')
             self.track, self.ann, self.mt_dic = self.svm_pdd()
         elif self.MODE == 'TRAIN':
+            self.mt_score_begin, self.mt_score_end = self.getMTscore(self.SEARCH_RANGE, self.MT_DISCOUNT)
             return self.track
 
         self.track = self.update_table_with_mt()
