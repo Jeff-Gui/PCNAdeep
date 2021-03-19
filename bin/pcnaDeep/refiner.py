@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
-
-import pandas as pd
-import numpy as np
 import math
 import re
 import joblib
+import pandas as pd
+import numpy as np
 from scipy.optimize import linear_sum_assignment
 from sklearn.preprocessing import StandardScaler
 
@@ -113,6 +112,7 @@ class Refiner:
         self.MIN_M = minM
         self.short_tracks = []
         self.mt_dic = {}
+        self.mean_axis_lookup = {}
         self.imprecise = []  # imprecise mitosis: daughter exit without M classification
         # mitosis dictionary: trackId: [[daughterId], [mt_entry, mt_exit]] for primarily mitosis break only  {
         # 'div':m_entry, 'daug':{daug1: m_exit, daug2: m_exit}}
@@ -411,7 +411,7 @@ class Refiner:
                     for j in range(len(daugs)):
                         daug = daugs[j]
                         if daug in mt_dic[par]['daug'].keys():  # update daughter distance as daughter confidence
-                            mt_dic[par]['daug']['dist'] = cst[j]
+                            mt_dic[par]['daug'][daug]['dist'] = cst[j]
                         else:
                             m_exit = self.getMtransition(daug, direction='exit')
                             if m_exit is None:
@@ -614,8 +614,12 @@ class Refiner:
             (tuple): mean_major_axis, mean_minor_axis
         """
         sub = self.track[self.track['trackId'] == trackId]
-
-        return np.mean(sub['major_axis']), np.mean(sub['minor_axis'])
+        if trackId not in self.mean_axis_lookup.keys():
+            reg = np.mean(sub['major_axis']), np.mean(sub['minor_axis'])
+            self.mean_axis_lookup[trackId] = reg
+            return reg
+        else:
+            return self.mean_axis_lookup[trackId]
 
     def getMTscore(self, search_range, discount=0.9):
         """Measure mitosis score based on cell cycle classification
