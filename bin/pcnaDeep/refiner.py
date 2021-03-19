@@ -4,6 +4,7 @@ import re
 import joblib
 import pandas as pd
 import numpy as np
+from copy import deepcopy
 from scipy.optimize import linear_sum_assignment
 from sklearn.preprocessing import StandardScaler
 
@@ -290,7 +291,7 @@ class Refiner:
         # parent
         mt_dic[parentId]['daug'].pop(daughterId)
         ori = ann.loc[ann['track'] == parentId]['mitosis_identity'].values[0]
-        ori = ori[:re.search('/parent$', ori).span()[0]]
+        ori = ori.replace('/parent', '', 1)
         ann.loc[ann['track'] == parentId, 'mitosis_identity'] = ori
         ori_daug = str(ann.loc[ann['track'] == parentId]['mitosis_daughter'].values[0])
         ori_daug = ori_daug.split('/')
@@ -298,7 +299,7 @@ class Refiner:
         ann.loc[ann['track'] == parentId, 'mitosis_daughter'] = '/'.join(ori_daug)
         # daughter
         ori = ann.loc[ann['track'] == daughterId]['mitosis_identity'].values[0]
-        ori = ori[:re.search('/daughter$', ori).span()[0]]
+        ori = ori.replace('/daughter', '', 1)
         ann.loc[ann['track'] == daughterId, 'mitosis_identity'] = ori
         ann.loc[ann['track'] == daughterId, 'm_exit'] = None
         ann.loc[ann['track'] == daughterId, 'mitosis_parent'] = None
@@ -352,9 +353,9 @@ class Refiner:
         return trans
 
     def svm_pdd(self):
-        ann = self.ann.copy()
-        track = self.track.copy()
-        mt_dic = self.mt_dic.copy()
+        ann = deepcopy(self.ann)
+        track = deepcopy(self.track)
+        mt_dic = deepcopy(self.mt_dic)
         # deduce candidate parents = 
         #   mt_dic + wild parents not being parent.daughter yet
         parent_pool = list(self.mt_dic.keys())
@@ -377,13 +378,13 @@ class Refiner:
                     sample_id.append([i,pool[j]])
         ipts = np.array(ipts)
         sample_id = np.array(sample_id)
-        print('Finished prediction.')
 
         cls = joblib.load(self.SVM_PATH)
         scaler = StandardScaler()
         scaler.fit(ipts)
         ipts = scaler.transform(ipts)
         res = cls.predict_proba(ipts)
+        print('Finished prediction.')
         
         cost_r_idx = np.array([val for val in parent_pool for i in range(2)])
         cost_c_idx = np.unique(sample_id[:,1])
@@ -398,7 +399,11 @@ class Refiner:
         row_ind, col_ind = linear_sum_assignment(cost)
         
         matched_par = cost_r_idx[row_ind[::2]]
+        anns = []
         for i in range(len(matched_par)):
+            if i == 11:
+                break
+            anns.append(ann)
             cst = cost[2*i+1, col_ind[2*i : 2*i+2]]
             par = matched_par[i]
             if all(cst < -0.5):
@@ -408,7 +413,7 @@ class Refiner:
                     ori_daugs = list(mt_dic[par]['daug'].keys())
                     for j in range(len(ori_daugs)):
                         if ori_daugs[j] not in daugs:
-                            ann, mt_dic = self.revert(ann, mt_dic, par, ori_daugs[j])
+                            ann, mt_dic = self.revert(deepcopy(ann), deepcopy(mt_dic), par, ori_daugs[j])
                     for j in range(len(daugs)):
                         daug = daugs[j]
                         if daug in mt_dic[par]['daug'].keys():  # update daughter distance as daughter confidence
@@ -418,7 +423,7 @@ class Refiner:
                             if m_exit is None:
                                 m_exit = self.track[self.track['trackId']==daug]['frame'].iloc[0]
                                 self.imprecise.append(daug)
-                            ann, mt_dic = self.register_mitosis(ann, mt_dic, par, daug, m_exit, cst[j])
+                            ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic), par, daug, m_exit, cst[j])
                     
                 else:
                     m_entry = self.getMtransition(par, direction='entry')
@@ -427,12 +432,12 @@ class Refiner:
                         if m_exit is None:
                             m_exit = self.track[self.track['trackId']==daug]['frame'].iloc[0]
                             self.imprecise.append(daug)
-                        ann, mt_dic = self.register_mitosis(ann, mt_dic, par, daugs[j], m_exit, cst[j], m_entry)
+                        ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic), par, daugs[j], m_exit, cst[j], m_entry)
             else:
                 if par in list(mt_dic.keys()):
                     daugs = list(mt_dic[par]['daug'].keys())
                     for daug in daugs:
-                        ann, mt_dic = self.revert(ann, mt_dic, par, daug)
+                        ann, mt_dic = self.revert(deepcopy(ann), deepcopy(mt_dic), par, daug)
                     del mt_dic[par]
                 
         print("Parent-Daughter-Daughter mitosis relations found: " + str(len(list(mt_dic.keys()))))
@@ -440,9 +445,9 @@ class Refiner:
         return track, ann, mt_dic
 
     def search_pdd(self):
-        ann = self.ann.copy()
-        track = self.track.copy()
-        mt_dic = self.mt_dic.copy()
+        ann = deepcopy(self.ann)
+        track = deepcopy(self.track)
+        mt_dic = deepcopy(self.mt_dic)
 
         count = 0
         # Mitosis search
@@ -509,10 +514,10 @@ class Refiner:
                                     c3_entry = self.getMtransition(parent_id, direction='entry')
 
                                     # update information in ann and mt_dic table
-                                    ann, mt_dic = self.register_mitosis(ann, mt_dic, parent_id,
+                                    ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic), parent_id,
                                                                         potential_daughter_pair_id[i],
                                                                         c1_exit, dist_dif1, m_entry=c3_entry)
-                                    ann, mt_dic = self.register_mitosis(ann, mt_dic, parent_id,
+                                    ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic), parent_id,
                                                                         potential_daughter_pair_id[j],
                                                                         c2_exit, dist_dif2)
 
@@ -523,15 +528,15 @@ class Refiner:
                                                           [dist_dif1,dist_dif2])
 
                                     for rv in result['revert']:
-                                        ann, mt_dic = self.revert(ann, mt_dic, parent_id, rv)
+                                        ann, mt_dic = self.revert(deepcopy(ann), deepcopy(mt_dic), parent_id, rv)
                                         count -= 1
                                     for rg in result['register']:
                                         if rg == potential_daughter_pair_id[i]:
-                                            ann, mt_dic = self.register_mitosis(ann, mt_dic, parent_id, rg,
-                                                                                c1_exit, dist_dif1)
+                                            ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic), 
+                                                                                parent_id, rg, c1_exit, dist_dif1)
                                         elif rg == potential_daughter_pair_id[j]:
-                                            ann, mt_dic = self.register_mitosis(ann, mt_dic, parent_id, rg,
-                                                                                c2_exit, dist_dif2)
+                                            ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic), 
+                                                                                parent_id, rg, c2_exit, dist_dif2)
                                         count += 1
 
         print("Parent-Daughter-Daughter mitosis relations found: " + str(count))
