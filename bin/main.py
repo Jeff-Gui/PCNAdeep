@@ -1,21 +1,26 @@
+import argparse
 import multiprocessing as mp
-import numpy as np
-import os, re, time, argparse
+import os
+import re
+import time
+import yaml
 
-import skimage.io as io
+import numpy as np
 import pandas as pd
+import skimage.io as io
 from detectron2.config import get_cfg
 from detectron2.utils.logger import setup_logger
+
 from pcnaDeep.predictor import VisualizationDemo, predictFrame
-from pcnaDeep.tracker import track
-from pcnaDeep.resolver import Resolver
 from pcnaDeep.refiner import Refiner
+from pcnaDeep.resolver import Resolver
+from pcnaDeep.tracker import track
 
 
 def setup_cfg(args):
     # load config from file and command-line arguments
     cfg = get_cfg()
-    cfg.merge_from_file(args.config_file)
+    cfg.merge_from_file(args.dtrn_config)
     cfg.merge_from_list(args.opts)
     # Set score_threshold for builtin models
     cfg.MODEL.RETINANET.SCORE_THRESH_TEST = args.confidence_threshold
@@ -28,10 +33,16 @@ def setup_cfg(args):
 def get_parser():
     parser = argparse.ArgumentParser(description="Detectron2 demo for builtin configs")
     parser.add_argument(
-        "--config-file",
-        default="../config/pcna_res50.yaml",
+        "--dtrn-config",
+        default="../config/dtrnCfg.yaml",
         metavar="FILE",
         help="path to detectron2 model config file",
+    )
+    parser.add_argument(
+        "--pcna-config",
+        default="../config/pcnaCfg.yaml",
+        metavar="FILE",
+        help="path to pcnaDeep tracker/refiner/resolver config file",
     )
     parser.add_argument(
         "--input",
@@ -48,57 +59,13 @@ def get_parser():
         help="Minimum score for instance predictions to be shown",
     )
     parser.add_argument(
-        "--displace",
-        default=40,
-        help='Tracking: maximum displacement of objects between frames',
-    )
-    parser.add_argument(
-        "--gap_fill",
-        default=5,
-        help='Tracking: memory frames of objects to fill gaps',
-    )
-    parser.add_argument(
-        "--minG",
-        default=6,
-        help='Refinement/Resolver: minimum G1/G2 duration',
-    )
-    parser.add_argument(
-        "--minS",
-        default=5,
-        help='Refinement/Resolver: minimum S duration',
-    )
-    parser.add_argument(
-        "--minM",
-        default=3,
-        help='Refinement/Resolver: minimum M duration',
-    )
-    parser.add_argument(
-        "--d_trh",
-        default=150,
-        help='Refinement: maximum mitosis distance tolerance',
-    )
-    parser.add_argument(
-        "--t_trh",
-        default=5,
-        help='Refinement: maximum mitosis frame tolerance',
-    )
-    parser.add_argument(
-        "--smooth",
-        default=5,
-        help='Refinement: smoothing window of classification',
-    )
-    parser.add_argument(
-        "--minTrack",
-        default=10,
-        help='Resolver: minimum track length to report cell cycle duration',
-    )
-    parser.add_argument(
         "--batch",
         action="store_true"
     )
     parser.add_argument(
         "--opts",
-        help="Modify detectron2 config options using the command-line 'KEY VALUE' pairs",
+        help="Modify pcnaDeep config options using the command-line 'KEY VALUE' pairs. For pcnaDeep config, "
+             "begin with pcna., e.g., pcna.TRACKER.DISPLACE 100. For detectron2 config, follow detectron2 docs",
         default=[],
         nargs=argparse.REMAINDER,
     )
@@ -111,6 +78,27 @@ if __name__ == "__main__":
     setup_logger(name="pcna")
     logger = setup_logger()
     logger.info("Arguments: " + str(args))
+    # resolve pcnaDeep Config
+    with open(args.pcna_config, 'rb') as f:
+        date = yaml.safe_load_all(f)
+        pcna_cfg_dict = list(date)[0]
+    dtrn_opts = []
+    i = 0
+    while i < len(args.opts)/2:
+        o = args.opts[2*i]
+        value = args.opts[2*i+1]
+        l = o.split('.')
+        if l[0] == 'pcna' or l[0] == 'PCNA':
+            cur_ref = pcna_cfg_dict[l[1]]
+            if len(l) >= 3:
+                for j in range(2, len(l)-1):
+                    cur_ref = cur_ref[l[j]]
+            cur_ref[l[-1]] = value
+        else:
+            dtrn_opts.append(o)
+            dtrn_opts.append(value)
+        i += 1
+    args.opts = dtrn_opts
     cfg = setup_cfg(args)
     logger.info("Finished setup.")
 
@@ -145,16 +133,25 @@ if __name__ == "__main__":
         mask_out = np.stack(mask_out, axis=0)
 
         logger.info('Tracking...')
-        track_out = track(df=table_out, displace=int(args.displace), gap_fill=int(args.gap_fill))
+        track_out = track(df=table_out, displace=int(pcna_cfg_dict['TRACKER']['DISPLACE']),
+                          gap_fill=int(pcna_cfg_dict['TRACKER']['GAP_FILL']))
         track_out.to_csv(os.path.join(args.output, prefix + '_tracks.csv'), index=0)
         io.imsave(os.path.join(args.output, prefix + '_mask.tif'), mask_out)
 
         logger.info('Refining and Resolving...')
-        myRefiner = Refiner(track_out, threshold_mt_F=args.d_trh, threshold_mt_T=args.t_trh, smooth=args.smooth,
-                            minGS=np.max((args.minG, args.minS)), minM=args.minM, mode='TRH')
+        post_cfg = pcna_cfg_dict['POST_PROCESS']
+        refiner_cfg = post_cfg['REFINER']
+        myRefiner = Refiner(track_out, threshold_mt_F=int(refiner_cfg['MAX_DIST_TRH']),
+                            threshold_mt_T=int(refiner_cfg['MAX_FRAME_TRH']), smooth=int(refiner_cfg['SMOOTH']),
+                            minGS=np.max((int(post_cfg['MIN_G']), int(post_cfg['MIN_S']))),
+                            minM=int(post_cfg['MIN_M']), search_range=int(refiner_cfg['SEARCH_RANGE']),
+                            mt_len=int(refiner_cfg['MITOSIS_LEN']), sample_freq=int(refiner_cfg['SAMPLE_FREQ']),
+                            model_path=refiner_cfg['SVM_MODEL_PATH'],
+                            mode=refiner_cfg['MODE'])
         ann, track_rfd, mt_dic = myRefiner.doTrackRefine()
 
-        myResolver = Resolver(track_rfd, ann, mt_dic, minG=args.minG, minS=args.minS, minM=args.minM, minTrack=args.minTrack)
+        myResolver = Resolver(track_rfd, ann, mt_dic, minG=int(post_cfg['MIN_G']), minS=int(post_cfg['MIN_S']),
+                              minM=int(post_cfg['MIN_M']), minTrack=int(pcna_cfg_dict['RESOLVER']['MIN_TRACN']))
         track_rsd, phase = myResolver.doResolve()
         track_rsd.to_csv(os.path.join(args.output, prefix + '_tracks_refined.csv'), index=0)
         phase.to_csv(os.path.join(args.output, prefix + '_phase.csv'), index=0)

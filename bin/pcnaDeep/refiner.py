@@ -84,6 +84,7 @@ class Refiner:
                 threshold_mt_T (int): mitosis frame difference maximum,
                     can be evaluated as maximum mitosis frame length.
             - Essential for SVM/TRAIN mode (for normalizing different imaging conditions):
+                search_range (int): when calculating mitosis score, how many time points to consider
                 mt_len (int): mitosis length of the cells, evaluated manually
                 sample_freq (int): sampling frequency: x minute per frame
                 model_path (str): path to saved SVM model
