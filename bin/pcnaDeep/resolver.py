@@ -158,7 +158,8 @@ class Resolver:
 
         trk['resolved_class'] = resolved_class
         if list_dist(cls, resolved_class) > UNRESOLVED_FRACTION * len(resolved_class):
-            print('Too different, check: ' + str(trk['trackId'].tolist()[0]))
+            if len(resolved_class) >= self.minTrack:
+                print('Too different, check: ' + str(trk['trackId'].tolist()[0]))
             self.unresolved.append(trk['trackId'].tolist()[0])
         return trk
 
