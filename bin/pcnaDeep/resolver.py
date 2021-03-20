@@ -7,8 +7,8 @@ from pcnaDeep.refiner import deduce_transition
 
 def list_dist(a, b):
     """Count different between elements of two lists
-    a: original cls
-    b: resolved cls
+    a (list): original cls
+    b (list): resolved cls
     """
     count = 0
     assert len(a) == len(b)
@@ -23,7 +23,7 @@ def list_dist(a, b):
 
 class Resolver:
 
-    def __init__(self, track, ann, mt_dic, minG=5, minS=6, minM=3, minTrack=10):
+    def __init__(self, track, ann, mt_dic, minG=6, minS=5, minM=3, minTrack=10):
         self.track = track
         self.ann = ann
         self.minG = minG
@@ -59,7 +59,7 @@ class Resolver:
 
     def resolveLineage(self, lineage, main):
         """Resolve all tracks in a lineage recursively
-        main: the parent track of current search
+        main (int): the parent track ID of current search
         """
 
         info = self.ann.loc[self.ann['track'] == main]
@@ -82,15 +82,15 @@ class Resolver:
         """Resolve single track.
         
         Args:
-            trk: track table
-            m_entry: time of mitosis entry corresponding to 'frame' column in table
-            m_exit: time of mitosis exit corresponding to 'frame' column in table
+            trk (pandas.DataFrame): track table
+            m_entry (int): time of mitosis entry corresponding to 'frame' column in table
+            m_exit (int): time of mitosis exit corresponding to 'frame' column in table
             
-            If no m time supplied, only treat as G1/G2/S track.
-            Arrested track not resolved, return full G1/G2 list.
+                If no m time supplied, only treat as G1/G2/S track.
+                Arrested track not resolved, return full G1/G2 list.
             
         Returns:
-            table with addition column of resolved class
+            pandas.DataFrame table with addition column of resolved class
         """
 
         UNRESOLVED_FRACTION = 0.2  # after resolving the class, if more than x% class has been corrected, label with

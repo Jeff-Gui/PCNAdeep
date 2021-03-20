@@ -89,17 +89,18 @@ class Trainer(DefaultTrainer):
                 )
             )
         if evaluator_type in ["coco", "coco_panoptic_seg"]:
-            evaluator_list.append(COCOEvaluator(dataset_name=dataset_name, output_dir=output_folder, tasks=('segm',), distributed=True))
+            evaluator_list.append(
+                COCOEvaluator(dataset_name=dataset_name, output_dir=output_folder, tasks=('segm',), distributed=True))
         if evaluator_type == "coco_panoptic_seg":
             evaluator_list.append(COCOPanopticEvaluator(dataset_name, output_folder))
         if evaluator_type == "cityscapes_instance":
             assert (
-                torch.cuda.device_count() >= comm.get_rank()
+                    torch.cuda.device_count() >= comm.get_rank()
             ), "CityscapesEvaluator currently do not work with multiple machines."
             return CityscapesInstanceEvaluator(dataset_name)
         if evaluator_type == "cityscapes_sem_seg":
             assert (
-                torch.cuda.device_count() >= comm.get_rank()
+                    torch.cuda.device_count() >= comm.get_rank()
             ), "CityscapesEvaluator currently do not work with multiple machines."
             return CityscapesSemSegEvaluator(dataset_name)
         elif evaluator_type == "pascal_voc":
@@ -132,7 +133,7 @@ class Trainer(DefaultTrainer):
         res = cls.test(cfg, model, evaluators)
         res = OrderedDict({k + "_TTA": v for k, v in res.items()})
         return res
-    
+
     @classmethod
     def build_train_loader(cls, cfg):
         mapper = DatasetMapper(cfg, is_train=True, augmentations=build_sem_seg_train_aug(cfg))
@@ -148,7 +149,7 @@ def setup(args):
     """
     Create configs and perform basic setups.
     """
-    
+
     cfg = get_cfg()
     cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
     cfg.DATASETS.TRAIN = ("pcna",)
@@ -160,13 +161,13 @@ def setup(args):
     cfg.SOLVER.WEIGHT_DECAY = 0.0001
     cfg.SOLVER.WEIGHT_DECAY_NORM = 0.0
     cfg.SOLVER.GAMMA = 0.1
-    cfg.SOLVER.STEPS = (5000,7500)
+    cfg.SOLVER.STEPS = (5000, 7500)
     cfg.SOLVER.CHECKPOINT_PERIOD = 5000
     cfg.TEST.EVAL_PERIOD = 5000
 
     cfg.SOLVER.MAX_ITER = 12000
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 256
-    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 4 # change according to class number
+    cfg.MODEL.ROI_HEADS.NUM_CLASSES = 4  # change according to class number
     # Avoid overlapping
     cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.5
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7
@@ -179,9 +180,9 @@ def setup(args):
     cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING = 'choice'
     cfg.INPUT.CROP.ENABLED = True
     cfg.INPUT.CROP.TYPE = 'relative'
-    cfg.INPUT.CROP.SIZE = [0.9,0.9]
+    cfg.INPUT.CROP.SIZE = [0.9, 0.9]
     cfg.TEST.AUG.ENABLED = False
-    
+
     cfg.freeze()
     default_setup(cfg, args)
     return cfg
@@ -219,7 +220,7 @@ def main(args):
 
 if __name__ == "__main__":
     # Class metadata
-    CLASS_NAMES =["G1/G2","S","M","E"]
+    CLASS_NAMES = ["G1/G2", "S", "M", "E"]
     # Dataset metadata
     DATASET_ROOT = ['/home/zje/dataset/pcna/20200902-MCF10A-dual',
                     '/home/zje/dataset/pcna/20210103-MCF10A-dual',
@@ -228,11 +229,11 @@ if __name__ == "__main__":
                     '/home/zje/dataset/pcna/20201118-RPE_rand',
                     '/home/zje/dataset/pcna/20201030-MBAMD231-dual']
     TRAIN_ANN_PATH = ['/home/zje/dataset/pcna/20200902-MCF10A.json',
-                    '/home/zje/dataset/pcna/20210103-MCF10A.json',
-                    '/home/zje/dataset/pcna/20210127-MCF10A-mRels2.json',
-                    '/home/zje/dataset/pcna/20200902-MCF10A_cpd.json',
-                    '/home/zje/dataset/pcna/20201118-RPE_rand.json',
-                    '/home/zje/dataset/pcna/20201030-MBAMD231.json']
+                      '/home/zje/dataset/pcna/20210103-MCF10A.json',
+                      '/home/zje/dataset/pcna/20210127-MCF10A-mRels2.json',
+                      '/home/zje/dataset/pcna/20200902-MCF10A_cpd.json',
+                      '/home/zje/dataset/pcna/20201118-RPE_rand.json',
+                      '/home/zje/dataset/pcna/20201030-MBAMD231.json']
     TRAIN_PATH = DATASET_ROOT
 
     args = default_argument_parser().parse_args()
@@ -244,4 +245,4 @@ if __name__ == "__main__":
         machine_rank=args.machine_rank,
         dist_url=args.dist_url,
         args=(args,)
-        )
+    )

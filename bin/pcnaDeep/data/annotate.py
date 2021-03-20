@@ -20,7 +20,7 @@ def relabel_trackID(label_table):
     """Relabel trackID in tracking table, starting from 1
 
     Args:
-        label_table: track table
+        label_table (pandas.DataFrame): track table
     """
 
     dic = {}
@@ -40,11 +40,11 @@ def label_by_track(mask, label_table):
     """Label objects in mask with track ID
 
     Args:
-        mask: uint8 np array, output from main model
-        label_table: track table
+        mask (numpy.array): uint8 np array, output from main model
+        label_table (pandas.DataFrame): track table
     
     Return:
-        unit8/uint16 np array, dtype based on track count
+        unit8/uint16 numpy array, dtype based on track count
     """
 
     assert mask.shape[0] == np.max(label_table['frame'] + 1)
@@ -56,10 +56,10 @@ def label_by_track(mask, label_table):
         sub_table = label_table[label_table['frame'] == i]
         sl = mask[i, :, :].copy()
         lbs = np.unique(sl).tolist()
-        
-        if lbs[-1]+1 != len(lbs):
+
+        if lbs[-1] + 1 != len(lbs):
             raise ValueError('Mask is not continuously or wrongly labeled.')
-            
+
         ori_labels = set(lbs) - {0}
         untracked = list(ori_labels - set(list(sub_table['continuous_label'])))
         #  remove untracked
@@ -77,7 +77,7 @@ def get_lineage_dict(label_table):
     """Generate lineage dictionary in deepcell tracking format
     
     Args:
-        label_table: table processed
+        label_table (pandas.DataFrame): table processed
     """
 
     out = {}
@@ -95,8 +95,11 @@ def get_lineage_dict(label_table):
 def get_lineage_txt(label_table):
     """Generate txt table in Cell Tracking Challenge format
 
+    Args:
+        label_table (pandas.DataFrame): table processed, should not has gaped tracks
+
     Return:
-        pandas dataframe, remove index and col name before output.
+        pandas.DataFrame, remove index and col name before output.
     """
 
     dic = {'id': [], 'appear': [], 'disappear': [], 'parent': []}
@@ -117,8 +120,8 @@ def get_lineage_txt(label_table):
 def save_trks(filename, lineages, raw, tracked):
     """Copied from deepcell_tracking.utils, version 0.3.1. Author Van Valen Lab
         ! Changed trks to trk to fit caliban labeler
-    """
-    """Saves raw, tracked, and lineage data into one trk_file.
+
+    Saves raw, tracked, and lineage data into one trk_file.
 
     Args:
         filename (str): full path to the final trk files.
@@ -157,8 +160,8 @@ def save_trks(filename, lineages, raw, tracked):
 
 def load_trks(filename):
     """Copied from deepcell_tracking.utils, version 0.3.1. Author Van Valen Lab
-    """
-    """Load a trk/trks file.
+
+    Load a trk/trks file.
 
     Args:
         filename (str): full path to the file including .trk/.trks.
@@ -204,7 +207,7 @@ def lineage_dic2txt(lineage_dic):
     """Convert deepcell .trk lineage format to CTC txt format
 
     Args:
-        lineage_dic: [index:dict], extracted from deepcell .trk file 
+        lineage_dic (list[dict]): [index:dict], extracted from deepcell .trk file
     """
 
     lineage_dic = lineage_dic[0]
@@ -236,7 +239,10 @@ def break_track(label_table):
     """Break tracks in a lineage table into single tracks, where
     No gapped tracks allowed. All gap must be transferred into parent-daughter
     relationship.
-    
+
+    Args:
+        label_table (pandas.DataFrame): table to process
+
     Algorithm:
         Rename raw parentTrackId to mtParTrk
         Initiate new parentTrackId column with 0
@@ -255,28 +261,28 @@ def break_track(label_table):
     #       i.e. parent: t1-7; daughter1: t8-20; daughter2: t8-10, t11-20
     # If both daughter extrude, e.g. daughter2: t9-20, then trim parent directly
     # to t1-8. Since this indicages faulty track, warning shown
-    
+
     for l in np.unique(label_table['trackId']):
-        daugs = np.unique(label_table[label_table['parentTrackId']==l]['trackId'])
-        if len(daugs)==2:
-            daug1 = label_table[label_table['trackId']==daugs[0]]['frame'].iloc[0]
-            daug2 = label_table[label_table['trackId']==daugs[1]]['frame'].iloc[0]
-            par = label_table[label_table['trackId']==l]
+        daugs = np.unique(label_table[label_table['parentTrackId'] == l]['trackId'])
+        if len(daugs) == 2:
+            daug1 = label_table[label_table['trackId'] == daugs[0]]['frame'].iloc[0]
+            daug2 = label_table[label_table['trackId'] == daugs[1]]['frame'].iloc[0]
+            par = label_table[label_table['trackId'] == l]
             par_frame = par['frame'].iloc[-1]
             if par_frame >= daug1 and par_frame >= daug2:
-                raise UserWarning('Faluty mitosis, check parent: ' + str(l) + 
-                                ', daughters: ' + str(daugs[0]) + '/' + str(daugs[1]))
-                label_table.drop(par[(par['frame']>=daug1) | (par['frame']>=daug2)].index, inplace=True)
+                raise UserWarning('Faluty mitosis, check parent: ' + str(l) +
+                                  ', daughters: ' + str(daugs[0]) + '/' + str(daugs[1]))
+                label_table.drop(par[(par['frame'] >= daug1) | (par['frame'] >= daug2)].index, inplace=True)
             elif par_frame >= daug1:
                 # migrate par to daug2
-                label_table.loc[par[par['frame']>=daug1].index, 'trackId'] = daugs[1]
-                label_table.loc[par[par['frame']>=daug1].index, 'parentTrackId'] = l
+                label_table.loc[par[par['frame'] >= daug1].index, 'trackId'] = daugs[1]
+                label_table.loc[par[par['frame'] >= daug1].index, 'parentTrackId'] = l
             elif par_frame >= daug2:
                 # migrate par to daug1
-                label_table.loc[par[par['frame']>=daug2].index, 'trackId'] = daugs[0]
-                label_table.loc[par[par['frame']>=daug2].index, 'parentTrackId'] = l
-    
-    label_table = label_table.sort_values(by=['trackId', 'frame'])   
+                label_table.loc[par[par['frame'] >= daug2].index, 'trackId'] = daugs[0]
+                label_table.loc[par[par['frame'] >= daug2].index, 'parentTrackId'] = l
+
+    label_table = label_table.sort_values(by=['trackId', 'frame'])
 
     # break tracks individually
     max_trackId = np.max(label_table['trackId'])
@@ -295,10 +301,9 @@ def break_track(label_table):
             tr.loc[:, 'parentTrackId'] = sep['parentTrackId']
             tr.loc[:, 'mtParTrk'] = sep['mtParTrk']
 
-        new_table = new_table.append(tr)    
-    
-    
-    # For tracks that have mitosis parents, find new ID of their parents
+        new_table = new_table.append(tr)
+
+        # For tracks that have mitosis parents, find new ID of their parents
     for l in np.unique(new_table['trackId']):
         tr = new_table[new_table['trackId'] == l].copy()
 
@@ -320,10 +325,10 @@ def separate(frame_list, mtPar_list, ori_id, base):
     """For single track, separate into all complete tracks
     
     Args:
-        frame_list: frames of exist, length equalt to label table
-        mtPar_list: mitosis parent list, for solving mitosis relationship
-        ori_id: original track ID
-        base: base track ID, will assign new track ID sequentially from base + 1
+        frame_list (list): frames of exist, length equals to label table
+        mtPar_list (list): mitosis parent list, for solving mitosis relationship
+        ori_id (int): original track ID
+        base (int): base track ID, will assign new track ID sequentially from base + 1
     """
 
     trackId = [ori_id for i in range(len(frame_list))]
@@ -349,7 +354,7 @@ def save_seq(stack, out_dir, prefix, dig_num=3, dtype='uint16', base=0, img_form
         dig_num (int) : digit number (3 -> 00x) for labeling image sequentially
         dtype (numpy.dtype) : data type to save, either 'uint8' or 'uint16'
         base (int) : base number of the label (starting from)
-        img_formt (str): image format, '.tif' or '.png', remind the dot
+        img_format (str): image format, '.tif' or '.png', remind the dot
         keep_chn (bool): whether to keep full channel or not
         sep (str): separater between file name and id, default '-'
     """
@@ -359,9 +364,9 @@ def save_seq(stack, out_dir, prefix, dig_num=3, dtype='uint16', base=0, img_form
     for i in range(stack.shape[0]):
         fm = ("%0" + str(dig_num) + "d") % (i + base)
         name = os.path.join(out_dir, prefix + sep + fm + img_format)
-        if dtype=='uint16':
+        if dtype == 'uint16':
             img = img_as_uint(stack[i, :])
-        elif dtype=='uint8':
+        elif dtype == 'uint8':
             img = img_as_ubyte(stack[i, :])
         else:
             raise ValueError("Seq save only accepts uint8 or uint16 format.")
@@ -370,7 +375,8 @@ def save_seq(stack, out_dir, prefix, dig_num=3, dtype='uint16', base=0, img_form
     return
 
 
-def generate_calibanTrk(raw, mask, out_dir, dt_id, digit_num=3, displace=100, gap_fill=3, track=None, render_phase=False):
+def generate_calibanTrk(raw, mask, out_dir, dt_id, digit_num=3, displace=100, gap_fill=3, track=None,
+                        render_phase=False):
     """Generate caliban .trk format for annotation
     """
     fm = ("%0" + str(digit_num) + "d") % dt_id
@@ -380,43 +386,47 @@ def generate_calibanTrk(raw, mask, out_dir, dt_id, digit_num=3, displace=100, ga
     track_new = break_track(track_new.copy())
     tracked_mask = label_by_track(mask.copy(), track_new.copy())
     dic = get_lineage_dict(track_new.copy())
-    if len(raw.shape)<4:
+    if len(raw.shape) < 4:
         raw = np.expand_dims(raw, axis=3)
-    save_trks(os.path.join(out_dir, fm+'.trk'), dic, raw, np.expand_dims(tracked_mask, axis=3))
+    save_trks(os.path.join(out_dir, fm + '.trk'), dic, raw, np.expand_dims(tracked_mask, axis=3))
     return track_new
 
 
 def findM(gt_cls, direction='begin'):
-    """Find M exit/entry from groud truth classification
+    """Find M exit/entry from ground truth classification
+
+    Args:
+        gt_cls (list): list of classifications
+        direction (str): begin/end, search M from
     """
     i = 0
     if direction == 'begin':
         if gt_cls[0] != 'M':
             return None
-        while gt_cls[i]=='M':
+        while gt_cls[i] == 'M':
             i += 1
-        return i-1
+        return i - 1
     else:
         gt_cls = gt_cls[::-1]
         if gt_cls[0] != 'M':
             return None
-        while gt_cls[i]=='M':
+        while gt_cls[i] == 'M':
             i += 1
-        return -(i+1)
-    
+        return -(i + 1)
+
 
 def check_continuous_track(table):
     """Check if every track is continuous (no gap)
     """
     out = []
     for i in np.unique(table['trackId']).tolist():
-        f = table[table['trackId']==i]['frame'].tolist()
+        f = table[table['trackId'] == i]['frame'].tolist()
         if f[-1] - f[0] != len(f) - 1:
             out.append(i)
     return out
 
 
-def mergeTrkAndTrack(trk_path, table_path, return_mask = False):
+def mergeTrkAndTrack(trk_path, table_path, return_mask=False):
     """Merge ground truth .trk and tracked table
     
     Args:
@@ -432,61 +442,61 @@ def mergeTrkAndTrack(trk_path, table_path, return_mask = False):
     """
     trk = load_trks(trk_path)
     lin = trk['lineages'][0]
-    mask = trk['y'][:,:,:,0]
-    del(trk)
+    mask = trk['y'][:, :, :, 0]
+    del (trk)
     table = pd.read_csv(table_path)
     new_table = pd.DataFrame()
     for i in range(mask.shape[0]):
-        props = measure.regionprops_table(label_image = mask[i,:,:], 
-                                  intensity_image = mask[i,:,:],
-                                  properties = ('centroid', 'label'))
+        props = measure.regionprops_table(label_image=mask[i, :, :],
+                                          intensity_image=mask[i, :, :],
+                                          properties=('centroid', 'label'))
         props = pd.DataFrame(props)
         props['frame'] = i
         new_table = new_table.append(props)
-    
+
     new_table['centroid-1'] = np.floor(new_table['centroid-1'])
     new_table['centroid-0'] = np.floor(new_table['centroid-0'])
     new_table['uid'] = range(new_table.shape[0])
-    
+
     table['Center_of_the_object_0'] = np.floor(table['Center_of_the_object_0'])
     table['Center_of_the_object_1'] = np.floor(table['Center_of_the_object_1'])
-    out = table.merge(new_table, 
-                left_on=['frame', 'Center_of_the_object_0', 'Center_of_the_object_1'], 
-                right_on=['frame', 'centroid-1', 'centroid-0'])
-    
-    ret = [ i for i in new_table['uid'].tolist() if i not in out['uid'].tolist()]
+    out = table.merge(new_table,
+                      left_on=['frame', 'Center_of_the_object_0', 'Center_of_the_object_1'],
+                      right_on=['frame', 'centroid-1', 'centroid-0'])
+
+    ret = [i for i in new_table['uid'].tolist() if i not in out['uid'].tolist()]
     for j in ret:
-        lb = new_table[new_table['uid']==j]['label'].values[0]
-        frame = new_table[new_table['uid']==j]['frame'].values[0]
-        mask[frame, mask[frame,:,:]==lb] = 0
-   
+        lb = new_table[new_table['uid'] == j]['label'].values[0]
+        frame = new_table[new_table['uid'] == j]['frame'].values[0]
+        mask[frame, mask[frame, :, :] == lb] = 0
+
     out['trackId'] = out['label']
     out['lineageId'] = out['lineageId']
     out['parentTrackId'] = 0
     out['mtParTrk'] = 0
-    
+
     out = out.drop(columns=['centroid-0', 'centroid-1', 'uid', 'label'])
-    out.sort_values(by = ['trackId', 'frame'], inplace=True)
+    out.sort_values(by=['trackId', 'frame'], inplace=True)
     e = check_continuous_track(out)
     if e:
         raise ValueError('Gapped tracks found: ' + str(e))
-    
+
     # resolve lineage and mt_dic
     # deepcell-label does not automatically assign parent ID to daughter if 
     # the parent ID has been changed. However, it does assign original daughter 
     # ID to a changed parent. Therefore, we deduce relationship from daughter 
     # field under parent information, and ignore all daughters that do not exist.
     mt_dic = {}
-        # if a daughter appears as 'G1/G2' then m_exit is not accurate
+    # if a daughter appears as 'G1/G2' then m_exit is not accurate
     imprecise_m = []
     all_tracks = out['trackId'].tolist()
     for i in list(lin.keys()):
-        if lin[i]['daughters'] != []:
+        if lin[i]['daughters']:
             daugs = lin[i]['daughters']
             for k in daugs:
                 if k not in all_tracks:
                     daugs.remove(k)
-            if len(daugs)==1:
+            if len(daugs) == 1:
                 out.loc[out['trackId'] == daugs[0], 'parentTrackId'] = i
                 out.loc[out['lineageId'] == daugs[0], 'lineageId'] = i
             else:
@@ -497,31 +507,29 @@ def mergeTrkAndTrack(trk_path, table_path, return_mask = False):
                     continue
                 sub_daug1 = out.loc[out['trackId'] == daugs[0]]
                 sub_daug2 = out.loc[out['trackId'] == daugs[1]]
-                
+
                 out.loc[out['trackId'] == daugs[0], 'parentTrackId'] = i
                 out.loc[out['trackId'] == daugs[0], 'mtParTrk'] = i
                 out.loc[out['lineageId'] == daugs[0], 'lineageId'] = i
                 out.loc[out['trackId'] == daugs[1], 'parentTrackId'] = i
                 out.loc[out['trackId'] == daugs[1], 'mtParTrk'] = i
                 out.loc[out['lineageId'] == daugs[1], 'lineageId'] = i
-                
+
                 m_exit1 = findM(sub_daug1['predicted_class'].tolist(), 'begin')
                 m_exit2 = findM(sub_daug2['predicted_class'].tolist(), 'begin')
-                
+
                 if m_exit1 is None:
                     m_exit1 = 0
                     imprecise_m.append(daugs[0])
                 if m_exit2 is None:
                     m_exit2 = 0
                     imprecise_m.append(daugs[1])
-                
-                mt_dic[i] = {'div':sub_par['frame'].iloc[m_entry],
-                      'daug':{daugs[0]:{'m_exit':sub_daug1['frame'].iloc[m_exit1], 'dist':0}, 
-                              daugs[1]:{'m_exit':sub_daug2['frame'].iloc[m_exit2], 'dist':0}}}
-                
+
+                mt_dic[i] = {'div': sub_par['frame'].iloc[m_entry],
+                             'daug': {daugs[0]: {'m_exit': sub_daug1['frame'].iloc[m_exit1], 'dist': 0},
+                                      daugs[1]: {'m_exit': sub_daug2['frame'].iloc[m_exit2], 'dist': 0}}}
+
     if return_mask:
         return out, mask, mt_dic, imprecise_m
     else:
         return out, mt_dic, imprecise_m
-    
-    

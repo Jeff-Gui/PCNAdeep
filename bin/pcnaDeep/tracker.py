@@ -52,21 +52,23 @@ def track(df, displace=40, gap_fill=5):
 
 
 def track_mask(mask, displace=40, gap_fill=5, render_phase=False,
-               phase_dic={10: 'G1/G2', 50: 'S', 100: 'M', 200: 'G1/G2'}):
+               phase_dic={10: 'G1/G2', 50: 'S', 100: 'M', 200: 'G1/G2'}, size_min=100):
     """Track binary mask objects
 
     Args:
-        mask: uint8 nparray, can either be binary or labeled with cell cycle phases
-        displace, gap_fill: see track()
-        render_phase: whether to deduce cell cycle phase from the labeled mask
-        phase_dic: mapping of object label and cell cycle phase
+        mask (numpy.array): dtype=uint8, can either be binary or labeled with cell cycle phases
+        displace (int): distance restriction, see track()
+        gap_fill (int): time restriction, see track()
+        render_phase (bool): whether to deduce cell cycle phase from the labeled mask
+        phase_dic (dict): mapping of object label and cell cycle phase
+        size_min (int): remove object smaller then some size, in case the mask labeling is not precise
     """
 
     p = pd.DataFrame()
     mask_lbd = np.zeros(mask.shape)
     
     for i in range(mask.shape[0]):
-        # remove small objects: may have unexpected bahavior
+        # remove small objects: may have unexpected behavior
         mask[i, :, :] = remove_small_objects(mask[i, :, :], min_size=100, connectivity=1)
         mask_lbd[i, :, :] = measure.label(mask[i, :, :], connectivity=1)
     if np.max(mask_lbd) <= 255:

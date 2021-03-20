@@ -12,18 +12,18 @@ pcnaDeep.data.annotate module
    :undoc-members:
    :show-inheritance:
 
-pcnaDeep.data.contrast module
------------------------------
-
-.. automodule:: pcnaDeep.data.contrast
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 pcnaDeep.data.preparePCNA module
 --------------------------------
 
 .. automodule:: pcnaDeep.data.preparePCNA
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pcnaDeep.data.utils module
+--------------------------
+
+.. automodule:: pcnaDeep.data.utils
    :members:
    :undoc-members:
    :show-inheritance:

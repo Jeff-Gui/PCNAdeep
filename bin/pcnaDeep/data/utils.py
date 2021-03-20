@@ -1,22 +1,24 @@
 # -*- coding: utf-8 -*-
 
-import re, json, os
-import skimage.io as io
-import skimage.measure as measure
-import skimage.exposure as exposure
-from skimage.util import img_as_ubyte
 import copy
+import json
+import os
+import re
 import numpy as np
 import pandas as pd
+import skimage.exposure as exposure
+import skimage.io as io
+import skimage.measure as measure
 from PIL import Image, ImageDraw
+from skimage.util import img_as_ubyte
 
 
 def json2mask(ip, out, height, width, label_phase=False, mask_only=False):
     """Draw mask according to VIA2 annotation and summarize information
 
     Args:
-        in_dir (str): input directory of the json file
-        out_dir (str): output directory of the image and summary table
+        ip (str): input directory of the json file
+        out (str): output directory of the image and summary table
         height (int): image height
         width (int): image width
         label_phase (bool): whether to label the mask with values corresponding to cell cycle classification or not. 
@@ -29,21 +31,21 @@ def json2mask(ip, out, height, width, label_phase=False, mask_only=False):
     """
 
     OUT_PHASE = label_phase
-    PHASE_DIS = {"G1/G2":10, "S":50, "M":100, "E":200}
+    PHASE_DIS = {"G1/G2": 10, "S": 50, "M": 100, "E": 200}
     stack = []
-    with open(ip,'r',encoding='utf8')as fp:
+    with open(ip, 'r', encoding='utf8')as fp:
         j = json.load(fp)
         if '_via_img_metadata' in list(j.keys()):
             j = j['_via_img_metadata']
         for key in list(j.keys()):
-            img = Image.new('L',(height,width))
+            img = Image.new('L', (height, width))
             dic = j[key]
-            objs = dic['regions'] # containing all object areas
+            objs = dic['regions']  # containing all object areas
             draw = ImageDraw.Draw(img)
             for o in objs:
                 x = o['shape_attributes']['all_points_x']
                 y = o['shape_attributes']['all_points_y']
-                xys = [0 for i in range(len(x)+len(y))]
+                xys = [0 for i in range(len(x) + len(y))]
                 xys[::2] = x
                 xys[1::2] = y
                 phase = o['region_attributes']['phase']
@@ -58,11 +60,12 @@ def json2mask(ip, out, height, width, label_phase=False, mask_only=False):
                 io.imsave(os.path.join(out, dic['filename']), img)
         if mask_only:
             return np.stack(stack, axis=0)
-       
+
     return
 
 
-def mask2json(in_dir, out_dir, phase_labeled=False, phase_dic={10:"G1/G2", 50:"S", 100:"M", 200:'E'}, prefix='object_info'):
+def mask2json(in_dir, out_dir, phase_labeled=False, phase_dic={10: "G1/G2", 50: "S", 100: "M", 200: 'E'},
+              prefix='object_info'):
     """Generate VIA2-readable json file from masks
 
     Args:
@@ -78,74 +81,75 @@ def mask2json(in_dir, out_dir, phase_labeled=False, phase_dic={10:"G1/G2", 50:"S
             must be set for the first time of labeling.
     """
     out = {}
-    region_tmp = {"shape_attributes":{"name":"polygon","all_points_x":[],"all_points_y":[]}, "region_attributes":{"phase":"G1/G2"}}
+    region_tmp = {"shape_attributes": {"name": "polygon", "all_points_x": [], "all_points_y": []},
+                  "region_attributes": {"phase": "G1/G2"}}
 
     imgs = os.listdir(in_dir)
     for i in imgs:
-        if re.search('.png',i):
-            
+        if re.search('.png', i):
+
             img = io.imread(os.path.join(in_dir, i))
-            #img = binary_erosion(binary_erosion(img.astype('bool')))
+            # img = binary_erosion(binary_erosion(img.astype('bool')))
             img = img.astype('bool')
-            tmp = {"filename":os.path.join(i),"size":img.size,"regions":[],"file_attributes":{}}
+            tmp = {"filename": os.path.join(i), "size": img.size, "regions": [], "file_attributes": {}}
             regions = measure.regionprops(measure.label(img, connectivity=1), img)
             for region in regions:
-                if region.image.shape[0]<2 or region.image.shape[1]<2:
+                if region.image.shape[0] < 2 or region.image.shape[1] < 2:
                     continue
                 # register regions
                 cur_tmp = copy.deepcopy(region_tmp)
                 if phase_labeled:
                     cur_tmp['region_attributes']['phase'] = phase_dic[int(region.mean_intensity)]
                 bbox = list(region.bbox)
-                bbox[0],bbox[1] = bbox[1], bbox[0] # swap x and y
-                bbox[2],bbox[3] = bbox[3], bbox[2]
+                bbox[0], bbox[1] = bbox[1], bbox[0]  # swap x and y
+                bbox[2], bbox[3] = bbox[3], bbox[2]
                 ct = measure.find_contours(region.image, 0.5)
-                if len(ct)<1:
+                if len(ct) < 1:
                     continue
                 ct = ct[0]
                 if ct[0][0] != ct[-1][0] or ct[0][1] != ct[-1][1]:
                     # non connected
-                    ct_image = np.zeros((bbox[3]-bbox[1]+2, bbox[2]-bbox[0]+2))
-                    ct_image[1:-1,1:-1] = region.image.copy()
+                    ct_image = np.zeros((bbox[3] - bbox[1] + 2, bbox[2] - bbox[0] + 2))
+                    ct_image[1:-1, 1:-1] = region.image.copy()
                     ct = measure.find_contours(ct_image, 0.5)[0]
                     # edge = measure.approximate_polygon(ct, tolerance=0.001)
                     edge = ct
-                    for k in range(len(edge)): # swap x and y
+                    for k in range(len(edge)):  # swap x and y
                         x = edge[k][0] - 1
-                        if x<0: 
-                            x=0
-                        elif x>region.image.shape[0]-1:
-                            x = region.image.shape[0]-1
+                        if x < 0:
+                            x = 0
+                        elif x > region.image.shape[0] - 1:
+                            x = region.image.shape[0] - 1
                         y = edge[k][1] - 1
-                        if y<0:
-                            y=0
-                        elif y> region.image.shape[1]-1:
-                            y = region.image.shape[1]-1
-                        edge[k] = [y,x]
+                        if y < 0:
+                            y = 0
+                        elif y > region.image.shape[1] - 1:
+                            y = region.image.shape[1] - 1
+                        edge[k] = [y, x]
                     edge = edge.tolist()
-                    elements = list(map(lambda x:tuple(x), edge))
+                    elements = list(map(lambda x: tuple(x), edge))
                     edge = list(set(elements))
                     edge.sort(key=elements.index)
                     edge = np.array(edge)
-                    edge[:,0] += bbox[0]
-                    edge[:,1] += bbox[1]
+                    edge[:, 0] += bbox[0]
+                    edge[:, 1] += bbox[1]
                     edge = list(edge.ravel())
                     edge += edge[0:2]
                 else:
                     # edge = measure.approximate_polygon(ct, tolerance=0.4)
                     edge = ct
-                    for k in range(len(edge)): # swap x and y
-                        edge[k] = [edge[k][1], edge[k][0]]   
-                    edge[:,0] += bbox[0]
-                    edge[:,1] += bbox[1]
+                    for k in range(len(edge)):  # swap x and y
+                        edge[k] = [edge[k][1], edge[k][0]]
+                    edge[:, 0] += bbox[0]
+                    edge[:, 1] += bbox[1]
                     edge = list(edge.ravel())
                 cur_tmp['shape_attributes']['all_points_x'] = edge[::2]
                 cur_tmp['shape_attributes']['all_points_y'] = edge[1::2]
                 tmp['regions'].append(cur_tmp)
             out[i] = tmp
-        
-    with(open(os.path.join(out_dir, prefix+'.json'), 'w', encoding='utf8')) as fp:
-        json.dump(out,fp)
+
+    with(open(os.path.join(out_dir, prefix + '.json'), 'w', encoding='utf8')) as fp:
+        json.dump(out, fp)
     return
 
 
@@ -216,24 +220,24 @@ def retrieve(table, mask, image, rp_fields=[], funcs=[]):
     for f in np.unique(track['frame']).tolist():
         sl = mask[f, :, :]
         img = image[f, :, :]
-        sub = track[track['frame']==f]
-        
+        sub = track[track['frame'] == f]
+
         if rp_fields:
             if 'label' not in rp_fields:
                 rp_fields.append('label')
             props = pd.DataFrame(measure.regionprops_table(sl, img, properties=tuple(rp_fields)))
             new = pd.merge(sub, props, left_on='continuous_label', right_on='label')
             new = new.drop(['label'], axis=1)
-        
+
         if funcs:
             p = measure.regionprops(sl, img)
-            out = {'label':[]}
+            out = {'label': []}
             for fn in funcs:
                 out[fn.__name__] = []
             for i in p:
                 out['label'].append(i.label)
                 i_img = img.copy()
-                i_img[sl!=i.label] = 0
+                i_img[sl != i.label] = 0
                 for fn in funcs:
                     out[fn.__name__].append(fn(i_img))
             new2 = pd.DataFrame(out)
@@ -242,20 +246,20 @@ def retrieve(table, mask, image, rp_fields=[], funcs=[]):
                 new2 = new2.drop(['label'], axis=1)
             else:
                 new2 = pd.merge(sub, new2, left_on='continuous_label', right_on='label')
-        
-        if rp_fields != []:
-            if funcs != []:
+
+        if rp_fields:
+            if funcs:
                 new_track = new_track.append(new2)
             else:
                 new_track = new_track.append(new)
-        elif funcs != []:
+        elif funcs:
             new_track = new_track.append(new2)
-    
+
     return new_track
 
 
 def mt_dic2mt_lookup(mt_dic):
-    """Convert mt_dic to misosis lookup
+    """Convert mt_dic to mitosis lookup
     
     Args:
         mt_dic (dict): standard mitosis info dictionary in pcnaDeep
@@ -264,7 +268,7 @@ def mt_dic2mt_lookup(mt_dic):
         mt_lookup (pd.DataFrame): mitosis lookup table with 3 columns:
             trackA (int) | trackB (int) | Mitosis? (int, 0/1)
     """
-    out = {'par':[], 'daug':[], 'mitosis':[]}
+    out = {'par': [], 'daug': [], 'mitosis': []}
     for i in list(mt_dic.keys()):
         for j in list(mt_dic[i]['daug'].keys()):
             out['par'].append(i)

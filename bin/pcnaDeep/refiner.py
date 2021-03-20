@@ -19,12 +19,12 @@ def deduce_transition(l, tar, confidence, min_tar, max_res, escape=0):
     """ Deduce mitosis exit and entry based on adaptive searching
         
         Args:
-            l: list of the target cell cycle phase
-            tar: target cell cycle phase
-            min_tar: minimum duration of an entire target phase
-            confidence: matrix of confidence
-            max_res: maximum accumulative duration of unwanted phase
-            escape: do not consider the first n instance
+            l (list): list of the target cell cycle phase
+            tar (str): target cell cycle phase
+            min_tar (int): minimum duration of an entire target phase
+            confidence (numpy.array): matrix of confidence
+            max_res (int): maximum accumulative duration of unwanted phase
+            escape (int): do not consider the first n instances
             
         Returns:
             (entry, exit), index of index list that resolved as entry and exit
@@ -70,7 +70,7 @@ def deduce_transition(l, tar, confidence, min_tar, max_res, escape=0):
 
 class Refiner:
 
-    def __init__(self, track, smooth=5, minGS=3, minM=3, mode='SVM',
+    def __init__(self, track, smooth=5, minGS=6, minM=3, mode='SVM',
                  threshold_mt_F=150, threshold_mt_T=5,
                  search_range=5, mt_len=5, sample_freq=20, model_path=''):
         """Refinement of the tracks

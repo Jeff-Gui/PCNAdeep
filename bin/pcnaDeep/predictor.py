@@ -168,7 +168,7 @@ def pred2json(masks, labels, fp):
         fp (str) : file name for this frame
     
     Returns:
-        json format readable by VIA2 annotator
+        (dict) json format readable by VIA2 annotator
     """
 
     cc_stage = {0: 'G1/G2', 1: 'S', 2: 'M', 3: "E"}

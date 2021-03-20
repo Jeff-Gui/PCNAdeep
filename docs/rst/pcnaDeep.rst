@@ -44,6 +44,22 @@ pcnaDeep.tracker module
    :undoc-members:
    :show-inheritance:
 
+pcnaDeep.evaluate module
+------------------------
+
+.. automodule:: pcnaDeep.evaluate
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+pcnaDeep.run_rfn_rsv module
+---------------------------
+
+.. automodule:: pcnaDeep.run_rfn_rsv
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Module contents
 ---------------
 

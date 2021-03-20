@@ -49,11 +49,17 @@ class pcna_ctcEvaluator:
 
     def set_evSoft(self, path_ctc_software):
         """Set evaluation software path
+
+        Args:
+            path_ctc_software (str): path to CTC evaluation software
         """
         self.path_ctc_software = path_ctc_software
 
     def generate_raw(self, stack):
         """Save raw images by slice
+
+        Args:
+            stack (numpy.array): raw image
         """
         fm = ("%0" + str(self.digit_num) + "d") % self.dt_id
         save_seq(stack, os.path.join(self.root, fm), 't', dig_num=self.digit_num, base=self.t_base)
@@ -61,6 +67,10 @@ class pcna_ctcEvaluator:
 
     def generate_ctcRES(self, mask, track):
         """Generate RES format for Cell Tracking Challenge Evaluation
+
+        Args:
+            mask (numpy.array): mask output, no need to have cell cycle labeled
+            track (pandas.DataFrame): tracked object table, can have gapped tracks
         """
         track_new = relabel_trackID(track.copy())
         track_new = break_track(track_new.copy())
@@ -74,6 +84,9 @@ class pcna_ctcEvaluator:
 
     def caliban2ctcGT(self, trk_path):
         """Convert caliban ground truth to Cell Tracking Challenge ground truth
+
+        Args:
+            trk_path (str): path to deepcell-label .trk file
         """
         t = load_trks(trk_path)
         self.trk_path = trk_path
@@ -81,7 +94,7 @@ class pcna_ctcEvaluator:
         mask = t['y']
         txt = lineage_dic2txt(lin)
 
-        fm = ("%0" + str(self.digit_num) + "d") % (self.dt_id)
+        fm = ("%0" + str(self.digit_num) + "d") % self.dt_id
         fm = os.path.join(self.root, fm + '_GT')
         txt.to_csv(os.path.join(fm, 'TRA', 'man_track.txt'), index=0, sep=' ', header=False)
         save_seq(mask, os.path.join(fm, 'SEG'), 'man_seg', dig_num=self.digit_num, base=self.t_base, sep='')

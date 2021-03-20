@@ -31,7 +31,7 @@ def get_parser():
     parser = argparse.ArgumentParser(description="Detectron2 demo for builtin configs")
     parser.add_argument(
         "--config-file",
-        default="../config/pcna_res50.yaml",
+        default="../config/dtrnCfg.yaml",
         metavar="FILE",
         help="path to config file",
     )
