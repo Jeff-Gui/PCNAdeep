@@ -86,11 +86,13 @@ if __name__ == "__main__":
         value = args.opts[2*i+1]
         l = o.split('.')
         if l[0] == 'pcna' or l[0] == 'PCNA':
-            cur_ref = pcna_cfg_dict[l[1]]
-            if len(l) >= 3:
+            if len(l) == 2:
+                pcna_cfg_dict[l[1]] = value
+            elif len(l) >= 3:
+                cur_ref = pcna_cfg_dict[l[1]]
                 for j in range(2, len(l)-1):
                     cur_ref = cur_ref[l[j]]
-            cur_ref[l[-1]] = value
+                cur_ref[l[-1]] = value
         else:
             dtrn_opts.append(o)
             dtrn_opts.append(value)
@@ -98,9 +100,8 @@ if __name__ == "__main__":
     args.opts = dtrn_opts
     cfg = setup_cfg(args)
     logger.info("Finished setup.")
-
     demo = VisualizationDemo(cfg)
-    
+     
     logger.info("Start inferring.")
     if args.input and not pcna_cfg_dict['BATCH']:
         prefix = os.path.basename(args.input)
@@ -111,9 +112,16 @@ if __name__ == "__main__":
 
         table_out = pd.DataFrame()
         mask_out = []
-
-        if pcna_cfg_dict['SPLIT']:
-            imgs = split_frame(imgs.copy(), n=pcna_cfg_dict['SPLIT'])
+        
+        spl = int(pcna_cfg_dict['SPLIT'])
+        if spl:
+            new_imgs = []
+            for i in range(imgs.shape[0]):
+                splited = split_frame(imgs[i,:].copy(), n=spl)
+                for j in range(splited.shape[0]):
+                    new_imgs.append(splited[j,:])
+            imgs = np.stack(new_imgs, axis=0)
+            del new_imgs
 
         for i in range(imgs.shape[0]):
             start_time = time.time()
@@ -132,12 +140,16 @@ if __name__ == "__main__":
         tw = imgs.shape[1]
         del imgs  # save memory space TODO: use image buffer input
         
-        if pcna_cfg_dict['SPLIT']:
-            mask_out = join_frame(mask_out.copy(), n=pcna_cfg_dict['SPLIT'])
-            table_out = join_table(table_out.copy(), n=pcna_cfg_dict['SPLIT'], tile_width=tw)
+        mask_out = np.stack(mask_out, axis=0)
+
+        if spl:
+            mask_out = join_frame(mask_out.copy(), n=spl)
+            table_out = join_table(table_out.copy(), n=spl, tile_width=tw)
             # TODO resolve objects at the edge while perserving closely attached objects
 
-        mask_out = np.stack(mask_out, axis=0)
+        io.imsave('/home/zje/dataset/test_mask.tif', mask_out)
+        track_out.to_csv('/home/zje/dataset/test.csv', index=0)
+        exit()
 
         logger.info('Tracking...')
         track_out = track(df=table_out, displace=int(pcna_cfg_dict['TRACKER']['DISPLACE']),
