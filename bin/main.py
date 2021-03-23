@@ -15,6 +15,7 @@ from pcnaDeep.predictor import VisualizationDemo, predictFrame
 from pcnaDeep.refiner import Refiner
 from pcnaDeep.resolver import Resolver
 from pcnaDeep.tracker import track
+from pcnaDeep.split import split_frame, join_frame, join_table
 
 
 def setup_cfg(args):
@@ -59,10 +60,6 @@ def get_parser():
         help="Minimum score for instance predictions to be shown",
     )
     parser.add_argument(
-        "--batch",
-        action="store_true"
-    )
-    parser.add_argument(
         "--opts",
         help="Modify pcnaDeep config options using the command-line 'KEY VALUE' pairs. For pcnaDeep config, "
              "begin with pcna., e.g., pcna.TRACKER.DISPLACE 100. For detectron2 config, follow detectron2 docs",
@@ -105,7 +102,7 @@ if __name__ == "__main__":
     demo = VisualizationDemo(cfg)
     
     logger.info("Start inferring.")
-    if args.input and not args.batch:
+    if args.input and not pcna_cfg_dict['BATCH']:
         prefix = os.path.basename(args.input)
         prefix = re.match('(.+)\.\w+',prefix).group(1)
         # Input image must be uint8
@@ -114,6 +111,9 @@ if __name__ == "__main__":
 
         table_out = pd.DataFrame()
         mask_out = []
+
+        if pcna_cfg_dict['SPLIT']:
+            imgs = split_frame(imgs.copy(), n=pcna_cfg_dict['SPLIT'])
 
         for i in range(imgs.shape[0]):
             start_time = time.time()
@@ -129,7 +129,14 @@ if __name__ == "__main__":
                 )
             )
         
+        tw = imgs.shape[1]
         del imgs  # save memory space TODO: use image buffer input
+        
+        if pcna_cfg_dict['SPLIT']:
+            mask_out = join_frame(mask_out.copy(), n=pcna_cfg_dict['SPLIT'])
+            table_out = join_table(table_out.copy(), n=pcna_cfg_dict['SPLIT'], tile_width=tw)
+            # TODO resolve objects at the edge while perserving closely attached objects
+
         mask_out = np.stack(mask_out, axis=0)
 
         logger.info('Tracking...')

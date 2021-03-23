@@ -1,3 +1,5 @@
+BATCH: false
+SPLIT: 0
 TRACKER:
   DISPLACE: 40
   GAP_FILL: 5

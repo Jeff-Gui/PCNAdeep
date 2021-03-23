@@ -264,8 +264,7 @@ MODEL:
     NAME: SemSegFPNHead
     NORM: GN
     NUM_CLASSES: 54
-  WEIGHTS: https://dl.fbaipublicfiles.com/detectron2/COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x/137849600/model_final_f10217.pkl
-OUTPUT_DIR: ./output
+  WEIGHTS: ../models/dtrn_20210303.pth
 SEED: -1
 SOLVER:
   AMP:
