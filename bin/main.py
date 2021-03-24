@@ -147,10 +147,12 @@ if __name__ == "__main__":
             table_out = join_table(table_out.copy(), n=spl, tile_width=tw)
             mask_out, table_out = resolve_joined_stack(mask_out, table_out, n=spl, 
                                                        boundary_width=5, dilate_time=3)
-
+        
+        '''
         io.imsave('/home/zje/dataset/test_mask.tif', mask_out)
         table_out.to_csv('/home/zje/dataset/test.csv', index=0)
         exit()
+        '''
 
         logger.info('Tracking...')
         track_out = track(df=table_out, displace=int(pcna_cfg_dict['TRACKER']['DISPLACE']),
