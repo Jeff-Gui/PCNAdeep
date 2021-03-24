@@ -15,7 +15,7 @@ from pcnaDeep.predictor import VisualizationDemo, predictFrame
 from pcnaDeep.refiner import Refiner
 from pcnaDeep.resolver import Resolver
 from pcnaDeep.tracker import track
-from pcnaDeep.split import split_frame, join_frame, join_table
+from pcnaDeep.split import split_frame, join_frame, join_table, resolve_joined_stack
 
 
 def setup_cfg(args):
@@ -145,7 +145,8 @@ if __name__ == "__main__":
         if spl:
             mask_out = join_frame(mask_out.copy(), n=spl)
             table_out = join_table(table_out.copy(), n=spl, tile_width=tw)
-            # TODO resolve objects at the edge while perserving closely attached objects
+            mask_out, table_out = resolve_joined_stack(mask_out, table_out, n=spl, 
+                                                       boundary_width=5, dilate_time=3)
 
         io.imsave('/home/zje/dataset/test_mask.tif', mask_out)
         track_out.to_csv('/home/zje/dataset/test.csv', index=0)

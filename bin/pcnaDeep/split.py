@@ -2,6 +2,7 @@
 import numpy as np
 import pandas as pd
 import skimage.measure as measure
+import skimage.morphology as morphology
 
 def split_frame(frame, n=4):
     """Split frame into several quadrants
@@ -107,21 +108,47 @@ def join_table(table, n=4, tile_width=1200):
         sub_table = table[(table['frame']<(i+1)*n) & (table['frame']>= (i*n))].copy()
         mod_x = []
         mod_y = []
+        mod_b0 = []
+        mod_b1 = []
+        mod_b2 = []
+        mod_b3 = []
         for j in range(n):
             sub_tile_table = sub_table[sub_table['frame']==(i*n+j)].copy()
             for k in range(sub_tile_table.shape[0]):
                 x = sub_tile_table['Center_of_the_object_0'].iloc[k]
                 y = sub_tile_table['Center_of_the_object_1'].iloc[k]
+                b0 = sub_tile_table['bbox-0'].iloc[k]
+                b1 = sub_tile_table['bbox-1'].iloc[k]
+                b2 = sub_tile_table['bbox-2'].iloc[k]
+                b3 = sub_tile_table['bbox-3'].iloc[k]
                 if n == 4:
                     x += FOUR_DICT[j][0] * tile_width
+                    b0 += FOUR_DICT[j][0] * tile_width
+                    b3 += FOUR_DICT[j][0] * tile_width
                     y += FOUR_DICT[j][1] * tile_width
+                    b1 += FOUR_DICT[j][1] * tile_width
+                    b2 += FOUR_DICT[j][1] * tile_width
                 else:
                     x += NINE_DICT[j][0] * tile_width
+                    b0 += NINE_DICT[j][0] * tile_width
+                    b3 += NINE_DICT[j][0] * tile_width
                     y += NINE_DICT[j][1] * tile_width
+                    b1 += NINE_DICT[j][1] * tile_width
+                    b2 += NINE_DICT[j][1] * tile_width
                 mod_x.append(x)
                 mod_y.append(y)
+                mod_b0.append(b0)
+                mod_b1.append(b1)
+                mod_b2.append(b2)
+                mod_b3.append(b3)
+                
         sub_table.loc[:,'Center_of_the_object_0'] = mod_x
         sub_table.loc[:,'Center_of_the_object_1'] = mod_y
+        sub_table.loc[:,'bbox-0'] = mod_b0
+        sub_table.loc[:,'bbox-1'] = mod_b1
+        sub_table.loc[:,'bbox-2'] = mod_b2
+        sub_table.loc[:,'bbox-3'] = mod_b3
+        
         out = out.append(sub_table)
 
     return out
@@ -145,7 +172,7 @@ def register_label_to_table(frame, table):
     """
     tb = measure.regionprops_table(frame, properties=('centroid', 'label'))
     tb = pd.DataFrame(tb)
-    tb.columns = ['Center_of_the_object_1', 'Center_of_the_object_0', 'label']
+    tb.columns = ['Center_of_the_object_0', 'Center_of_the_object_1', 'label']
     tb['Center_of_the_object_1'] = np.round(tb['Center_of_the_object_1'], 2)
     tb['Center_of_the_object_0'] = np.round(tb['Center_of_the_object_0'], 2)
     table['Center_of_the_object_0'] = np.round(table['Center_of_the_object_0'], 2)
@@ -158,13 +185,28 @@ def register_label_to_table(frame, table):
     return out, missing
 
 
-def resolve_joined(frame, table, n=4):
+def resolve_joined_stack(stack, table, n=4, boundary_width=5, dilate_time=3):
+    out_table = pd.DataFrame()
+    out_table.columns = table.columns
+    for i in range(stack.shape[0]):
+        sub = table[table['frame']==i].copy()
+        new_frame, new_table = resolve_joined_frame(stack[i,:].copy(), sub, 
+        n=n, boundary_width=boundary_width, dilate_time=dilate_time)
+        stack[i,:] = new_frame.astype(stack.dtype)
+        out_table = out_table.append(new_table)
+        
+    return stack, out_table
+
+
+def resolve_joined_frame(frame, table, n=4, boundary_width=5, dilate_time=3):
     """Resolve joined frame and table of single slice
 
     Args:
         frame (numpy.array): joined image slice
         table (pandas.DataFrame): object table with coordinate adjusted from joining
         n (int): tile count
+        boundary_width (int): maximum pixel value for sealing objects at the boundary
+        dilate_time (int): round of dilation on boundary objects to seal them
 
     Returns:
         (numpy.array): relabeled slice with objects at the edge joined
@@ -174,6 +216,8 @@ def resolve_joined(frame, table, n=4):
             of larger size.
 
     """
+    frame = frame.copy()
+    table = table.copy()
 
     if n not in [4,9]:
         raise ValueError('Join tile number should either be 4 or 9.')
@@ -185,13 +229,15 @@ def resolve_joined(frame, table, n=4):
 
     n = int(np.sqrt(n))
     width = int(frame.shape[0] / n)
-    flooded = measure.label(frame.astype('bool'))
+    
     new_table = pd.DataFrame()
     new_frame = np.zeros(frame.shape)
     obj_count = 1
 
+    cdds = []  # candidate objects to seal
     for i in range(n):
         for j in range(n):
+            
             col_low = j*width
             row_low = i*width
             col_bd = (j+1)*width - 1
@@ -201,32 +247,96 @@ def resolve_joined(frame, table, n=4):
             for p in props:
                 x, y = np.round(p.centroid, 2)
                 if x < row_bd and x >= row_low and y < col_bd and y >= col_low:
-                    row = table[(table['Center_of_the_object_0']==y) & (table['Center_of_the_object_1']==x)]
+                    row = table[(table['Center_of_the_object_1']==y) & (table['Center_of_the_object_0']==x)]
                     if row.shape[0]==0:
                         continue
                     ct = 0
+                    
                     for lc in p.bbox:
-                        if lc == col_bd or lc == row_bd:
+                        if lc in range(col_bd-boundary_width, 
+                                       col_bd+boundary_width) or lc in range(row_bd-boundary_width, 
+                                       row_bd+boundary_width):
                             ct += 1
-                    if ct >= 2:
-                        break
+                    
+                    if ct >= 1:
                         # boundary object found
-                        fld_label = int(np.max(flooded[p.centroid]))
-                        new_frame[flooded==fld_label] = obj_count
-                        # deduce object information
-                        temp_mask = np.zeros(frame.shape)
-                        temp_mask[flooded==fld_label] = 1
-                        measure.regionprops_table(temp_mask, properties=('bbox', 'centroid'))
+                        # binary dilation to seal
+                        sl = np.zeros(frame.shape)
+                        sl[frame==p.label] = 1
+                        for r in range(dilate_time):
+                            sl = morphology.dilation(sl)
+                        frame[sl>0] = p.label
+                        
+                        # update info in table
+                        new_p = measure.regionprops(measure.label(sl))[0]
+                        new_x, new_y = np.round(new_p.centroid, 2)
+                        table.loc[table['continuous_label'] == p.label,'Center_of_the_object_1'] = new_y
+                        table.loc[table['continuous_label'] == p.label,'Center_of_the_object_0'] = new_x
+                        table.loc[table['continuous_label'] == p.label,'bbox-0'] = new_p.bbox[0]
+                        table.loc[table['continuous_label'] == p.label,'bbox-1'] = new_p.bbox[1]
+                        table.loc[table['continuous_label'] == p.label,'bbox-2'] = new_p.bbox[2]
+                        table.loc[table['continuous_label'] == p.label,'bbox-3'] = new_p.bbox[3]
+                        table.loc[table['continuous_label'] == p.label,'major_axis'] = new_p.major_axis_length
+                        table.loc[table['continuous_label'] == p.label,'minor_axis'] = new_p.minor_axis_length
+                        
+                        cdds.append(p.label)
+    
+    flooded = measure.label(frame.astype('bool'))
+    props = measure.regionprops(frame)
+    
+    for p in props:
+        if p.label not in frame: continue
+        x, y = np.round(p.centroid, 2)
+        if p.label in cdds:
+                        
+            fld_label = int(flooded[int(p.centroid[0]), int(p.centroid[1])])
+            new_frame[flooded==fld_label] = obj_count
+            old = np.unique(frame[flooded==fld_label]).tolist()
+            if 0 in old: old.remove(0)
+            if len(old) == 1:
+                row = table[(table['Center_of_the_object_1']==y) & (table['Center_of_the_object_0']==x)]
+                row.loc[:]['continuous_label'] = obj_count
+                new_table = new_table.append(row)
+            else:
+                # deduce object information
+                temp_mask = np.zeros(frame.shape)
+                temp_mask[flooded==fld_label] = 1
+                tbl = measure.regionprops(measure.label(temp_mask))[0]
+                sub = pd.DataFrame()
+                for rm in old:
+                    sub = sub.append(table[table['continuous_label']==rm])
+                confid = [np.mean(sub['Probability of G1/G2']),
+                          np.mean(sub['Probability of S']),
+                          np.mean(sub['Probability of M'])]
+                pred_cls = ['G1/G2', 'S', 'M'][np.argmax(confid)]
+                row = sub.iloc[0]
+                # register information
+                row.loc[:]['bbox-0'] = tbl.bbox[0]
+                row.loc[:]['bbox-1'] = tbl.bbox[1]
+                row.loc[:]['bbox-2'] = tbl.bbox[2]
+                row.loc[:]['bbox-3'] = tbl.bbox[3]
+                row.loc[:]['Center_of_the_object_1'] = y
+                row.loc[:]['Center_of_the_object_0'] = x
+                row.loc[:]['major_axis'] = tbl.major_axis_length
+                row.loc[:]['minor_axis'] = tbl.minor_axis_length
+                row.loc[:]['continuous_label'] = obj_count
+                row.loc[:]['phase'] = pred_cls
+                row.loc[:]['Probability of G1/G2'] = confid[0]
+                row.loc[:]['Probability of S'] = confid[1]
+                row.loc[:]['Probability of M'] = confid[2]
+                new_table = new_table.append(row)
+            
+                # remove sealed objects to block further recording
+                frame[flooded==fld_label] = 0
+            
+            obj_count += 1
+        else:
+            row = table[(table['Center_of_the_object_1']==y) & (table['Center_of_the_object_0']==x)]
+            if row.shape[0]>0:
+                if row['continuous_label'].values[0] in frame:
+                    row.loc[:]['continuous_label'] = obj_count
+                    new_table = new_table.append(row)
+                    new_frame[frame==p.label] = obj_count
+                    obj_count += 1
 
-                        # remove sealed objects to block further recording
-                        frame[flooded==fld_label] = 0
-
-                        obj_count += 1
-
-                    else:
-                        row.loc[:]['continuous_label'] = obj_count
-                        new_table = new_table.append(row)
-                        new_frame[frame==p.label] = obj_count
-                        obj_count += 1
-
-    return
+    return new_frame, new_table
