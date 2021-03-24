@@ -149,7 +149,7 @@ if __name__ == "__main__":
                                                        boundary_width=5, dilate_time=3)
 
         io.imsave('/home/zje/dataset/test_mask.tif', mask_out)
-        track_out.to_csv('/home/zje/dataset/test.csv', index=0)
+        table_out.to_csv('/home/zje/dataset/test.csv', index=0)
         exit()
 
         logger.info('Tracking...')

@@ -103,53 +103,53 @@ def join_table(table, n=4, tile_width=1200):
     if (np.max(table['frame'])+1) < n or (np.max(table['frame']) + 1) % n != 0:
         raise ValueError('Stack length is not multiple of tile count n.')    
 
-    out = pd.DataFrame()
-    for i in range(int(np.max(table['frame'])/n)):
-        sub_table = table[(table['frame']<(i+1)*n) & (table['frame']>= (i*n))].copy()
-        mod_x = []
-        mod_y = []
-        mod_b0 = []
-        mod_b1 = []
-        mod_b2 = []
-        mod_b3 = []
-        for j in range(n):
-            sub_tile_table = sub_table[sub_table['frame']==(i*n+j)].copy()
-            for k in range(sub_tile_table.shape[0]):
-                x = sub_tile_table['Center_of_the_object_0'].iloc[k]
-                y = sub_tile_table['Center_of_the_object_1'].iloc[k]
-                b0 = sub_tile_table['bbox-0'].iloc[k]
-                b1 = sub_tile_table['bbox-1'].iloc[k]
-                b2 = sub_tile_table['bbox-2'].iloc[k]
-                b3 = sub_tile_table['bbox-3'].iloc[k]
-                if n == 4:
-                    x += FOUR_DICT[j][0] * tile_width
-                    b0 += FOUR_DICT[j][0] * tile_width
-                    b3 += FOUR_DICT[j][0] * tile_width
-                    y += FOUR_DICT[j][1] * tile_width
-                    b1 += FOUR_DICT[j][1] * tile_width
-                    b2 += FOUR_DICT[j][1] * tile_width
-                else:
-                    x += NINE_DICT[j][0] * tile_width
-                    b0 += NINE_DICT[j][0] * tile_width
-                    b3 += NINE_DICT[j][0] * tile_width
-                    y += NINE_DICT[j][1] * tile_width
-                    b1 += NINE_DICT[j][1] * tile_width
-                    b2 += NINE_DICT[j][1] * tile_width
-                mod_x.append(x)
-                mod_y.append(y)
-                mod_b0.append(b0)
-                mod_b1.append(b1)
-                mod_b2.append(b2)
-                mod_b3.append(b3)
-                
-        sub_table.loc[:,'Center_of_the_object_0'] = mod_x
-        sub_table.loc[:,'Center_of_the_object_1'] = mod_y
-        sub_table.loc[:,'bbox-0'] = mod_b0
-        sub_table.loc[:,'bbox-1'] = mod_b1
-        sub_table.loc[:,'bbox-2'] = mod_b2
-        sub_table.loc[:,'bbox-3'] = mod_b3
-        
-        out = out.append(sub_table)
+    out = pd.DataFrame(columns=table.columns)
+    n = int(np.sqrt(n))
+    for frame in range(int((np.max(table['frame']) + 1) / (n*n))):
+        for i in range(n):
+            sub_table = table[(table['frame']<((i+1)*n + frame*n*n)) & (table['frame']>= (i*n + frame*n*n))].copy()
+            mod_x = []
+            mod_y = []
+            mod_b0 = []
+            mod_b1 = []
+            mod_b2 = []
+            mod_b3 = []
+            for j in range(n):
+                sub_tile_table = sub_table[sub_table['frame']==(i*n+j+frame*n*n)].copy()
+                for k in range(sub_tile_table.shape[0]):
+                    x = sub_tile_table['Center_of_the_object_0'].iloc[k]
+                    y = sub_tile_table['Center_of_the_object_1'].iloc[k]
+                    b0 = sub_tile_table['bbox-0'].iloc[k]
+                    b1 = sub_tile_table['bbox-1'].iloc[k]
+                    b2 = sub_tile_table['bbox-2'].iloc[k]
+                    b3 = sub_tile_table['bbox-3'].iloc[k]
+                    if n*n == 4:
+                        time_x = FOUR_DICT[i*n+j][0] * tile_width
+                        time_y = FOUR_DICT[i*n+j][1] * tile_width
+                    else:
+                        time_x = NINE_DICT[i*n+j][0] * tile_width
+                        time_y = NINE_DICT[i*n+j][1] * tile_width
+                    x += time_x
+                    b0 += time_x
+                    b2 += time_x
+                    y += time_y
+                    b1 += time_y
+                    b3 += time_y
+                    mod_x.append(x)
+                    mod_y.append(y)
+                    mod_b0.append(b0)
+                    mod_b1.append(b1)
+                    mod_b2.append(b2)
+                    mod_b3.append(b3)
+                    
+            sub_table.loc[:,'Center_of_the_object_0'] = mod_x
+            sub_table.loc[:,'Center_of_the_object_1'] = mod_y
+            sub_table.loc[:,'bbox-0'] = mod_b0
+            sub_table.loc[:,'bbox-1'] = mod_b1
+            sub_table.loc[:,'bbox-2'] = mod_b2
+            sub_table.loc[:,'bbox-3'] = mod_b3
+            sub_table.loc[:,'frame'] = frame
+            out = out.append(sub_table)
 
     return out
 
@@ -186,12 +186,13 @@ def register_label_to_table(frame, table):
 
 
 def resolve_joined_stack(stack, table, n=4, boundary_width=5, dilate_time=3):
-    out_table = pd.DataFrame()
-    out_table.columns = table.columns
+    out_table = pd.DataFrame(columns = table.columns)
     for i in range(stack.shape[0]):
         sub = table[table['frame']==i].copy()
         new_frame, new_table = resolve_joined_frame(stack[i,:].copy(), sub, 
-        n=n, boundary_width=boundary_width, dilate_time=dilate_time)
+                                                    n=n, 
+                                                    boundary_width=boundary_width, 
+                                                    dilate_time=dilate_time)
         stack[i,:] = new_frame.astype(stack.dtype)
         out_table = out_table.append(new_table)
         
