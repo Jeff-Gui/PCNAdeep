@@ -190,7 +190,7 @@ def getDetectInput(pcna, dic):
 
     final_out = np.stack(outs, axis=0)
     print("Output shape: ", final_out.shape)
-    return outs
+    return final_out
 
 
 def retrieve(table, mask, image, rp_fields=[], funcs=[]):
