@@ -309,6 +309,7 @@ def resolve_joined_frame(frame, table, n=4, boundary_width=5, dilate_time=3):
                 confid = [np.mean(sub['Probability of G1/G2']),
                           np.mean(sub['Probability of S']),
                           np.mean(sub['Probability of M'])]
+                mi = np.mean(sub['mean_intensity'])
                 pred_cls = ['G1/G2', 'S', 'M'][np.argmax(confid)]
                 row = sub.iloc[0]
                 # register information
@@ -325,6 +326,7 @@ def resolve_joined_frame(frame, table, n=4, boundary_width=5, dilate_time=3):
                 row.loc[:]['Probability of G1/G2'] = confid[0]
                 row.loc[:]['Probability of S'] = confid[1]
                 row.loc[:]['Probability of M'] = confid[2]
+                row.loc[:]['mean_intensity'] = mi
                 new_table = new_table.append(row)
             
                 # remove sealed objects to block further recording

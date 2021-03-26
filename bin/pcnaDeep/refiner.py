@@ -91,6 +91,7 @@ class Refiner:
                 model_path (str): path to saved SVM model
 
         """
+        self.flag = False
         self.track = track.copy()
         self.count = np.unique(track['trackId'])
 
@@ -369,11 +370,15 @@ class Refiner:
                     parent_pool.append(i)
         
         print('Extracting features...')
+        ft = 0
         ipts = []
         sample_id = []
         for i in parent_pool:
             for j in range(len(pool)):
                 if i != pool[j]:
+                    if ft % 1000 == 0 and ft > 0:
+                        print('Considered ' + str(ft) + '/' + str(len(pool) * len(parent_pool)) + ' cases.')
+                    ft += 1
                     ipts.append(self.getSVMinput(i, pool[j]))
                     sample_id.append([i,pool[j]])
         ipts = np.array(ipts)
@@ -439,8 +444,15 @@ class Refiner:
                     for daug in daugs:
                         ann, mt_dic = self.revert(deepcopy(ann), deepcopy(mt_dic), par, daug)
                     del mt_dic[par]
-                
-        print("Parent-Daughter-Daughter mitosis relations found: " + str(len(list(mt_dic.keys()))))
+        
+        # calculate 2 daughters found relationships
+        count = 0
+        for i in mt_dic.keys():
+            if len(list(mt_dic[i]['daug'].keys())) == 2:
+                count += 1
+
+        print("Parent-Daughter-Daughter mitosis relations found: " + str(count))
+        print("Parent-Daughter mitosis relations found: " + str(len(list(mt_dic.keys())) - count))
         track = track.sort_values(by=['lineageId', 'trackId', 'frame'])
         return track, ann, mt_dic
 
@@ -664,7 +676,7 @@ class Refiner:
 
         Returns:
             input vector of SVM classifier:
-                [distance_diff, frame_diff, m_score_par, m_score_daug,    <-  track specific
+                [distance_diff, frame_diff, m_score_par * m_score_daug,    <-  track specific
                 ave_major_axis_diff, ave_minor_axis_diff]                 <-  track specific
                 * ave_major/minor_axis_diff = abs(parent_axis - daughter_axis) / parent_axis
                 some parameters are normalized with dataset specific features:
@@ -702,7 +714,7 @@ class Refiner:
         '''
         out = [distance_diff / self.metaData['meanDisplace'],
                frame_diff / (self.metaData['sample_freq'] * self.metaData['mt_len']),
-               m_score_par, m_score_daug, ave_major_axis_diff, ave_minor_axis_diff]
+               m_score_par * m_score_daug, ave_major_axis_diff, ave_minor_axis_diff]
 
         return out
 
@@ -765,9 +777,15 @@ class Refiner:
                 for manual inspection. After determining the training instance, generate training data through
                 get_SVM_train(sample).
         """
+        if self.flag:
+            raise NotImplementedError('Do not call track refine object twice!')
 
+        self.flag = True
         self.track = self.smooth_track()
+        count = 1
         while True:
+            print('Level ' + str(count) + ' mitosis:')
+            count += 1
             out = self.break_mitosis()
             self.track = out[0]
             if out[1] == 0:
