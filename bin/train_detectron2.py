@@ -144,7 +144,7 @@ def plain_register_dataset():
     DatasetCatalog.register("pcna", lambda: load_PCNAs_json(TRAIN_ANN_PATH, TRAIN_PATH))
     MetadataCatalog.get("pcna").set(thing_classes=CLASS_NAMES, evaluator_type='coco')
     DatasetCatalog.register("pcna_test", lambda: load_PCNAs_json(TEST_ANN_PATH, TEST_PATH))
-    MetadataCatalog.get("pcna_test").set(thing_class=CLASS_NAMES, evaluator_type='coco')
+    MetadataCatalog.get("pcna_test").set(thing_classes=CLASS_NAMES, evaluator_type='coco')
 
 
 def setup(args):
@@ -163,11 +163,11 @@ def setup(args):
     cfg.SOLVER.WEIGHT_DECAY = 0.0001
     cfg.SOLVER.WEIGHT_DECAY_NORM = 0.0
     cfg.SOLVER.GAMMA = 0.1
-    cfg.SOLVER.STEPS = (2000, 6000)
+    cfg.SOLVER.STEPS = (2000, 5000)
     cfg.SOLVER.CHECKPOINT_PERIOD = 3000
     cfg.TEST.EVAL_PERIOD = 3000
 
-    cfg.SOLVER.MAX_ITER = 8000
+    cfg.SOLVER.MAX_ITER = 7000
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 256
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 4  # change according to class number
     # Avoid overlapping

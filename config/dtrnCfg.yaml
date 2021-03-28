@@ -264,7 +264,7 @@ MODEL:
     NAME: SemSegFPNHead
     NORM: GN
     NUM_CLASSES: 54
-  WEIGHTS: ../models/dtrn_20210303.pth
+  WEIGHTS: ../models/dtrn_20210328.pth
 SEED: -1
 SOLVER:
   AMP:
