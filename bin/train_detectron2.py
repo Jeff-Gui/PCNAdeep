@@ -143,6 +143,8 @@ class Trainer(DefaultTrainer):
 def plain_register_dataset():
     DatasetCatalog.register("pcna", lambda: load_PCNAs_json(TRAIN_ANN_PATH, TRAIN_PATH))
     MetadataCatalog.get("pcna").set(thing_classes=CLASS_NAMES, evaluator_type='coco')
+    DatasetCatalog.register("pcna_test", lambda: load_PCNAs_json(TEST_ANN_PATH, TEST_PATH))
+    MetadataCatalog.get("pcna_test").set(thing_class=CLASS_NAMES, evaluator_type='coco')
 
 
 def setup(args):
@@ -153,19 +155,19 @@ def setup(args):
     cfg = get_cfg()
     cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
     cfg.DATASETS.TRAIN = ("pcna",)
-    cfg.DATASETS.TEST = ("pcna",)
+    cfg.DATASETS.TEST = ("pcna_test",)
     cfg.DATALOADER.NUM_WORKERS = 4
     cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
-    cfg.SOLVER.IMS_PER_BATCH = 2
+    cfg.SOLVER.IMS_PER_BATCH = 4
     cfg.SOLVER.BASE_LR = 0.01
     cfg.SOLVER.WEIGHT_DECAY = 0.0001
     cfg.SOLVER.WEIGHT_DECAY_NORM = 0.0
     cfg.SOLVER.GAMMA = 0.1
-    cfg.SOLVER.STEPS = (5000, 7500)
-    cfg.SOLVER.CHECKPOINT_PERIOD = 5000
-    cfg.TEST.EVAL_PERIOD = 5000
+    cfg.SOLVER.STEPS = (2000, 6000)
+    cfg.SOLVER.CHECKPOINT_PERIOD = 3000
+    cfg.TEST.EVAL_PERIOD = 3000
 
-    cfg.SOLVER.MAX_ITER = 12000
+    cfg.SOLVER.MAX_ITER = 8000
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 256
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 4  # change according to class number
     # Avoid overlapping
@@ -175,7 +177,7 @@ def setup(args):
     cfg.MODEL.RPN.NMS_THRESH = 0.7
 
     # Augmentation
-    cfg.INPUT.MIN_SIZE_TRAIN = 1000
+    cfg.INPUT.MIN_SIZE_TRAIN = 640
     cfg.INPUT.MAX_SIZE_TRAIN = 1200
     cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING = 'choice'
     cfg.INPUT.CROP.ENABLED = True
@@ -222,19 +224,18 @@ if __name__ == "__main__":
     # Class metadata
     CLASS_NAMES = ["G1/G2", "S", "M", "E"]
     # Dataset metadata
-    DATASET_ROOT = ['/home/zje/dataset/pcna/20200902-MCF10A-dual',
-                    '/home/zje/dataset/pcna/20210103-MCF10A-dual',
-                    '/home/zje/dataset/pcna/20210127-MCF10A-mRels2',
-                    '/home/zje/dataset/pcna/20200902-MCF10A-dual_cpd',
-                    '/home/zje/dataset/pcna/20201118-RPE_rand',
-                    '/home/zje/dataset/pcna/20201030-MBAMD231-dual']
-    TRAIN_ANN_PATH = ['/home/zje/dataset/pcna/20200902-MCF10A.json',
-                      '/home/zje/dataset/pcna/20210103-MCF10A.json',
-                      '/home/zje/dataset/pcna/20210127-MCF10A-mRels2.json',
-                      '/home/zje/dataset/pcna/20200902-MCF10A_cpd.json',
-                      '/home/zje/dataset/pcna/20201118-RPE_rand.json',
-                      '/home/zje/dataset/pcna/20201030-MBAMD231.json']
-    TRAIN_PATH = DATASET_ROOT
+    DATASET_ROOT = '/home/zje/dataset/pcna'
+    
+    TRAIN_PREFIX = ['20200902-MCF10A-dual', '20210103-MCF10A', '20210127-MCF10A-mRels2', '20200902-MCF10A-s1_cpd',
+                    '20201118-RPE_rand', '20201030-MBAMD231', 'MCF10A_rand']
+    TRAIN_PATH = []
+    TRAIN_ANN_PATH = []
+    for p in TRAIN_PREFIX:
+        TRAIN_PATH.append(os.path.join(DATASET_ROOT, p))
+        TRAIN_ANN_PATH.append(os.path.join(DATASET_ROOT, p+'.json'))
+
+    TEST_PATH = [os.path.join(DATASET_ROOT, 'testing')]
+    TEST_ANN_PATH = [os.path.join(DATASET_ROOT, 'testing.json')]
 
     args = default_argument_parser().parse_args()
     print("Command Line Args:", args)
