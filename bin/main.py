@@ -168,7 +168,8 @@ if __name__ == "__main__":
         ann, track_rfd, mt_dic, imprecise = myRefiner.doTrackRefine()
 
         myResolver = Resolver(track_rfd, ann, mt_dic, minG=int(post_cfg['MIN_G']), minS=int(post_cfg['MIN_S']),
-                              minM=int(post_cfg['MIN_M']), minTrack=int(post_cfg['RESOLVER']['MIN_TRACK']))
+                              minM=int(post_cfg['MIN_M']), 
+                              minTrack=int(post_cfg['RESOLVER']['MIN_TRACK']), impreciseExit=imprecise)
         track_rsd, phase = myResolver.doResolve()
         track_rsd.to_csv(os.path.join(args.output, prefix + '_tracks_refined.csv'), index=0)
         phase.to_csv(os.path.join(args.output, prefix + '_phase.csv'), index=0)

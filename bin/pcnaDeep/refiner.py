@@ -116,6 +116,7 @@ class Refiner:
         self.short_tracks = []
         self.mt_dic = {}
         self.mean_axis_lookup = {}
+        self.mean_size = np.mean(np.array(self.track[['major_axis', 'minor_axis']]))
         self.imprecise = []  # imprecise mitosis: daughter exit without M classification
         # mitosis dictionary: trackId: [[daughterId], [mt_entry, mt_exit]] for primarily mitosis break only  {
         # 'div':m_entry, 'daug':{daug1: m_exit, daug2: m_exit}}
@@ -430,6 +431,8 @@ class Refiner:
                                 if m_exit <= mt_dic[par]['div']:
                                     continue
                                 self.imprecise.append(daug)
+                            if m_exit <= mt_dic[par]['div']:
+                                continue
                             ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic), par, daug, m_exit,
                                                                 cst[j])
 
@@ -442,6 +445,8 @@ class Refiner:
                             if m_exit <= m_entry:
                                 continue
                             self.imprecise.append(daug)
+                        if m_exit <= mt_dic[par]['div']:
+                            continue
                         ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic), par, daugs[j], m_exit,
                                                             cst[j], m_entry)
             else:
@@ -699,7 +704,7 @@ class Refiner:
         x2 = daug['Center_of_the_object_0'].iloc[0]
         y2 = daug['Center_of_the_object_1'].iloc[0]
         distance_diff = dist(x1, y1, x2, y2)
-        frame_diff = np.abs((par['frame'].iloc[-1] - daug['frame'].iloc[0]))
+        frame_diff = par['frame'].iloc[-1] - daug['frame'].iloc[0]
         m_score_par = self.mt_score_end[parent]
         m_score_daug = self.mt_score_begin[daughter]
         par_axis = self.getMeanAxis(trackId=parent)
@@ -720,7 +725,7 @@ class Refiner:
             if daughter in list(self.mt_dic[parent]['daug'].keys()):
                 from_broken = 1
         '''
-        out = [distance_diff / self.metaData['meanDisplace'],
+        out = [distance_diff / (self.mean_size + np.abs(frame_diff) * self.metaData['meanDisplace']),
                frame_diff / (self.metaData['sample_freq'] * self.metaData['mt_len']),
                m_score_par * m_score_daug, ave_major_axis_diff, ave_minor_axis_diff]
 
