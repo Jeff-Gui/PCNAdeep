@@ -341,7 +341,7 @@ class Refiner:
                 return None
         elif direction == 'entry':
             trans = deduce_transition(c1[::-1], tar='M', confidence=c1_confid[::-1, :],
-                                            min_tar=1, max_res=self.MIN_GS)
+                                      min_tar=1, max_res=self.MIN_GS)
             if trans is not None:
                 trans = -(1 + trans[1])
             else:
@@ -362,13 +362,13 @@ class Refiner:
         parent_pool = list(self.mt_dic.keys())
         pool = np.unique(self.track['trackId']).tolist()
         lin_par_pool = np.unique(self.track['parentTrackId'])
-        lin_daug_pool = np.unique(self.track[self.track['parentTrackId']>0]['trackId'])
+        lin_daug_pool = np.unique(self.track[self.track['parentTrackId'] > 0]['trackId'])
         for i in pool:
             if i not in parent_pool and i not in lin_par_pool and i not in lin_daug_pool:
                 # wild parents: at least two M classification at the end
-                if re.search('M-M$', ann[ann['track']==i]['disapp_stage'].values[0]) is not None:
+                if re.search('M-M$', ann[ann['track'] == i]['disapp_stage'].values[0]) is not None:
                     parent_pool.append(i)
-        
+
         print('Extracting features...')
         ft = 0
         ipts = []
@@ -380,7 +380,7 @@ class Refiner:
                         print('Considered ' + str(ft) + '/' + str(len(pool) * len(parent_pool)) + ' cases.')
                     ft += 1
                     ipts.append(self.getSVMinput(i, pool[j]))
-                    sample_id.append([i,pool[j]])
+                    sample_id.append([i, pool[j]])
         ipts = np.array(ipts)
         sample_id = np.array(sample_id)
 
@@ -390,30 +390,30 @@ class Refiner:
         ipts = scaler.transform(ipts)
         res = cls.predict_proba(ipts)
         print('Finished prediction.')
-        
+
         cost_r_idx = np.array([val for val in parent_pool for i in range(2)])
-        cost_c_idx = np.unique(sample_id[:,1])
+        cost_c_idx = np.unique(sample_id[:, 1])
         cost = np.zeros((cost_r_idx.shape[0], cost_c_idx.shape[0]))
         for i in range(cost.shape[0]):
             for j in range(cost.shape[1]):
                 if cost_r_idx[i] != cost_c_idx[j]:
-                    a = np.where(sample_id[:,0] == cost_r_idx[i])[0].tolist()
-                    b = np.where(sample_id[:,1] == cost_c_idx[j])[0].tolist()
-                    cost[i,j] = res[list(set(a) & set(b))[0]][1]
-        cost = cost*-1
+                    a = np.where(sample_id[:, 0] == cost_r_idx[i])[0].tolist()
+                    b = np.where(sample_id[:, 1] == cost_c_idx[j])[0].tolist()
+                    cost[i, j] = res[list(set(a) & set(b))[0]][1]
+        cost = cost * -1
         row_ind, col_ind = linear_sum_assignment(cost)
-        
+
         matched_par = cost_r_idx[row_ind[::2]]
         anns = []
         for i in range(len(matched_par)):
             if i == 11:
                 break
             anns.append(ann)
-            cst = cost[2*i+1, col_ind[2*i : 2*i+2]]
+            cst = cost[2 * i + 1, col_ind[2 * i:2 * i + 2]]
             par = matched_par[i]
             if all(cst < -0.5):
-                daugs = cost_c_idx[col_ind[2*i : 2*i+2]]
-                cst = (1+cst).tolist()
+                daugs = cost_c_idx[col_ind[2 * i:2 * i + 2]]
+                cst = (1 + cst).tolist()
                 if par in list(mt_dic.keys()):
                     ori_daugs = list(mt_dic[par]['daug'].keys())
                     for j in range(len(ori_daugs)):
@@ -426,25 +426,31 @@ class Refiner:
                         else:
                             m_exit = self.getMtransition(daug, direction='exit')
                             if m_exit is None:
-                                m_exit = self.track[self.track['trackId']==daug]['frame'].iloc[0]
+                                m_exit = self.track[self.track['trackId'] == daug]['frame'].iloc[0]
+                                if m_exit <= mt_dic[par]['div']:
+                                    continue
                                 self.imprecise.append(daug)
-                            ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic), par, daug, m_exit, cst[j])
-                    
+                            ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic), par, daug, m_exit,
+                                                                cst[j])
+
                 else:
                     m_entry = self.getMtransition(par, direction='entry')
                     for j in range(len(daugs)):
                         m_exit = self.getMtransition(daugs[j], direction='exit')
                         if m_exit is None:
-                            m_exit = self.track[self.track['trackId']==daug]['frame'].iloc[0]
+                            m_exit = self.track[self.track['trackId'] == daug]['frame'].iloc[0]
+                            if m_exit <= m_entry:
+                                continue
                             self.imprecise.append(daug)
-                        ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic), par, daugs[j], m_exit, cst[j], m_entry)
+                        ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic), par, daugs[j], m_exit,
+                                                            cst[j], m_entry)
             else:
                 if par in list(mt_dic.keys()):
                     daugs = list(mt_dic[par]['daug'].keys())
                     for daug in daugs:
                         ann, mt_dic = self.revert(deepcopy(ann), deepcopy(mt_dic), par, daug)
                     del mt_dic[par]
-        
+
         # calculate 2 daughters found relationships
         count = 0
         for i in mt_dic.keys():
@@ -537,17 +543,17 @@ class Refiner:
                                 else:
                                     result = self.compete(mt_dic, parent_id, [potential_daughter_pair_id[i],
                                                                               potential_daughter_pair_id[j]],
-                                                          [dist_dif1,dist_dif2])
+                                                          [dist_dif1, dist_dif2])
 
                                     for rv in result['revert']:
                                         ann, mt_dic = self.revert(deepcopy(ann), deepcopy(mt_dic), parent_id, rv)
                                         count -= 1
                                     for rg in result['register']:
                                         if rg == potential_daughter_pair_id[i]:
-                                            ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic), 
+                                            ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic),
                                                                                 parent_id, rg, c1_exit, dist_dif1)
                                         elif rg == potential_daughter_pair_id[j]:
-                                            ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic), 
+                                            ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic),
                                                                                 parent_id, rg, c2_exit, dist_dif2)
                                         count += 1
 
@@ -656,12 +662,14 @@ class Refiner:
 
             frame_start = sub['frame'].loc[idx[0]]
             x_start = np.power(discount, np.abs(sub['frame'].loc[idx] - frame_start))
-            score_start = np.sum(np.multiply(x_start, sub['Probability of M'].loc[idx] - sub['Probability of S'].loc[idx]))
+            score_start = np.sum(
+                np.multiply(x_start, sub['Probability of M'].loc[idx] - sub['Probability of S'].loc[idx]))
 
             idx2 = sub.index[np.max((0, sub.shape[0] - search_range)):][::-1]
             frame_end = sub['frame'].loc[idx2[0]]
             x_end = np.power(discount, np.abs(sub['frame'].loc[idx2] - frame_end))
-            score_end = np.sum(np.multiply(x_end, sub['Probability of M'].loc[idx2] - sub['Probability of S'].loc[idx2]))
+            score_end = np.sum(
+                np.multiply(x_end, sub['Probability of M'].loc[idx2] - sub['Probability of S'].loc[idx2]))
 
             mt_score_begin[trackId] = score_start
             mt_score_end[trackId] = score_end
@@ -733,7 +741,7 @@ class Refiner:
         y = []
         dic = {}
         for i in range(sample.shape[0]):
-            r = sample[i,:]
+            r = sample[i, :]
             X.append(self.getSVMinput(r[0], r[1]))
             if r[0] in list(dic.keys()):
                 dic[r[0]].append(r[1])
@@ -743,8 +751,8 @@ class Refiner:
 
         # randomly or fully select some negative instances
         if random_negative:
-            par = np.random.choice(np.unique(self.track['trackId']).tolist() ,size = rand_size, replace=True)
-            daug = np.random.choice(np.unique(self.track['trackId']).tolist() ,size = rand_size, replace=True)
+            par = np.random.choice(np.unique(self.track['trackId']).tolist(), size=rand_size, replace=True)
+            daug = np.random.choice(np.unique(self.track['trackId']).tolist(), size=rand_size, replace=True)
             c = set()
             for i in range(len(par)):
                 if par[i] == daug[i]:
@@ -805,4 +813,4 @@ class Refiner:
 
         self.track = self.update_table_with_mt()
 
-        return self.ann, self.track, self.mt_dic
+        return self.ann, self.track, self.mt_dic, self.imprecise

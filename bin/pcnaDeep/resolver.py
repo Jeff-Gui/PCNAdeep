@@ -23,7 +23,10 @@ def list_dist(a, b):
 
 class Resolver:
 
-    def __init__(self, track, ann, mt_dic, minG=6, minS=5, minM=3, minTrack=10):
+    def __init__(self, track, ann, mt_dic, minG=6, minS=5, minM=3, minTrack=10, impreciseExit=None):
+        if impreciseExit is None:
+            impreciseExit = []
+        self.impreciseExit = impreciseExit
         self.track = track
         self.ann = ann
         self.minG = minG
@@ -96,7 +99,7 @@ class Resolver:
         UNRESOLVED_FRACTION = 0.2  # after resolving the class, if more than x% class has been corrected, label with
         # unresolved
 
-        resolved_class = ['G1/G2' for i in range(trk.shape[0])]
+        resolved_class = ['G1/G2' for _ in range(trk.shape[0])]
 
         cls = trk['predicted_class'].tolist()
         confid = np.array(trk[['Probability of G1/G2', 'Probability of S', 'Probability of M']])
@@ -105,7 +108,7 @@ class Resolver:
 
         if not (out is None or out[0] == out[1]):
             a = (out[0], np.min((out[1] + 1, len(resolved_class) - 1)))
-            resolved_class[a[0]:a[1] + 1] = ['S' for i in range(a[0], a[1] + 1)]
+            resolved_class[a[0]:a[1] + 1] = ['S' for _ in range(a[0], a[1] + 1)]
 
             if a[0] > 0:
                 resolved_class[:a[0]] = ['G1' for _ in range(a[0])]
@@ -135,6 +138,7 @@ class Resolver:
         if m_exit is None and m_entry is None:
             # some tracks begin/end with mitosis and not associated during refinement. In this case, override any
             # classification at terminal
+            # WARNING: this can leads to false negative
             mt_out_begin = deduce_transition(l=cls, tar='M', confidence=confid, min_tar=1,
                                              max_res=np.max((self.minS, self.minG)))
             mt_out_end = deduce_transition(l=cls[::-1], tar='M', confidence=confid[::-1, :], min_tar=1,
@@ -223,5 +227,13 @@ class Resolver:
                 m = self.mt_dic[i]['daug'][j]['m_exit'] - self.mt_dic[i]['div']
                 out.loc[out['track'] == j, 'M'] = m
 
+        # filter length
         out = out[out['length'] >= self.minTrack]
+
+        # imprecise M (daughter associated with parent, but daughter no M classification) exit labeled
+        out['imprecise_exit'] = 0
+        for i in out['track'].tolist():
+            if i in self.impreciseExit:
+                out.loc[out['track'] == i, 'imprecise_exit'] = 1
+
         return out

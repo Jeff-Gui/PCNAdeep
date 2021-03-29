@@ -165,7 +165,7 @@ if __name__ == "__main__":
                             mt_len=int(refiner_cfg['MITOSIS_LEN']), sample_freq=int(refiner_cfg['SAMPLE_FREQ']),
                             model_path=refiner_cfg['SVM_MODEL_PATH'],
                             mode=refiner_cfg['MODE'])
-        ann, track_rfd, mt_dic = myRefiner.doTrackRefine()
+        ann, track_rfd, mt_dic, imprecise = myRefiner.doTrackRefine()
 
         myResolver = Resolver(track_rfd, ann, mt_dic, minG=int(post_cfg['MIN_G']), minS=int(post_cfg['MIN_S']),
                               minM=int(post_cfg['MIN_M']), minTrack=int(post_cfg['RESOLVER']['MIN_TRACK']))
