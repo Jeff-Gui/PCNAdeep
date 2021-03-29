@@ -407,8 +407,6 @@ class Refiner:
         matched_par = cost_r_idx[row_ind[::2]]
         anns = []
         for i in range(len(matched_par)):
-            if i == 11:
-                break
             anns.append(ann)
             cst = cost[2 * i + 1, col_ind[2 * i:2 * i + 2]]
             par = matched_par[i]
@@ -445,7 +443,7 @@ class Refiner:
                             if m_exit <= m_entry:
                                 continue
                             self.imprecise.append(daug)
-                        if m_exit <= mt_dic[par]['div']:
+                        if m_exit <= m_entry:
                             continue
                         ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic), par, daugs[j], m_exit,
                                                             cst[j], m_entry)
