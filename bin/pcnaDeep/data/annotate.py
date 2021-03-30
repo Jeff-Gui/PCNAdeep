@@ -405,6 +405,8 @@ def findM(gt_cls, direction='begin'):
             return None
         while gt_cls[i] == 'M':
             i += 1
+            if i == len(gt_cls):
+                break
         return i - 1
     else:
         gt_cls = gt_cls[::-1]
@@ -412,6 +414,8 @@ def findM(gt_cls, direction='begin'):
             return None
         while gt_cls[i] == 'M':
             i += 1
+            if i == len(gt_cls):
+                break
         return -(i + 1)
 
 
