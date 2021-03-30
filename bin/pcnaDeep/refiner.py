@@ -61,6 +61,8 @@ def deduce_transition(l, tar, confidence, min_tar, max_res, escape=0):
     elif i == (len(idx) - 1) and g_panelty < max_res and found == False and cur_m_entry != idx[-1]:
         found = True
         m_exit = idx[-1]
+        if m_exit - cur_m_entry + 1 < min_tar:
+            return None
 
     if found:
         return cur_m_entry, m_exit
@@ -439,10 +441,10 @@ class Refiner:
                     for j in range(len(daugs)):
                         m_exit = self.getMtransition(daugs[j], direction='exit')
                         if m_exit is None:
-                            m_exit = self.track[self.track['trackId'] == daug]['frame'].iloc[0]
+                            m_exit = self.track[self.track['trackId'] == daugs[j]]['frame'].iloc[0]
                             if m_exit <= m_entry:
                                 continue
-                            self.imprecise.append(daug)
+                            self.imprecise.append(daugs[j])
                         if m_exit <= m_entry:
                             continue
                         ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic), par, daugs[j], m_exit,
