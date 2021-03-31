@@ -399,6 +399,7 @@ def findM(gt_cls, direction='begin'):
         gt_cls (list): list of classifications
         direction (str): begin/end, search M from
     """
+    # possible for parent end with 'G', but daughter must begin with 'M'
     i = 0
     if direction == 'begin':
         if gt_cls[0] != 'M':
@@ -410,13 +411,14 @@ def findM(gt_cls, direction='begin'):
         return i - 1
     else:
         gt_cls = gt_cls[::-1]
-        if gt_cls[0] != 'M':
+        if 'M' not in gt_cls:
             return None
+        i = gt_cls.index('M')
         while gt_cls[i] == 'M':
             i += 1
             if i == len(gt_cls):
                 break
-        return -(i + 1)
+        return -i
 
 
 def check_continuous_track(table):
@@ -503,7 +505,7 @@ def mergeTrkAndTrack(trk_path, table_path, return_mask=False):
             if len(daugs) == 1:
                 out.loc[out['trackId'] == daugs[0], 'parentTrackId'] = i
                 out.loc[out['lineageId'] == daugs[0], 'lineageId'] = i
-            else:
+            elif len(daugs) == 2:
                 sub_par = out.loc[out['trackId'] == i]
                 m_entry = findM(sub_par['predicted_class'].tolist(), 'end')
                 if m_entry is None:

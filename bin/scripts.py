@@ -49,6 +49,7 @@ mt_lookup = mt_dic2mt_lookup(mt_dic)
 # mt_lookup.to_csv(os.path.join(out_fp, '0002_mitosis_lookup.txt'), index=0)
 
 #%% Generate feature map
+mt_lookup = pd.read_csv(os.path.join(out_fp, '0002_mitosis_lookup.txt'))
 from pcnaDeep.refiner import Refiner
 r = Refiner(track = pd.read_csv(os.path.join(out_fp, '0002_tracked_GT.csv')), mode='TRAIN',
            sample_freq=20, mt_len=5) # remember to input metadata: sample frequency and mitosi length
@@ -64,15 +65,23 @@ pd.DataFrame(merged).to_csv('/Users/jefft/Desktop/Chan lab/SRTP/ImageAnalysis/PC
 #%% Prepare new model
 X = merged[:,:5]
 y = merged[:,5]
+
+# remove spatial, temporal, shape outliers, but not mitosis score
+from pcnaDeep.data.utils import get_outlier
+outs = get_outlier(X, col_ids=[0,1,3,4])
+idx = [_ for _ in range(X.shape[0]) if _ not in outs]
+X = X[idx,]
+y = y[idx,]
+
 # normalize
-from sklearn.preprocessing import StandardScaler
-scaler = StandardScaler()
+from sklearn.preprocessing import RobustScaler
+scaler = RobustScaler()
 scaler.fit(X)
 X = scaler.transform(X)
 
 import matplotlib.pyplot as plt
 sub = X[:,[0,1,2]]  # spatial and temporal distance and parent mitosis score, the first three features
-plt.scatter(sub[:,0], sub[:,1], c=y, s=(- min(sub[:,2]) + sub[:,2])*10, alpha=0.8, cmap='coolwarm')
+plt.scatter(sub[:,0], sub[:,1], c=y, s=(- min(sub[:,2]) + sub[:,2])*5, alpha=0.2, cmap='coolwarm')
 
 #%% Cross validation
 from sklearn.model_selection import cross_val_score
@@ -81,6 +90,28 @@ from sklearn.svm import SVC
 model = SVC(probability=True, class_weight='balanced')
 scores = cross_val_score(model, X, y, cv=5)
 print(scores)
+
+#%% Grid search on best params
+from sklearn.model_selection import GridSearchCV 
+from sklearn.model_selection import cross_val_score   
+from sklearn.svm import SVC 
+
+def svm_cross_validation(train_x, train_y):       
+    model = SVC(kernel='rbf', probability=True, class_weight='balanced')    
+    param_grid = {'C': [1e-3, 1e-2, 1e-1, 1, 10, 100, 1000], 'gamma': [0.001, 0.0001]}    
+    grid_search = GridSearchCV(model, param_grid, n_jobs = 8, verbose=1)    
+    grid_search.fit(train_x, train_y)    
+    best_parameters = grid_search.best_estimator_.get_params()    
+    for para, val in list(best_parameters.items()):    
+        print(para, val)    
+    model = SVC(kernel='rbf', C=best_parameters['C'], gamma=best_parameters['gamma'], probability=True)    
+    model.fit(train_x, train_y)    
+    return model
+
+model = svm_cross_validation(X, y)
+scores = cross_val_score(model, X, y, cv=5)
+print(scores)
+
 
 #%% Model evaluation
 from sklearn.metrics import explained_variance_score, mean_absolute_error, mean_squared_error, r2_score
@@ -97,6 +128,6 @@ print(df2)
 #%% Save model
 model.fit(X, y)
 import joblib
-joblib.dump(model, os.path.join(out_fp, 'mitosis_svm.m'))
+joblib.dump(model, os.path.join('/Users/jefft/Desktop/Chan lab/SRTP/ImageAnalysis/PCNAdeep/models/mitosis_svm.m'))
 
 

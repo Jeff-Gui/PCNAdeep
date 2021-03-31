@@ -275,3 +275,28 @@ def mt_dic2mt_lookup(mt_dic):
             out['daug'].append(j)
             out['mitosis'].append(1)
     return pd.DataFrame(out)
+
+
+def get_outlier(array, col_ids=None):
+    """Get outlier index in an array, specify target column
+    
+    Args:
+        array (numpy.array): original array
+        col_ids ([int]): target columns to remove outliers. Default all
+        
+    Returns:
+        index of row containing at least one outlier
+    """
+    
+    if col_ids is None:
+        col_ids = list(range(array.shape[1]))
+    
+    idx = []
+    for c in col_ids:
+        col = array[:,c]
+        idx.extend(list(np.where(np.abs(col - np.mean(col)) > 3 * np.std(col))[0]))
+    
+    idx = list(set(idx))
+    idx.sort()
+    return idx
+

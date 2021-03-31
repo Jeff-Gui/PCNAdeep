@@ -6,7 +6,8 @@ import pandas as pd
 import numpy as np
 from copy import deepcopy
 from scipy.optimize import linear_sum_assignment
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import RobustScaler
+from pcnaDeep.data.utils import get_outlier
 
 
 def dist(x1, y1, x2, y2):
@@ -388,9 +389,17 @@ class Refiner:
         sample_id = np.array(sample_id)
 
         cls = joblib.load(self.SVM_PATH)
-        scaler = StandardScaler()
+        # remove outlier
+        outs = get_outlier(ipts, col_ids=[0,1,3,4])
+        idx = [_ for _ in range(ipts.shape[0]) if _ not in outs]
+        ipts = ipts[idx,]
+        sample_id = sample_id[idx,]
+        print('Removed outliers, remaining: ' + str(ipts.shape[0]))
+        # normalization
+        scaler = RobustScaler()
         scaler.fit(ipts)
         ipts = scaler.transform(ipts)
+        
         res = cls.predict_proba(ipts)
         print('Finished prediction.')
 
@@ -676,8 +685,8 @@ class Refiner:
             score_end = np.sum(
                 np.multiply(x_end, sub['Probability of M'].loc[idx2] - sub['Probability of S'].loc[idx2]))
 
-            mt_score_begin[trackId] = score_start
-            mt_score_end[trackId] = score_end
+            mt_score_begin[trackId] = score_start / search_range + 0.1
+            mt_score_end[trackId] = score_end / search_range + 0.1
         return mt_score_begin, mt_score_end
 
     def getSVMinput(self, parent, daughter):
