@@ -403,6 +403,7 @@ class Refiner:
         res = cls.predict_proba(ipts)
         print('Finished prediction.')
 
+        parent_pool = list(np.unique(sample_id[:, 0]))
         cost_r_idx = np.array([val for val in parent_pool for i in range(2)])
         cost_c_idx = np.unique(sample_id[:, 1])
         cost = np.zeros((cost_r_idx.shape[0], cost_c_idx.shape[0]))
