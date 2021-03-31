@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 from copy import deepcopy
 from scipy.optimize import linear_sum_assignment
-from sklearn.preprocessing import RobustScaler
+from sklearn.preprocessing import StandardScaler
 from pcnaDeep.data.utils import get_outlier
 
 
@@ -291,7 +291,7 @@ class Refiner:
         return {'register': rt, 'revert': rm}
 
     def revert(self, ann, mt_dic, parentId, daughterId):
-        """remove information of a relationship registered to ann and mt_dic
+        """Remove information of a relationship registered to ann and mt_dic
         """
         # parent
         mt_dic[parentId]['daug'].pop(daughterId)
@@ -396,7 +396,7 @@ class Refiner:
         sample_id = sample_id[idx,]
         print('Removed outliers, remaining: ' + str(ipts.shape[0]))
         # normalization
-        scaler = RobustScaler()
+        scaler = StandardScaler()
         scaler.fit(ipts)
         ipts = scaler.transform(ipts)
         
@@ -412,7 +412,10 @@ class Refiner:
                 if cost_r_idx[i] != cost_c_idx[j]:
                     a = np.where(sample_id[:, 0] == cost_r_idx[i])[0].tolist()
                     b = np.where(sample_id[:, 1] == cost_c_idx[j])[0].tolist()
-                    cost[i, j] = res[list(set(a) & set(b))[0]][1]
+                    sp_index = list(set(a) & set(b))
+                    if sp_index:
+                        cost[i, j] = res[sp_index[0]][1]
+
         cost = cost * -1
         row_ind, col_ind = linear_sum_assignment(cost)
 
