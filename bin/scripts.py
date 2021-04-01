@@ -68,7 +68,7 @@ y = merged[:,5]
 
 # remove spatial, temporal, shape outliers, but not mitosis score
 from pcnaDeep.data.utils import get_outlier
-outs = get_outlier(X, col_ids=[0,1,3,4])
+outs = get_outlier(X, col_ids=[0,3,4])
 idx = [_ for _ in range(X.shape[0]) if _ not in outs]
 X = X[idx,]
 y = y[idx,]

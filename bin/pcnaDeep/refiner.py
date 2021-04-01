@@ -717,7 +717,7 @@ class Refiner:
         x2 = daug['Center_of_the_object_0'].iloc[0]
         y2 = daug['Center_of_the_object_1'].iloc[0]
         distance_diff = dist(x1, y1, x2, y2)
-        frame_diff = par['frame'].iloc[-1] - daug['frame'].iloc[0]
+        frame_diff = np.abs(par['frame'].iloc[-1] - daug['frame'].iloc[0])
         m_score_par = self.mt_score_end[parent]
         m_score_daug = self.mt_score_begin[daughter]
         par_axis = self.getMeanAxis(trackId=parent)
@@ -739,7 +739,7 @@ class Refiner:
                 from_broken = 1
         '''
         out = [distance_diff / (self.mean_size + np.abs(frame_diff) * self.metaData['meanDisplace']),
-               frame_diff / (self.metaData['sample_freq'] * self.metaData['mt_len']),
+               1 / (frame_diff / (self.metaData['sample_freq'] * self.metaData['mt_len']) + 0.1),
                m_score_par * m_score_daug, ave_major_axis_diff, ave_minor_axis_diff]
 
         return out
