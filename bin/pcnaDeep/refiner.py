@@ -744,17 +744,17 @@ class Refiner:
 
         return out
 
-    def get_SVM_train(self, sample, random_negative=False, rand_size=100):
+    def get_SVM_train(self, sample):
         """Save training data for SVM classifier of this particular dataset
 
         Args:
             sample (numpy.array): matrix of shape (sample, (parent ID, daughter ID, y))
-            random_negative (bool): randomly choose some negative instances.
-            rand_size (int): size of random negative instances, default 100.
 
         Returns:
             (numpy.array): X, y
         """
+        self.track, self.short_tracks, self.ann = self.register_track()
+
         X = []
         y = []
         dic = {}
@@ -767,28 +767,58 @@ class Refiner:
                 dic[r[0]] = [r[1]]
             y.append(r[2])
 
-        # randomly or fully select some negative instances
-        if random_negative:
-            par = np.random.choice(np.unique(self.track['trackId']).tolist(), size=rand_size, replace=True)
-            daug = np.random.choice(np.unique(self.track['trackId']).tolist(), size=rand_size, replace=True)
-            c = set()
-            for i in range(len(par)):
-                if par[i] == daug[i]:
-                    continue
-                if par[i] in list(dic.keys()):
-                    if daug[i] in dic[par[i]]:
-                        continue
-                if daug[i] in list(dic.keys()):
-                    if par[i] in dic[daug[i]]:
-                        continue
-                c.add((par[i], daug[i]))
-            c = list(c)
+        track = deepcopy(self.track)
+        ann = deepcopy(self.ann)
+        # deduce candidate parents = 
+        #   mt_dic + wild parents not being parent.daughter yet
+        parent_pool = list(np.unique((sample[:,0])))
+        pool = np.unique(self.track['trackId']).tolist()
+        lin_par_pool = np.unique(self.track['parentTrackId'])
+        lin_daug_pool = np.unique(self.track[self.track['parentTrackId'] > 0]['trackId'])
+        for i in pool:
+            if i not in parent_pool and i not in lin_par_pool and i not in lin_daug_pool:
+                # wild parents: at least two M classification at the end
+                if re.search('M-M$', ann[ann['track'] == i]['disapp_stage'].values[0]) is not None:
+                    parent_pool.append(i)
 
-            for i in range(len(c)):
-                X.append(self.getSVMinput(c[i][0], c[i][1]))
-                y.append(0)
+        print('Extracting features...')
+        ft = 0
+        ipts = []
+        sample_id = []
+        y = []
+        for i in parent_pool:
+            for j in range(len(pool)):
+                if i != pool[j]:
+                    if ft % 1000 == 0 and ft > 0:
+                        print('Considered ' + str(ft) + '/' + str(len(pool) * len(parent_pool)) + ' cases.')
+                    ft += 1
+                    ipts.append(self.getSVMinput(i, pool[j]))
+                    sample_id.append([i, pool[j]])
+                    a = np.where(sample[:, 0] == i)[0].tolist()
+                    b = np.where(sample[:, 1] == pool[j])[0].tolist()
+                    sp_index = list(set(a) & set(b))
+                    if sp_index:
+                        y.append(1)
+                    else:
+                        y.append(0)
 
-        return X, y
+        ipts = np.array(ipts)
+        sample_id = np.array(sample_id)
+        y = np.array(y)
+
+        # remove outlier
+        outs = get_outlier(ipts, col_ids=[0,1,3,4])
+        idx = [_ for _ in range(ipts.shape[0]) if _ not in outs]
+        ipts = ipts[idx,]
+        y = y[idx,]
+        sample_id = sample_id[idx,]
+        print('Removed outliers, remaining: ' + str(ipts.shape[0]))
+        # normalization
+        scaler = StandardScaler()
+        scaler.fit(ipts)
+        ipts = scaler.transform(ipts)
+
+        return ipts, y
 
     def setSVMpath(self, model_path):
         self.SVM_PATH = model_path
@@ -825,9 +855,6 @@ class Refiner:
             if self.SVM_PATH == '':
                 raise ValueError('SVM model path has not set yet, use setSVMpath() to supply a SVM model.')
             self.track, self.ann, self.mt_dic = self.svm_pdd()
-        elif self.MODE == 'TRAIN':
-            self.mt_score_begin, self.mt_score_end = self.getMTscore(self.SEARCH_RANGE, self.MT_DISCOUNT)
-            return self.track
 
         self.track = self.update_table_with_mt()
 

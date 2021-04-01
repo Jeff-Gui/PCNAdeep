@@ -53,7 +53,7 @@ mt_lookup = pd.read_csv(os.path.join(out_fp, '0002_mitosis_lookup.txt'))
 from pcnaDeep.refiner import Refiner
 r = Refiner(track = pd.read_csv(os.path.join(out_fp, '0002_tracked_GT.csv')), mode='TRAIN',
            sample_freq=20, mt_len=5) # remember to input metadata: sample frequency and mitosi length
-X, y = r.get_SVM_train(np.array(mt_lookup), random_negative=True, rand_size=500)
+X, y = r.get_SVM_train(np.array(mt_lookup))
 X = pd.DataFrame(np.array(X))
 X['5'] = y
 
