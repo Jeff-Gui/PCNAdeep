@@ -46,7 +46,7 @@ mt_dic = out[1]
 from pcnaDeep.data.utils import mt_dic2mt_lookup
 mt_lookup = mt_dic2mt_lookup(mt_dic)
 #   optional: save or not
-# mt_lookup.to_csv(os.path.join(out_fp, '0002_mitosis_lookup.txt'), index=0)
+mt_lookup.to_csv(os.path.join(out_fp, '0002_mitosis_lookup.txt'), index=0)
 
 #%% Generate feature map
 mt_lookup = pd.read_csv(os.path.join(out_fp, '0002_mitosis_lookup.txt'))

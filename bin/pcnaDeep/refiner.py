@@ -740,7 +740,7 @@ class Refiner:
         '''
         out = [distance_diff / (self.mean_size + np.abs(frame_diff) * self.metaData['meanDisplace']),
                1 / (frame_diff / (self.metaData['sample_freq'] * self.metaData['mt_len']) + 0.1),
-               m_score_par * m_score_daug, ave_major_axis_diff, ave_minor_axis_diff]
+               m_score_par + m_score_daug, ave_major_axis_diff, ave_minor_axis_diff]
 
         return out
 
