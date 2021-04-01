@@ -390,7 +390,7 @@ class Refiner:
 
         cls = joblib.load(self.SVM_PATH)
         # remove outlier
-        outs = get_outlier(ipts, col_ids=[0,1,3,4])
+        outs = get_outlier(ipts, col_ids=[0,3,4])
         idx = [_ for _ in range(ipts.shape[0]) if _ not in outs]
         ipts = ipts[idx,]
         sample_id = sample_id[idx,]
@@ -400,12 +400,20 @@ class Refiner:
         scaler.fit(ipts)
         ipts = scaler.transform(ipts)
         
-        import matplotlib.pyplot as plt
-        plt.scatter(ipts[:,0], ipts[:,1], s=(- min(ipts[:,2]) + ipts[:,2])*5, alpha=0.2, cmap='coolwarm')
-        plt.savefig('./test.jpg')
-
         res = cls.predict_proba(ipts)
         print('Finished prediction.')
+        
+        pred_pos = list(np.argmax(res, axis=1))
+        for i in range(len(pred_pos)):
+            if sample_id[i,0] in mt_dic.keys():
+                if sample_id[i,1] in mt_dic[sample_id[i,0]]['daug'].keys():
+                    pred_pos[i] = 0.5
+                    print('in')
+        import matplotlib.pyplot as plt
+        plt.scatter(ipts[:,0], ipts[:,1], c=pred_pos, s=(- min(ipts[:,2]) + ipts[:,2])*5, alpha=0.2, cmap='brg')
+        plt.savefig('./test.jpg')
+        print(mt_dic)
+        print(sample_id[np.where(np.argmax(res, axis=1)==1)[0]])
 
         parent_pool = list(np.unique(sample_id[:, 0]))
         cost_r_idx = np.array([val for val in parent_pool for i in range(2)])
@@ -811,7 +819,7 @@ class Refiner:
         y = np.array(y)
 
         # remove outlier
-        outs = get_outlier(ipts, col_ids=[0,1,3,4])
+        outs = get_outlier(ipts, col_ids=[0,3,4])
         idx = [_ for _ in range(ipts.shape[0]) if _ not in outs]
         ipts = ipts[idx,]
         y = y[idx,]
