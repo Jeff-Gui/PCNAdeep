@@ -400,6 +400,10 @@ class Refiner:
         scaler.fit(ipts)
         ipts = scaler.transform(ipts)
         
+        import matplotlib.pyplot as plt
+        plt.scatter(ipts[:,0], ipts[:,1], s=(- min(ipts[:,2]) + ipts[:,2])*5, alpha=0.2, cmap='coolwarm')
+        plt.savefig('./test.jpg')
+
         res = cls.predict_proba(ipts)
         print('Finished prediction.')
 
