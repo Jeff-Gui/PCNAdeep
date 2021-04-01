@@ -407,13 +407,12 @@ class Refiner:
         for i in range(len(pred_pos)):
             if sample_id[i,0] in mt_dic.keys():
                 if sample_id[i,1] in mt_dic[sample_id[i,0]]['daug'].keys():
-                    pred_pos[i] = 0.5
-                    print('in')
+                    pred_pos[i] += 0.5
         import matplotlib.pyplot as plt
         plt.scatter(ipts[:,0], ipts[:,1], c=pred_pos, s=(- min(ipts[:,2]) + ipts[:,2])*5, alpha=0.2, cmap='brg')
         plt.savefig('./test.jpg')
-        print(mt_dic)
-        print(sample_id[np.where(np.argmax(res, axis=1)==1)[0]])
+        #print(mt_dic)
+        #print(sample_id[np.where(np.argmax(res, axis=1)==1)[0]])
 
         parent_pool = list(np.unique(sample_id[:, 0]))
         cost_r_idx = np.array([val for val in parent_pool for i in range(2)])
