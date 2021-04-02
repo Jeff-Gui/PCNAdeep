@@ -42,16 +42,26 @@ track = out[0]
 track.to_csv(os.path.join(out_fp, '0002_tracked_GT.csv'), index=0)
 mt_dic = out[1]
 
+
+#%% Alternative to above, use broken track
+from pcnaDeep.refiner import Refiner
+dt = pd.read_csv('/Users/jefft/Desktop/Chan lab/SRTP/ImageAnalysis/PCNAdeep/examples/MCF10A/0001_tracked_model_out.csv')
+r = Refiner(dt.copy(), mode='TRAIN')
+mitosis_broken, mt_dic = r.doTrackRefine()
+mt_dic
+mitosis_broken.to_csv(os.path.join(out_fp, '0001_mitosis_broken.csv'), index=0)
+
+
 #%% Generate mt lookup
 from pcnaDeep.data.utils import mt_dic2mt_lookup
 mt_lookup = mt_dic2mt_lookup(mt_dic)
 #   optional: save or not
-mt_lookup.to_csv(os.path.join(out_fp, '0002_mitosis_lookup.txt'), index=0)
+mt_lookup.to_csv(os.path.join(out_fp, '0001_mitosis_lookup.txt'), index=0)
 
 #%% Generate feature map
-mt_lookup = pd.read_csv(os.path.join(out_fp, '0002_mitosis_lookup.txt'))
+mt_lookup = pd.read_csv(os.path.join(out_fp, '0001_mitosis_lookup.txt'))
 from pcnaDeep.refiner import Refiner
-r = Refiner(track = pd.read_csv(os.path.join(out_fp, '0002_tracked_GT.csv')), mode='TRAIN',
+r = Refiner(track = pd.read_csv(os.path.join(out_fp, '0001_mitosis_broken.csv')), mode='TRAIN',
            sample_freq=20, mt_len=5) # remember to input metadata: sample frequency and mitosi length
 X, y = r.get_SVM_train(np.array(mt_lookup))
 X = pd.DataFrame(np.array(X))
@@ -63,12 +73,12 @@ merged = np.concatenate((np.array(X), np.array(base)), axis=0)
 pd.DataFrame(merged).to_csv('/Users/jefft/Desktop/Chan lab/SRTP/ImageAnalysis/PCNAdeep/models/SVM_train_new.txt', index=0, header=None)
 
 #%% Prepare new model
-X = merged[:,:5]
-y = merged[:,5]
+X = merged[:,:merged.shape[1]-1]
+y = merged[:,merged.shape[1]-1]
 
 # remove spatial, temporal, shape outliers, but not mitosis score
 from pcnaDeep.data.utils import get_outlier
-outs = get_outlier(X, col_ids=[0,3,4])
+outs = get_outlier(X, col_ids=[0])
 idx = [_ for _ in range(X.shape[0]) if _ not in outs]
 X = X[idx,]
 y = y[idx,]

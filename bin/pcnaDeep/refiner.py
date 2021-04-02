@@ -496,7 +496,6 @@ class Refiner:
         track = deepcopy(self.track)
         mt_dic = deepcopy(self.mt_dic)
 
-        count = 0
         # Mitosis search
         #   Aim: to identify two appearing daughter tracks after one disappearing parent track
         #   Algorithm: find potential daughters, for each pair of them, 
@@ -568,7 +567,6 @@ class Refiner:
                                                                         potential_daughter_pair_id[j],
                                                                         c2_exit, dist_dif2)
 
-                                    count += 2
                                 else:
                                     result = self.compete(mt_dic, parent_id, [potential_daughter_pair_id[i],
                                                                               potential_daughter_pair_id[j]],
@@ -576,7 +574,6 @@ class Refiner:
 
                                     for rv in result['revert']:
                                         ann, mt_dic = self.revert(deepcopy(ann), deepcopy(mt_dic), parent_id, rv)
-                                        count -= 1
                                     for rg in result['register']:
                                         if rg == potential_daughter_pair_id[i]:
                                             ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic),
@@ -584,9 +581,15 @@ class Refiner:
                                         elif rg == potential_daughter_pair_id[j]:
                                             ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic),
                                                                                 parent_id, rg, c2_exit, dist_dif2)
-                                        count += 1
+
+        # calculate 2 daughters found relationships
+        count = 0
+        for i in mt_dic.keys():
+            if len(list(mt_dic[i]['daug'].keys())) == 2:
+                count += 1
 
         print("Parent-Daughter-Daughter mitosis relations found: " + str(count))
+        print("Parent-Daughter mitosis relations found: " + str(len(list(mt_dic.keys())) - count))
         track = track.sort_values(by=['lineageId', 'trackId', 'frame'])
         return track, ann, mt_dic
 
@@ -731,6 +734,7 @@ class Refiner:
         frame_diff = np.abs(par['frame'].iloc[-1] - daug['frame'].iloc[0])
         m_score_par = self.mt_score_end[parent]
         m_score_daug = self.mt_score_begin[daughter]
+        '''
         par_axis = self.getMeanAxis(trackId=parent)
         daug_axis = self.getMeanAxis(trackId=daughter)
         if par_axis[0] == 0:
@@ -742,6 +746,7 @@ class Refiner:
         else:
             ave_minor_axis_diff = np.abs((par_axis[1] - daug_axis[1])) / par_axis[1]
         '''
+        '''
         # TODO: input broken as the last feature? 
         # if input, external training data from .trk will not be calculated.
         from_broken = 0
@@ -751,7 +756,9 @@ class Refiner:
         '''
         out = [distance_diff / (self.mean_size + np.abs(frame_diff) * self.metaData['meanDisplace']),
                1 / (frame_diff / (self.metaData['sample_freq'] * self.metaData['mt_len']) + 0.1),
-               m_score_par + m_score_daug, ave_major_axis_diff, ave_minor_axis_diff]
+               m_score_par + m_score_daug, 
+               #ave_major_axis_diff, ave_minor_axis_diff
+               ]
 
         return out
 
@@ -817,18 +824,6 @@ class Refiner:
         sample_id = np.array(sample_id)
         y = np.array(y)
 
-        # remove outlier
-        outs = get_outlier(ipts, col_ids=[0,3,4])
-        idx = [_ for _ in range(ipts.shape[0]) if _ not in outs]
-        ipts = ipts[idx,]
-        y = y[idx,]
-        sample_id = sample_id[idx,]
-        print('Removed outliers, remaining: ' + str(ipts.shape[0]))
-        # normalization
-        scaler = StandardScaler()
-        scaler.fit(ipts)
-        ipts = scaler.transform(ipts)
-
         return ipts, y
 
     def setSVMpath(self, model_path):
@@ -866,6 +861,9 @@ class Refiner:
             if self.SVM_PATH == '':
                 raise ValueError('SVM model path has not set yet, use setSVMpath() to supply a SVM model.')
             self.track, self.ann, self.mt_dic = self.svm_pdd()
+        elif self.MODE == 'TRAIN':
+            self.mt_score_begin, self.mt_score_end = self.getMTscore(self.SEARCH_RANGE, self.MT_DISCOUNT)
+            return self.track, self.mt_dic
 
         self.track = self.update_table_with_mt()
 
