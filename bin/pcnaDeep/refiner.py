@@ -59,7 +59,7 @@ def deduce_transition(l, tar, confidence, min_tar, max_res, escape=0):
         i += 1
     if i == (len(idx) - 1) and found:
         m_exit = idx[-1]
-    elif i == (len(idx) - 1) and g_panelty < max_res and found == False and cur_m_entry != idx[-1]:
+    elif i == (len(idx) - 1) and g_panelty < max_res and not found and cur_m_entry != idx[-1]:
         found = True
         m_exit = idx[-1]
         if m_exit - cur_m_entry + 1 < min_tar:
@@ -137,7 +137,7 @@ class Refiner:
         track = track.sort_values(by=['trackId', 'frame'])
         filtered_track = pd.DataFrame(columns=track.columns)
         for trk in list(np.unique(track['trackId'])):
-            sub = track[track['trackId'] == trk]
+            sub = track[track['trackId'] == trk].copy()
             if trk in list(self.mt_dic.keys()):
                 filtered_track = filtered_track.append(sub.copy())
                 continue
@@ -146,27 +146,44 @@ class Refiner:
             if sub.shape[0] > self.MIN_GS and 'M' in list(sub['predicted_class']):
                 cls = sub['predicted_class'].tolist()
                 confid = np.array(sub[['Probability of G1/G2', 'Probability of S', 'Probability of M']])
+                if sub['parentTrackId'].iloc[0] in self.mt_dic.keys():
+                    prev_exit = self.mt_dic[int(sub['parentTrackId'].iloc[0])]['daug'][trk]['m_exit']
+                    esp = list(sub['frame']).index(prev_exit)+1
+                else:
+                    esp = self.MIN_M
                 out = deduce_transition(l=cls, tar='M', confidence=confid, min_tar=self.MIN_M, max_res=self.MIN_GS,
-                                        escape=self.MIN_M)
+                                        escape=esp)
 
                 if out is not None and out[0] != out[1] and out[1] != len(cls) - 1:
                     found = True
                     cur_m_entry, m_exit = out
+                    cla = list(sub['predicted_class'])
+                    for k in range(cur_m_entry, m_exit+1):
+                        cla[k] = 'M'
+                    
+                    sub.loc[:, 'predicted_class'] = cla
                     # split mitosis track, keep parent track with 2 'M' prediction
                     # this makes cytokinesis unpredictable...
                     m_entry = list(sub['frame'])[cur_m_entry]
-                    sp_time = list(sub['frame'])[m_exit]
-                    new_track = sub[sub['frame'] >= sp_time].copy()
+                    x_list = list(sub['Center_of_the_object_0'].iloc[cur_m_entry:m_exit+1])
+                    y_list = list(sub['Center_of_the_object_1'].iloc[cur_m_entry:m_exit+1])
+                    frame_list = list(sub['frame'])
+                    distance = \
+                        list(map(lambda x:dist(x_list[x], y_list[x],
+                                               x_list[x+1], y_list[x+1]) / (frame_list[x+1]-frame_list[x]),
+                                 range(len(x_list)-1)))
+                    sp_time = cur_m_entry + np.argmax(distance)+1
+                    new_track = sub[sub['frame'] >= frame_list[sp_time]].copy()
                     new_track.loc[:, 'trackId'] = cur_max
                     new_track.loc[:, 'lineageId'] = list(sub['lineageId'])[0]  # inherit the lineage
                     new_track.loc[:, 'parentTrackId'] = trk  # mitosis parent asigned
                     # register to the class
-                    x1 = sub.iloc[m_exit]['Center_of_the_object_0']
-                    y1 = sub.iloc[m_exit]['Center_of_the_object_1']
-                    x2 = sub.iloc[m_exit - 1]['Center_of_the_object_0']
-                    y2 = sub.iloc[m_exit - 1]['Center_of_the_object_1']
+                    x1 = sub.iloc[sp_time]['Center_of_the_object_0']
+                    y1 = sub.iloc[sp_time]['Center_of_the_object_1']
+                    x2 = sub.iloc[sp_time - 1]['Center_of_the_object_0']
+                    y2 = sub.iloc[sp_time - 1]['Center_of_the_object_1']
                     self.mt_dic[trk] = {'div': m_entry,
-                                        'daug': {cur_max: {'m_exit': sp_time, 'dist': dist(x1, y1, x2, y2)}}}
+                                        'daug': {cur_max: {'m_exit': frame_list[m_exit], 'dist': dist(x1, y1, x2, y2)}}}
                     cur_max += 1
                     count += 1
                     old_track = sub[sub['frame'] < sp_time].copy()
@@ -364,13 +381,13 @@ class Refiner:
         # deduce candidate parents = 
         #   mt_dic + wild parents not being parent.daughter yet
         parent_pool = list(self.mt_dic.keys())
-        pool = np.unique(self.track['trackId']).tolist()
+        pool = list(np.unique(self.track['trackId']))
         lin_par_pool = np.unique(self.track['parentTrackId'])
         lin_daug_pool = np.unique(self.track[self.track['parentTrackId'] > 0]['trackId'])
         for i in pool:
-            if i not in parent_pool and i not in lin_par_pool and i not in lin_daug_pool:
+            if i not in parent_pool and i not in lin_par_pool and i not in lin_daug_pool and i not in self.short_tracks:
                 # wild parents: at least two M classification at the end
-                if re.search('M-M$', ann[ann['track'] == i]['disapp_stage'].values[0]) is not None:
+                if re.search('M', ann[ann['track'] == i]['disapp_stage'].values[0]) is not None:
                     parent_pool.append(i)
 
         print('Extracting features...')
@@ -390,7 +407,7 @@ class Refiner:
 
         cls = joblib.load(self.SVM_PATH)
         # remove outlier
-        outs = get_outlier(ipts, col_ids=[0,3,4])
+        outs = get_outlier(ipts, col_ids=[0])
         idx = [_ for _ in range(ipts.shape[0]) if _ not in outs]
         ipts = ipts[idx,]
         sample_id = sample_id[idx,]
@@ -661,22 +678,6 @@ class Refiner:
 
         return pd.DataFrame(d)
 
-    def getMeanAxis(self, trackId):
-        """Calculate axis of the region
-
-        Args:
-            trackId (int): track ID
-        Returns:
-            (tuple): mean_major_axis, mean_minor_axis
-        """
-        sub = self.track[self.track['trackId'] == trackId]
-        if trackId not in self.mean_axis_lookup.keys():
-            reg = np.mean(sub['major_axis']), np.mean(sub['minor_axis'])
-            self.mean_axis_lookup[trackId] = reg
-            return reg
-        else:
-            return self.mean_axis_lookup[trackId]
-
     def getMTscore(self, search_range, discount=0.9):
         """Measure mitosis score based on cell cycle classification
 
@@ -716,8 +717,7 @@ class Refiner:
 
         Returns:
             input vector of SVM classifier:
-                [distance_diff, frame_diff, m_score_par * m_score_daug,    <-  track specific
-                ave_major_axis_diff, ave_minor_axis_diff]                 <-  track specific
+                [distance_diff, frame_diff, m_score_par + m_score_daug]    <-  track specific
                 * ave_major/minor_axis_diff = abs(parent_axis - daughter_axis) / parent_axis
                 some parameters are normalized with dataset specific features:
                     distance_diff /= ave_displace
@@ -734,31 +734,10 @@ class Refiner:
         frame_diff = np.abs(par['frame'].iloc[-1] - daug['frame'].iloc[0])
         m_score_par = self.mt_score_end[parent]
         m_score_daug = self.mt_score_begin[daughter]
-        '''
-        par_axis = self.getMeanAxis(trackId=parent)
-        daug_axis = self.getMeanAxis(trackId=daughter)
-        if par_axis[0] == 0:
-            ave_major_axis_diff = 1
-        else:
-            ave_major_axis_diff = np.abs((par_axis[0] - daug_axis[0])) / par_axis[0]
-        if par_axis[1] == 0:
-            ave_minor_axis_diff = 1
-        else:
-            ave_minor_axis_diff = np.abs((par_axis[1] - daug_axis[1])) / par_axis[1]
-        '''
-        '''
-        # TODO: input broken as the last feature? 
-        # if input, external training data from .trk will not be calculated.
-        from_broken = 0
-        if parent in list(self.mt_dic.keys()):
-            if daughter in list(self.mt_dic[parent]['daug'].keys()):
-                from_broken = 1
-        '''
+
         out = [distance_diff / (self.mean_size + np.abs(frame_diff) * self.metaData['meanDisplace']),
                1 / (frame_diff / (self.metaData['sample_freq'] * self.metaData['mt_len']) + 0.1),
-               m_score_par + m_score_daug, 
-               #ave_major_axis_diff, ave_minor_axis_diff
-               ]
+               m_score_par + m_score_daug]
 
         return out
 
@@ -785,24 +764,22 @@ class Refiner:
                 dic[r[0]] = [r[1]]
             y.append(r[2])
 
-        track = deepcopy(self.track)
         ann = deepcopy(self.ann)
         # deduce candidate parents = 
         #   mt_dic + wild parents not being parent.daughter yet
         parent_pool = list(np.unique((sample[:,0])))
-        pool = np.unique(self.track['trackId']).tolist()
+        pool = list(np.unique(self.track['trackId']))
         lin_par_pool = np.unique(self.track['parentTrackId'])
         lin_daug_pool = np.unique(self.track[self.track['parentTrackId'] > 0]['trackId'])
         for i in pool:
-            if i not in parent_pool and i not in lin_par_pool and i not in lin_daug_pool:
+            if i not in parent_pool and i not in lin_par_pool and i not in lin_daug_pool and i not in self.short_tracks:
                 # wild parents: at least two M classification at the end
-                if re.search('M-M$', ann[ann['track'] == i]['disapp_stage'].values[0]) is not None:
+                if re.search('M', ann[ann['track'] == i]['disapp_stage'].values[0]) is not None:
                     parent_pool.append(i)
 
         print('Extracting features...')
         ft = 0
         ipts = []
-        sample_id = []
         y = []
         for i in parent_pool:
             for j in range(len(pool)):
@@ -811,7 +788,6 @@ class Refiner:
                         print('Considered ' + str(ft) + '/' + str(len(pool) * len(parent_pool)) + ' cases.')
                     ft += 1
                     ipts.append(self.getSVMinput(i, pool[j]))
-                    sample_id.append([i, pool[j]])
                     a = np.where(sample[:, 0] == i)[0].tolist()
                     b = np.where(sample[:, 1] == pool[j])[0].tolist()
                     sp_index = list(set(a) & set(b))
@@ -821,7 +797,6 @@ class Refiner:
                         y.append(0)
 
         ipts = np.array(ipts)
-        sample_id = np.array(sample_id)
         y = np.array(y)
 
         return ipts, y

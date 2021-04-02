@@ -5,6 +5,7 @@ example
 examples
 inspect
 test
+test_*.py
 __pycache__
 .DS_Store
 .ipynb_checkpoints
