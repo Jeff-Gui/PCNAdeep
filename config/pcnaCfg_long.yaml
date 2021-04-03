@@ -1,0 +1,25 @@
+BATCH: false
+SPLIT:
+  GRID: 0
+  EDGE_WIDTH: 50
+  DILATE_ROUND: 3
+TRACKER:
+  DISPLACE: 40
+  GAP_FILL: 5
+POST_PROCESS:
+  MIN_G: 25
+  MIN_S: 20
+  MIN_M: 10
+  REFINER:
+    MODE: TRH
+    SMOOTH: 5
+    # TRH mode only
+    MAX_DIST_TRH: 100
+    MAX_FRAME_TRH: 20
+    # SVM mode only
+    SEARCH_RANGE: 5
+    MITOSIS_LEN: 5
+    SAMPLE_FREQ: 20
+    SVM_MODEL_PATH: '../models/mitosis_svm.m'
+  RESOLVER:
+    MIN_TRACK: 50
