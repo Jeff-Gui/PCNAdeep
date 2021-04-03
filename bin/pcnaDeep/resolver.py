@@ -98,7 +98,6 @@ class Resolver:
 
         UNRESOLVED_FRACTION = 0.2  # after resolving the class, if more than x% class has been corrected, label with
         # unresolved
-
         resolved_class = ['G1/G2' for _ in range(trk.shape[0])]
 
         cls = trk['predicted_class'].tolist()
@@ -144,14 +143,14 @@ class Resolver:
             mt_out_end = deduce_transition(l=cls[::-1], tar='M', confidence=confid[::-1, :], min_tar=1,
                                            max_res=np.max((self.minS, self.minG)))
 
-            if mt_out_begin is not None:
+            if mt_out_begin is not None and mt_out_end is None:
                 if mt_out_begin[0] == 0:
                     resolved_class[mt_out_begin[0]: mt_out_begin[1] + 1] = ['M' for _ in
                                                                             range(mt_out_begin[0], mt_out_begin[1] + 1)]
                 # if followed with G1/G2 only, change to G1
                 if np.unique(resolved_class[mt_out_begin[1] + 1:]).tolist() == ['G1/G2']:
                     resolved_class = ['G1' if i == 'G1/G2' else i for i in resolved_class]
-            if mt_out_end is not None:
+            if mt_out_end is not None and mt_out_begin is None:
                 if mt_out_end[0] == 0:
                     resolved_class = resolved_class[::-1]
                     resolved_class[mt_out_end[0]: mt_out_end[1] + 1] = ['M' for _ in
