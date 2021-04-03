@@ -238,16 +238,11 @@ class Refiner:
             ann['app_y'][i] = cur_track['Center_of_the_object_1'].iloc[0]
             ann['disapp_x'][i] = cur_track['Center_of_the_object_0'].iloc[cur_track.shape[0] - 1]
             ann['disapp_y'][i] = cur_track['Center_of_the_object_1'].iloc[cur_track.shape[0] - 1]
-            if cur_track.shape[0] >= 2 * frame_tolerance:
-                # record (dis-)appearance cell cycle classification, in time range equals to FRAME_TOLERANCE
-                ann['app_stage'][i] = '-'.join(cur_track['predicted_class'].iloc[0:frame_tolerance])
-                ann['disapp_stage'][i] = '-'.join(cur_track['predicted_class'].iloc[
-                                                  (cur_track.shape[0] - frame_tolerance): cur_track.shape[0]])
-            else:
-                ann['app_stage'][i] = '-'.join(
-                    cur_track['predicted_class'].iloc[0:min(frame_tolerance, cur_track.shape[0])])
-                ann['disapp_stage'][i] = '-'.join(
-                    cur_track['predicted_class'].iloc[max(0, cur_track.shape[0] - frame_tolerance):])
+            rt = self.render_emerging(track=cur_track, cov_range=frame_tolerance)
+            ann['app_stage'][i] = rt[0]
+            ann['disapp_stage'][i] = rt[1]
+
+            if cur_track.shape[0] < 2 * frame_tolerance:
                 short_tracks.append(i)
 
         ann = pd.DataFrame(ann)
@@ -270,6 +265,29 @@ class Refiner:
         print("High quality tracks subjected to predict relationship: " + str(ann.shape[0] - len(short_tracks)))
 
         return track, short_tracks, ann
+
+    def render_emerging(self, track, cov_range):
+        """Render emerging phase
+        """
+        if track.shape[0] >= 2 * cov_range:
+            bg_cls = list(track['predicted_class'].iloc[0:cov_range])
+            bg_emg = list(track['emerging'].iloc[0:cov_range])
+            end_cls = list(track['predicted_class'].iloc[(track.shape[0] - cov_range): track.shape[0]])
+            end_emg = list(track['emerging'].iloc[(track.shape[0] - cov_range): track.shape[0]])
+            
+        else:
+            bg_cls = list(track['predicted_class'].iloc[0:min(cov_range, track.shape[0])])
+            bg_emg = list(track['emerging'].iloc[0:min(cov_range, track.shape[0])])
+            end_cls = list(track['predicted_class'].iloc[max(0, track.shape[0] - cov_range):])
+            end_emg = list(track['emerging'].iloc[max(0, track.shape[0] - cov_range):])
+        
+        for i in range(len(bg_emg)):
+            if bg_emg[i] == 1:
+                bg_cls[i] = 'M'
+        for i in range(len(end_cls)):
+            if end_emg[i] == 1:
+                end_cls[i] = 'M'
+        return '-'.join(bg_cls), '-'.join(end_cls)
 
     def compete(self, mt_dic, parentId, daughter_ids, distance):
         # check if a track ID can be registered into the mitosis

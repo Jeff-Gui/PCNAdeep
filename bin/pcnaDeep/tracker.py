@@ -40,7 +40,7 @@ def track(df, displace=40, gap_fill=5):
     out = out[
         ['frame', 'trackId', 'lineageId', 'parentTrackId', 'Center_of_the_object_0', 'Center_of_the_object_1', 'phase',
          'Probability of G1/G2', 'Probability of S', 'Probability of M', 'continuous_label', 'major_axis', 'minor_axis',
-         'mean_intensity']]
+         'mean_intensity', 'emerging']]
     names = list(out.columns)
     names[4] = 'Center_of_the_object_1'
     names[5] = 'Center_of_the_object_0'
@@ -88,8 +88,13 @@ def track_mask(mask, displace=40, gap_fill=5, render_phase=False,
             probG = []
             probS = []
             probM = []
+            e = []
             for k in range(props.shape[0]):
                 ps = phase_dic[int(l[k])]
+                if int(l[k]) == 200:
+                    e.append(1)
+                else:
+                    e.append(0)
                 phase.append(ps)
                 if ps == 'G1/G2':
                     probG.append(1)
@@ -107,6 +112,7 @@ def track_mask(mask, displace=40, gap_fill=5, render_phase=False,
             props['Probability of G1/G2'] = probG
             props['Probability of S'] = probS
             props['Probability of M'] = probM
+            props['emerging'] = e
             props['phase'] = phase
             props['frame'] = i
             p = p.append(props)
@@ -124,6 +130,7 @@ def track_mask(mask, displace=40, gap_fill=5, render_phase=False,
             props['phase'] = 0
             props['frame'] = i
             props['mean_intensity'] = 0
+            props['emerging'] = 0
             p = p.append(props)
 
     track_out = track(p, displace=displace, gap_fill=gap_fill)

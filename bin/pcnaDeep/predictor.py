@@ -263,7 +263,8 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000):
     # 0: G1/G2, 1: S, 2: M, 3: E-early G1
     cls = predictions['instances'].pred_classes
     conf = predictions['instances'].scores
-    factor = {0: 'G1/G2', 1: 'S', 2: 'M', 3: 'G1/G2'}
+    #factor = {0: 'G1/G2', 1: 'S', 2: 'M', 3: 'G1/G2'}
+    factor = {0: 'G1/G2', 1: 'S', 2: 'M', 3: 'E'}
     for s in range(mask.shape[0]):
         if np.sum(mask[s, :, :]) < size_flt:
             continue
@@ -292,28 +293,36 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000):
     g_confid = []
     s_confid = []
     m_confid = []
+    e = []
     for row in range(out_props.shape[0]):
         lb = int(out_props.iloc[row][0])
         p = factor[cls[lb - 1].item()]
+        if p == 'E':
+            p = 'G1/G2'
+            e.append(1)
+        else:
+            e.append(0)
         confid = conf[lb - 1].item()
+        confid_rest = (1-confid) / 2
         phase.append(p)
         if p == 'G1/G2':
             g_confid.append(confid)
-            s_confid.append((1 - confid) / 2)
-            m_confid.append((1 - confid) / 2)
+            s_confid.append(confid_rest)
+            m_confid.append(confid_rest)
         elif p == 'S':
             s_confid.append(confid)
-            g_confid.append((1 - confid) / 2)
-            m_confid.append((1 - confid) / 2)
+            g_confid.append(confid_rest)
+            m_confid.append(confid_rest)
         else:
             m_confid.append(confid)
-            g_confid.append((1 - confid) / 2)
-            s_confid.append((1 - confid) / 2)
+            g_confid.append(confid_rest)
+            s_confid.append(confid_rest)
 
     out_props['phase'] = phase
     out_props['Probability of G1/G2'] = g_confid
     out_props['Probability of S'] = s_confid
     out_props['Probability of M'] = m_confid
+    out_props['emerging'] = e
 
     del out_props['label']
 
