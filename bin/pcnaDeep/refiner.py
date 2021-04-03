@@ -310,13 +310,15 @@ class Refiner:
                 ids.append(i)
                 distance.append(dg_list[i]['dist'])
         rs = np.argsort(distance)[:2]
-        ids = [ids[rs[0]], ids[rs[1]]]
+        if len(rs) == 1:
+            ids = [ids[rs[0]]]
+        else:
+            ids = [ids[rs[0]], ids[rs[1]]]
         rt = ids.copy()
 
-        if ids[0] in dg_list.keys():
-            rt.remove(ids[0])
-        if ids[1] in dg_list.keys():
-            rt.remove(ids[1])
+        for i in range(len(ids)):
+            if ids[i] in dg_list.keys():
+                rt.remove(ids[i])
 
         rm = []
         for i in list(dg_list.keys()):
@@ -589,25 +591,45 @@ class Refiner:
                                 # Constraint B: parent disappearance time close to daughter's appearance
                                 # deduce M_entry and M_exit
                                 c1_exit = self.getMtransition(potential_daughter_pair_id[i], direction='exit')
+                                if c1_exit is None:
+                                    c1_exit = int(target_info_1['app_frame'])
+                                    idx = track[track['trackId']==potential_daughter_pair_id[i]].index
+                                    track.loc[idx[0], 'predicted_class'] = 'M'
+                                    self.imprecise.append(potential_daughter_pair_id[i])
                                 c2_exit = self.getMtransition(potential_daughter_pair_id[j], direction='exit')
+                                if c2_exit is None:
+                                    c2_exit = int(target_info_2['app_frame'])
+                                    idx = track[track['trackId']==potential_daughter_pair_id[j]].index
+                                    track.loc[idx[0], 'predicted_class'] = 'M'
+                                    self.imprecise.append(potential_daughter_pair_id[j])
 
                                 if ann.loc[ann['track'] == parent_id, "m_entry"].values[0] is None:
                                     # parent has not been registered yet
                                     c3_entry = self.getMtransition(parent_id, direction='entry')
 
                                     # update information in ann and mt_dic table
-                                    ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic), parent_id,
-                                                                        potential_daughter_pair_id[i],
-                                                                        c1_exit, dist_dif1, m_entry=c3_entry)
-                                    ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic), parent_id,
-                                                                        potential_daughter_pair_id[j],
-                                                                        c2_exit, dist_dif2)
+                                    if c1_exit > c3_entry:
+                                        ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic), parent_id,
+                                                                            potential_daughter_pair_id[i],
+                                                                            c1_exit, dist_dif1, m_entry=c3_entry)
+                                    if c2_exit > c3_entry:
+                                        ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic), parent_id,
+                                                                            potential_daughter_pair_id[j],
+                                                                            c2_exit, dist_dif2, m_entry=c3_entry)
 
                                 else:
-                                    result = self.compete(mt_dic, parent_id, [potential_daughter_pair_id[i],
-                                                                              potential_daughter_pair_id[j]],
-                                                          [dist_dif1, dist_dif2])
+                                    to_compete = []
+                                    dist_to = []
+                                    if c1_exit > ann.loc[ann['track'] == parent_id, "m_entry"].values[0]:
+                                        to_compete.append(potential_daughter_pair_id[i])
+                                        dist_to.append(dist_dif1)
+                                    if c2_exit > ann.loc[ann['track'] == parent_id, "m_entry"].values[0]:
+                                        to_compete.append(potential_daughter_pair_id[j])
+                                        dist_to.append(dist_dif2)
+                                    if not len(to_compete):
+                                        continue
 
+                                    result = self.compete(mt_dic, parent_id, to_compete, dist_to)
                                     for rv in result['revert']:
                                         ann, mt_dic = self.revert(deepcopy(ann), deepcopy(mt_dic), parent_id, rv)
                                     for rg in result['register']:
