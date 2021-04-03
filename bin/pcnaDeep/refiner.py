@@ -186,7 +186,7 @@ class Refiner:
                                         'daug': {cur_max: {'m_exit': frame_list[m_exit], 'dist': dist(x1, y1, x2, y2)}}}
                     cur_max += 1
                     count += 1
-                    old_track = sub[sub['frame'] < sp_time].copy()
+                    old_track = sub[sub['frame'] < frame_list[sp_time]].copy()
                     filtered_track = filtered_track.append(old_track.copy())
                     filtered_track = filtered_track.append(new_track.copy())
             if not found:
@@ -387,7 +387,7 @@ class Refiner:
         for i in pool:
             if i not in parent_pool and i not in lin_par_pool and i not in lin_daug_pool and i not in self.short_tracks:
                 # wild parents: at least two M classification at the end
-                if re.search('M', ann[ann['track'] == i]['disapp_stage'].values[0]) is not None:
+                if re.search('M', ann[ann['track'] == i]['disapp_stage'].values[0]) is not None :
                     parent_pool.append(i)
 
         print('Extracting features...')
@@ -536,7 +536,8 @@ class Refiner:
                             0] is None:
                         potential_parent = list(ann[list(map(
                             lambda x: re.search('M', ann['disapp_stage'].iloc[x]) is not None and
-                            ann['mitosis_identity'].iloc[x] == '', range(ann.shape[0])))]['track'])
+                            ann['mitosis_identity'].iloc[x] == '' and x not in self.short_tracks,
+                            range(ann.shape[0])))]['track'])
                     else:
                         potential_parent = []
                         v1 = target_info_1['mitosis_parent'].values[0]
