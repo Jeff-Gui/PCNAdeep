@@ -14,12 +14,12 @@ POST_PROCESS:
     MODE: SVM
     SMOOTH: 5
     # TRH mode only
-    MAX_DIST_TRH: 150
+    MAX_DIST_TRH: 100
     MAX_FRAME_TRH: 5
     # SVM mode only
     SEARCH_RANGE: 5
     MITOSIS_LEN: 5
-    SAMPLE_FREQ: 20
+    SAMPLE_FREQ: 0.05
     SVM_MODEL_PATH: '../models/mitosis_svm.m'
   RESOLVER:
     MIN_TRACK: 10

@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 import math
 import re
-import joblib
 import pandas as pd
 import numpy as np
 from copy import deepcopy
+from sklearn.svm import SVC
 from scipy.optimize import linear_sum_assignment
-from sklearn.preprocessing import StandardScaler
+from sklearn.preprocessing import RobustScaler
 from sklearn.preprocessing import MinMaxScaler
 from pcnaDeep.data.utils import get_outlier
 
@@ -44,6 +44,7 @@ def deduce_transition(l, tar, confidence, min_tar, max_res, escape=0):
     g_panelty = 0
     acc_m = confid_cls[idx[0]]
     cur_m_entry = idx[i]
+    m_exit = None
     while i < len(idx) - 1:
         acc_m += confid_cls[idx[i + 1]]
         g_panelty += np.sum(confid_cls[idx[i] + 1:idx[i + 1]])
@@ -66,7 +67,7 @@ def deduce_transition(l, tar, confidence, min_tar, max_res, escape=0):
         if m_exit - cur_m_entry + 1 < min_tar:
             return None
 
-    if found:
+    if found and m_exit is not None:
         return cur_m_entry, m_exit
     else:
         return None
@@ -76,7 +77,7 @@ class Refiner:
 
     def __init__(self, track, smooth=5, minGS=6, minM=3, mode='SVM',
                  threshold_mt_F=150, threshold_mt_T=5,
-                 search_range=5, mt_len=5, sample_freq=20, model_path=''):
+                 search_range=5, mt_len=5, sample_freq=1/20, model_train=''):
         """Refinement of the tracks
 
         Class variables:
@@ -92,7 +93,7 @@ class Refiner:
                 search_range (int): when calculating mitosis score, how many time points to consider
                 mt_len (int): mitosis length of the cells, evaluated manually
                 sample_freq (int): sampling frequency: x minute per frame
-                model_path (str): path to saved SVM model
+                model_train (str): path to SVM model training data
 
         """
         self.flag = False
@@ -106,7 +107,7 @@ class Refiner:
         self.SEARCH_RANGE = search_range
         self.mt_score_begin, self.mt_score_end = self.getMTscore(self.SEARCH_RANGE, self.MT_DISCOUNT)
         if mode == 'SVM' or mode == 'TRAIN':
-            self.SVM_PATH = model_path
+            self.SVM_PATH = model_train
         elif mode == 'TRH':
             self.FRAME_MT_TOLERANCE = threshold_mt_T
             self.DIST_MT_TOLERANCE = threshold_mt_F
@@ -124,6 +125,7 @@ class Refiner:
         self.mt_entry_lookup = {}  # {daughter ID: (exit frame, quality)}
         self.imprecise = []  # imprecise mitosis: daughter exit without M classification
         self.mean_size = np.mean(np.array(self.track[['major_axis', 'minor_axis']]))
+        self.mean_intensity = np.mean(np.array(self.track[['mean_intensity']]))
         self.ann = pd.DataFrame(
             columns=['track', 'app_frame', 'disapp_frame', 'app_x', 'app_y', 'disapp_x', 'disapp_y', 'app_stage',
                      'disapp_stage', 'predicted_parent'])
@@ -427,6 +429,7 @@ class Refiner:
             parent_pool = list(set(parent_pool) | set(extra_par))
         if extra_daug:
             daughter_pool = list(set(daughter_pool) | set(extra_daug))
+
         return parent_pool, daughter_pool
 
     def extract_features(self, par_pool, daug_pool, remove_outlier=None, normalize=None, sample=None):
@@ -439,6 +442,9 @@ class Refiner:
             normalize (bool): normalize each column
             sample (numpy.array): training mode only, supply positive sample information, will add y as 2nd output
         """
+        if sample is not None and self.MODE != 'TRAIN':
+            raise ValueError('Only allowed to input sample in TRAIN mode.')
+
         print('Extracting features...')
         ft = 0
         ipts = []
@@ -450,7 +456,11 @@ class Refiner:
                     if ft % 1000 == 0 and ft > 0:
                         print('Considered ' + str(ft) + '/' + str(len(daug_pool) * len(par_pool)) + ' cases.')
                     ft += 1
-                    ipts.append(self.getSVMinput(i, daug_pool[j]))
+                    ind = self.getSVMinput(i, daug_pool[j])
+                    if ind[0] >= 3 or ind[1] <0:
+                        # if distance over 3 (average radius + average move * time frame difference), discard it.
+                        continue
+                    ipts.append(ind)
                     sample_id.append([i, daug_pool[j]])
                     if sample is not None:
                         a = np.where(sample[:, 0] == i)[0].tolist()
@@ -475,11 +485,10 @@ class Refiner:
             print('Removed outliers, remaining: ' + str(ipts.shape[0]))
 
         if normalize:
-            scaler = StandardScaler()
-            scaler.fit(ipts)
-            ipts = scaler.transform(ipts)
+            scaler = RobustScaler()
+            ipts = scaler.fit_transform(ipts)
 
-        print('Finished feature extraction.')
+        print('Finished feature extraction: ' + str(ipts.shape[0]) + ' samples.')
         if sample is not None:
             return ipts, y, sample_id
         else:
@@ -489,37 +498,60 @@ class Refiner:
         out = np.zeros((ipts.shape[0],2))
         s = MinMaxScaler()
         frame_norm = s.fit_transform(np.transpose([ipts[:,1]]))
-        mt_norm = s.fit_transform(np.transpose([ipts[:,2]]))
+        mt_norm = s.fit_transform(np.transpose([ipts[:,3]]))
+        intensity_norm = s.fit_transform(np.transpose([ipts[:,2] * -1]))
         dist_norm = s.fit_transform(np.transpose([ipts[:,0] * -1]))
+
         for i in range(ipts.shape[0]):
             if ipts[i,1] <= 0 or ipts[i,0] > self.DIST_MT_TOLERANCE or ipts[i,1] > self.FRAME_MT_TOLERANCE:
                 score = 0
             else:
-                score = 0.4 + 0.2 * frame_norm[i,0] + 0.2 * mt_norm[i,0] + 0.2 * dist_norm[i,0]
+                score = 0.4 + 0.1 * frame_norm[i,0] + 0.1 * mt_norm[i,0] + 0.3 * dist_norm[i,0] + \
+                        0.1 * intensity_norm[i,0]
             out[i,0] = 1-score
             out[i,1] = score
         return out
 
+    def extract_train_from_break(self, sample_id, ipts, mt_dic):
+        """Extract broken mitosis information to train model
+        """
+        sample = pd.DataFrame(sample_id)
+        sample.columns = ['par', 'daug']
+        idx = []
+        for i in mt_dic.keys():
+            par, daug = i, list(mt_dic[i]['daug'].keys())[0]
+            idx.append(sample[(sample['par'] == par) & (sample['daug'] == daug)].index[0])
+        idx = np.array(idx)
+        return ipts[idx].copy()
+
     def associate(self, mode=None):
-        print(self.mt_dic)
         ann = deepcopy(self.ann)
         track = deepcopy(self.track)
         mt_dic = deepcopy(self.mt_dic)
 
         parent_pool, pool = self.extract_pools()
 
-        if mode is None or mode == 'SVM':
-            ipts, sample_id = self.extract_features(parent_pool, pool, remove_outlier=None, normalize=True)
-            parent_pool = list(np.unique(sample_id[:, 0]))
-            cls = joblib.load(self.SVM_PATH)
-            res = cls.predict_proba(ipts)
-            print('Finished prediction.')
-        else:
-            ipts, sample_id = self.extract_features(parent_pool, pool, remove_outlier=None, normalize=False)
-            assert ipts.shape[0] == sample_id.shape[0]
-            res = self.plainPredict(ipts)
-            print('Finished prediction.')
+        ipts, sample_id = self.extract_features(parent_pool, pool, remove_outlier=None, normalize=True)
 
+        if mode is None or mode == 'SVM':
+            model = SVC(kernel='rbf', C=100, gamma=1, probability=True, class_weight='balanced')
+
+            # Train model further with already broken tracks
+            ipts_brk = self.extract_train_from_break(sample_id, ipts, mt_dic)
+            y = [1 for _ in range(ipts_brk.shape[0])]
+
+            # Read in baseline training data
+            baseline = np.array(pd.read_csv(self.SVM_PATH, header=None))
+            X = np.concatenate((ipts_brk, baseline[:, :baseline.shape[1]-1]), axis=0)
+            y.extend(list(baseline[:, baseline.shape[1]-1]))
+            y = np.array(y)
+            model.fit(X, y)
+            res = model.predict_proba(ipts)
+        else:
+            res = self.plainPredict(ipts)
+        print('Finished prediction.')
+
+        parent_pool = list(np.unique(sample_id[:, 0]))
         cost_r_idx = np.array([val for val in parent_pool for _ in range(2)])
         cost_c_idx = np.unique(sample_id[:, 1])
         cost = np.zeros((cost_r_idx.shape[0], cost_c_idx.shape[0]))
@@ -535,13 +567,13 @@ class Refiner:
                             cost[i, j] = 1
                         else:
                             cost[i, j] = res[sp_index[0]][1]
-
+        '''
         save_cost = pd.DataFrame(cost.copy())
         save_cost.index = cost_r_idx
         save_cost.columns = cost_c_idx
         save_cost.to_csv('../../test/test_cost.csv')
         pd.DataFrame(np.concatenate((ipts, sample_id), axis=1)).to_csv('../../test/test_input.csv')
-
+        '''
         cost = cost * -1
         row_ind, col_ind = linear_sum_assignment(cost)
 
@@ -558,12 +590,19 @@ class Refiner:
                     to_register[par][1].append(cst)
 
         print(to_register)
+        ips_count = 0
         for par in to_register.keys():
             daugs, csts = to_register[par]
             m_entry = self.mt_entry_lookup[par][0]
+            if self.mt_entry_lookup[par][1] == 0:
+                self.imprecise.append(par)
+                ips_count += 1
             if par not in mt_dic.keys():
                 for i in range(len(daugs)):
                     m_exit = self.mt_exit_lookup[daugs[i]][0]
+                    if self.mt_exit_lookup[daugs[i]][1] == 0:
+                        self.imprecise.append(daugs[i])
+                        ips_count += 1
                     ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic),
                                                         par, daugs[i], m_exit, -csts[i], m_entry)
             else:
@@ -574,6 +613,9 @@ class Refiner:
                 for i in range(len(daugs)):
                     if daugs[i] not in ori_daugs:
                         m_exit = self.mt_exit_lookup[daugs[i]][0]
+                        if self.mt_exit_lookup[daugs[i]][1] == 0:
+                            self.imprecise.append(daugs[i])
+                            ips_count += 1
                         ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic),
                                                             par, daugs[i], m_exit, -csts[i], m_entry)
                     else:
@@ -587,6 +629,8 @@ class Refiner:
 
         print("Parent-Daughter-Daughter mitosis relations found: " + str(count))
         print("Parent-Daughter mitosis relations found: " + str(len(list(mt_dic.keys())) - count))
+        print("Imprecise tracks involved in prediction: " + str(ips_count))
+        print(mt_dic)
         track = track.sort_values(by=['lineageId', 'trackId', 'frame'])
         return track, ann, mt_dic
 
@@ -746,10 +790,10 @@ class Refiner:
         len_daug = (daug['frame'].iloc[-1] - daug['frame'].iloc[0])/self.metaData['mt_len']
 
         out = [distance_diff / (self.mean_size + np.abs(frame_diff) * self.metaData['meanDisplace']),
-               # 1 / (frame_diff / (self.metaData['sample_freq'] * self.metaData['mt_len']) + 0.1),
-               frame_diff,
-               np.min((par_intensity, daug_intensity)),
-               m_score_par + m_score_daug, len_par, len_daug]
+               frame_diff / self.metaData['sample_freq'],
+               np.min((par_intensity, daug_intensity)) / self.mean_intensity,
+               m_score_par + m_score_daug,
+               len_par / self.metaData['sample_freq'], len_daug / self.metaData['sample_freq']]
 
         return out
 
@@ -773,8 +817,8 @@ class Refiner:
 
         return ipts, y, sample_id
 
-    def setSVMpath(self, model_path):
-        self.SVM_PATH = model_path
+    def setSVMpath(self, model_train):
+        self.SVM_PATH = model_train
         return
 
     def doTrackRefine(self):
@@ -806,7 +850,7 @@ class Refiner:
             self.track, self.ann, self.mt_dic = self.associate(mode='TRH')
         elif self.MODE == 'SVM':
             if self.SVM_PATH == '':
-                raise ValueError('SVM model path has not set yet, use setSVMpath() to supply an SVM model.')
+                raise ValueError('Path to SVM training data has not set yet, use setSVMpath() to supply an SVM model.')
             self.track, self.ann, self.mt_dic = self.associate()
         elif self.MODE == 'TRAIN':
             return self.track, self.mt_dic
