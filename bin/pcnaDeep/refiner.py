@@ -100,19 +100,14 @@ class Refiner:
         self.count = np.unique(track['trackId'])
 
         self.MODE = mode
+        self.MT_DISCOUNT = 0.9
+        self.metaData = {'mt_len': mt_len, 'sample_freq': sample_freq,
+                         'meanDisplace': np.mean(self.getMeanDisplace()['mean_displace'])}
+        self.SEARCH_RANGE = search_range
+        self.mt_score_begin, self.mt_score_end = self.getMTscore(self.SEARCH_RANGE, self.MT_DISCOUNT)
         if mode == 'SVM' or mode == 'TRAIN':
-            self.SEARCH_RANGE = search_range
-            self.MT_DISCOUNT = 0.9
-            self.metaData = {'mt_len': mt_len, 'sample_freq': sample_freq,
-                             'meanDisplace': np.mean(self.getMeanDisplace()['mean_displace'])}
-            self.mt_score_begin, self.mt_score_end = self.getMTscore(self.SEARCH_RANGE, self.MT_DISCOUNT)
             self.SVM_PATH = model_path
         elif mode == 'TRH':
-            self.SEARCH_RANGE = search_range
-            self.MT_DISCOUNT = 0.9
-            self.metaData = {'mt_len': mt_len, 'sample_freq': sample_freq,
-                             'meanDisplace': np.mean(self.getMeanDisplace()['mean_displace'])}
-            self.mt_score_begin, self.mt_score_end = self.getMTscore(self.SEARCH_RANGE, self.MT_DISCOUNT)
             self.FRAME_MT_TOLERANCE = threshold_mt_T
             self.DIST_MT_TOLERANCE = threshold_mt_F
         else:
@@ -125,11 +120,10 @@ class Refiner:
         self.short_tracks = []
         self.daug_from_broken = []
         self.mt_dic = {}
-        self.mean_axis_lookup = {}
-        self.mean_size = np.mean(np.array(self.track[['major_axis', 'minor_axis']]))
+        self.mt_exit_lookup = {}  # {parent ID: (exit frame, quality)}
+        self.mt_entry_lookup = {}  # {daughter ID: (exit frame, quality)}
         self.imprecise = []  # imprecise mitosis: daughter exit without M classification
-        # mitosis dictionary: trackId: [[daughterId], [mt_entry, mt_exit]] for primarily mitosis break only  {
-        # 'div':m_entry, 'daug':{daug1: m_exit, daug2: m_exit}}
+        self.mean_size = np.mean(np.array(self.track[['major_axis', 'minor_axis']]))
         self.ann = pd.DataFrame(
             columns=['track', 'app_frame', 'disapp_frame', 'app_x', 'app_y', 'disapp_x', 'disapp_y', 'app_stage',
                      'disapp_stage', 'predicted_parent'])
@@ -250,7 +244,7 @@ class Refiner:
             ann['disapp_stage'][i] = rt[1]
 
             if cur_track.shape[0] < 2 * frame_tolerance:
-                short_tracks.append(i)
+                short_tracks.append(trks[i])
         self.short_tracks = short_tracks.copy()
 
         ann = pd.DataFrame(ann)
@@ -415,7 +409,9 @@ class Refiner:
         self.daug_from_broken = daughter_pool.copy()
         pool = list(np.unique(self.track['trackId']))
         lin_par_pool = list(set(np.unique(self.track['parentTrackId'])) - set(parent_pool))
-        lin_daug_pool = list(set(np.unique(self.track[self.track['parentTrackId'] > 0]['trackId'])) - set(daughter_pool))
+        lin_daug_pool = list(set(np.unique(self.track[self.track['parentTrackId'] > 0]['trackId'])) -
+                             set(daughter_pool))
+
         for i in pool:
             if i not in parent_pool and i not in lin_par_pool and i not in self.short_tracks:
                 # wild parents: at least two M classification at the end
@@ -496,16 +492,16 @@ class Refiner:
         mt_norm = s.fit_transform(np.transpose([ipts[:,2]]))
         dist_norm = s.fit_transform(np.transpose([ipts[:,0] * -1]))
         for i in range(ipts.shape[0]):
-            if ipts[i,1] <= 0:
+            if ipts[i,1] <= 0 or ipts[i,0] > self.DIST_MT_TOLERANCE or ipts[i,1] > self.FRAME_MT_TOLERANCE:
                 score = 0
             else:
                 score = 0.4 + 0.2 * frame_norm[i,0] + 0.2 * mt_norm[i,0] + 0.2 * dist_norm[i,0]
-                print(frame_norm[i,0], mt_norm[i,0], dist_norm[i,0])
             out[i,0] = 1-score
             out[i,1] = score
         return out
 
     def associate(self, mode=None):
+        print(self.mt_dic)
         ann = deepcopy(self.ann)
         track = deepcopy(self.track)
         mt_dic = deepcopy(self.mt_dic)
@@ -513,7 +509,7 @@ class Refiner:
         parent_pool, pool = self.extract_pools()
 
         if mode is None or mode == 'SVM':
-            ipts, sample_id = self.extract_features(parent_pool, pool, remove_outlier=[0,1], normalize=True)
+            ipts, sample_id = self.extract_features(parent_pool, pool, remove_outlier=None, normalize=True)
             parent_pool = list(np.unique(sample_id[:, 0]))
             cls = joblib.load(self.SVM_PATH)
             res = cls.predict_proba(ipts)
@@ -528,236 +524,62 @@ class Refiner:
         cost_c_idx = np.unique(sample_id[:, 1])
         cost = np.zeros((cost_r_idx.shape[0], cost_c_idx.shape[0]))
         for i in range(cost.shape[0]):
+            a = np.where(sample_id[:, 0] == cost_r_idx[i])[0].tolist()
             for j in range(cost.shape[1]):
                 if cost_r_idx[i] != cost_c_idx[j]:
-                    a = np.where(sample_id[:, 0] == cost_r_idx[i])[0].tolist()
                     b = np.where(sample_id[:, 1] == cost_c_idx[j])[0].tolist()
                     sp_index = list(set(a) & set(b))
                     if sp_index:
-                        if sample_id[sp_index, 1] in self.daug_from_broken:
+                        if cost_r_idx[i] in self.mt_dic.keys() and \
+                                cost_c_idx[j] in self.mt_dic[cost_r_idx[i]]['daug'].keys():
                             cost[i, j] = 1
                         else:
                             cost[i, j] = res[sp_index[0]][1]
 
+        save_cost = pd.DataFrame(cost.copy())
+        save_cost.index = cost_r_idx
+        save_cost.columns = cost_c_idx
+        save_cost.to_csv('../../test/test_cost.csv')
+        pd.DataFrame(np.concatenate((ipts, sample_id), axis=1)).to_csv('../../test/test_input.csv')
+
         cost = cost * -1
         row_ind, col_ind = linear_sum_assignment(cost)
-        matched_par = cost_r_idx[row_ind[::2]]
-        anns = []
-        for i in range(len(matched_par)):
-            anns.append(ann)
-            cst = cost[2 * i + 1, col_ind[2 * i:2 * i + 2]]
-            par = matched_par[i]
-            daugs = cost_c_idx[col_ind[2 * i:2 * i + 2]]
-            if all(cst < -0.5):
-                # matched pair should have both confidence score above 0.5
-                cst = (1 + cst).tolist()
-                if par in list(mt_dic.keys()):
-                    # if parent already registered
-                    ori_daugs = list(mt_dic[par]['daug'].keys())  # record original daughters
-                    for j in range(len(ori_daugs)):
-                        # if original daughters not in predicted pair, erase them
-                        if ori_daugs[j] not in daugs:
-                            ann, mt_dic = self.revert(deepcopy(ann), deepcopy(mt_dic), par, ori_daugs[j])
-                    for j in range(len(daugs)):
-                        daug = daugs[j]
-                        if daug in mt_dic[par]['daug'].keys():  # update daughter distance with daughter confidence
-                            # update old daughter
-                            mt_dic[par]['daug'][daug]['dist'] = cst[j]
-                        else:
-                            m_entry = mt_dic[par]['div']
-                            m_exit = self.get_mitosis_exit(daug, m_entry)
-                            if m_exit is not None:
-                                ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic), par, daug, m_exit,
-                                                                    cst[j])
 
+        to_register = {}
+        for i in range(len(row_ind)):
+            cst = cost[row_ind[i], col_ind[i]]
+            if cst < -0.5:
+                par = cost_r_idx[row_ind[i]]
+                daug = cost_c_idx[col_ind[i]]
+                if par not in to_register.keys():
+                    to_register[par] = ([daug], [cst])
                 else:
-                    # if the parent have not been registered, first calculate mitosis entry
-                    m_entry = self.getMtransition(par, direction='entry')
-                    if m_entry is None:
-                        continue
-                    for j in range(len(daugs)):
-                        # for each daughter, determine mitosis exit
-                        m_exit = self.get_mitosis_exit(daugs[j], m_entry)
-                        # register finally
-                        if m_exit is not None:
-                            ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic), par, daugs[j], m_exit,
-                                                                cst[j], m_entry)
+                    to_register[par][0].append(daug)
+                    to_register[par][1].append(cst)
+
+        print(to_register)
+        for par in to_register.keys():
+            daugs, csts = to_register[par]
+            m_entry = self.mt_entry_lookup[par][0]
+            if par not in mt_dic.keys():
+                for i in range(len(daugs)):
+                    m_exit = self.mt_exit_lookup[daugs[i]][0]
+                    ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic),
+                                                        par, daugs[i], m_exit, -csts[i], m_entry)
             else:
-                # if one of the pair has confidence below 0.5, and the daughter is in registered dict, will revert it.
-                # if one of the pair has confidence above 0.5, and the daughter is not in registered dict, will register
-                # it.
-                if par in list(mt_dic.keys()):
-                    for j in range(len(daugs)):
-                        if cst[j] >= -0.5 and daugs[j] in mt_dic[par]['daug'].keys():
-                            ann, mt_dic = self.revert(deepcopy(ann), deepcopy(mt_dic), par, daugs[j])
-                        if cst[j] < -0.5:
-                            m_entry = mt_dic[par]['div']
-                            m_exit = self.get_mitosis_exit(daugs[j], m_entry)
-                            if m_exit is not None:
-                                ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic), par, daugs[j],
-                                                                    m_exit, cst[j], m_entry)
-                    if not len(list(mt_dic[par]['daug'].keys())):
-                        del mt_dic[par]
-                elif not all(cst >= -0.5):
-                    m_entry = self.getMtransition(par, direction='entry')
-                    if m_entry is not None:
-                        continue
-                    for j in range(len(daugs)):
-                        if cst[j] < -0.5:
-                            m_exit = self.get_mitosis_exit(daugs[j], m_entry)
-                            if m_exit is not None:
-                                ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic), par, daugs[j],
-                                                                    m_exit, cst[j], m_entry)
+                ori_daugs = list(mt_dic[par]['daug'].keys())
+                for ori_daug in ori_daugs:
+                    if ori_daug not in daugs:
+                        ann, mt_dic = self.revert(deepcopy(ann), deepcopy(mt_dic), par, ori_daug)
+                for i in range(len(daugs)):
+                    if daugs[i] not in ori_daugs:
+                        m_exit = self.mt_exit_lookup[daugs[i]][0]
+                        ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic),
+                                                            par, daugs[i], m_exit, -csts[i], m_entry)
+                    else:
+                        mt_dic[par]['daug'][daugs[i]]['dist'] = -csts[i]
 
         # count 2 daughters-found relationships
-        count = 0
-        for i in mt_dic.keys():
-            if len(list(mt_dic[i]['daug'].keys())) == 2:
-                count += 1
-
-        print("Parent-Daughter-Daughter mitosis relations found: " + str(count))
-        print("Parent-Daughter mitosis relations found: " + str(len(list(mt_dic.keys())) - count))
-        track = track.sort_values(by=['lineageId', 'trackId', 'frame'])
-        return track, ann, mt_dic
-
-    def get_mitosis_exit(self, daug, m_entry):
-        """Get mitosis exit time of the daughter
-
-        Args:
-            daug (int): daughter track ID
-            m_entry (int): parent mitosis entry, for validation
-        """
-        m_exit = self.getMtransition(daug, direction='exit')
-        if m_exit is None:
-            m_exit = self.track[self.track['trackId'] == daug]['frame'].iloc[0]
-            if m_exit <= m_entry:
-                return None
-            self.imprecise.append(daug)
-        if m_exit <= m_entry:
-            # mitosis exit of the daughter should after parent mitosis entry
-            return None
-        return m_exit
-
-    def search_pdd(self):
-        ann = deepcopy(self.ann)
-        track = deepcopy(self.track)
-        mt_dic = deepcopy(self.mt_dic)
-
-        # Mitosis search
-        #   Aim: to identify two appearing daughter tracks after one disappearing parent track
-        potential_daughter_pair_id = list(
-            ann[list(map(lambda x: re.search('M', ann['app_stage'].iloc[x]) is not None, range(ann.shape[0])))][
-                'track'])  # daughter track must appear as M during mitosis
-        for i in range(len(potential_daughter_pair_id) - 1):
-            for j in range(i + 1, len(potential_daughter_pair_id)):
-                # iterate over all pairs of potential daughters
-                target_info_1 = ann[ann['track'] == potential_daughter_pair_id[i]]
-                target_info_2 = ann[ann['track'] == potential_daughter_pair_id[j]]
-                if target_info_1.shape[0] == 0 or target_info_2.shape[1] == 0: continue
-                time_dif = abs(int(target_info_1['app_frame']) - int(target_info_2['app_frame']))
-                if dist(target_info_1['app_x'], target_info_1['app_y'], target_info_2['app_x'], target_info_2[
-                        'app_y']) <= time_dif * self.DIST_MT_TOLERANCE and time_dif < self.FRAME_MT_TOLERANCE:
-                    # Constraint A: close distance
-                    # Constraint B: close appearing time
-
-                    # Find potential parent that disappear at M
-                    # If the daughter already has mitosis parent, the parent pool will be restricted to this parent
-                    if target_info_1['mitosis_parent'].values[0] is None and target_info_2['mitosis_parent'].values[
-                            0] is None:
-                        potential_parent = list(ann[list(map(
-                            lambda x: re.search('M', ann['disapp_stage'].iloc[x]) is not None and
-                            ann['mitosis_identity'].iloc[x] == '' and x not in self.short_tracks,
-                            range(ann.shape[0])))]['track'])
-                    else:
-                        potential_parent = []
-                        v1 = target_info_1['mitosis_parent'].values[0]
-                        v2 = target_info_2['mitosis_parent'].values[0]
-                        if v1 is not None:
-                            potential_parent.append(int(v1))
-                        if v2 is not None:
-                            potential_parent.append(int(v2))
-                        if (v1 is not None) and (v2 is not None): continue
-
-                    for k in range(len(potential_parent)):
-                        if potential_parent[k] == potential_daughter_pair_id[i] or potential_parent[k] == \
-                                potential_daughter_pair_id[j]:
-                            # non-self
-                            continue
-
-                        # spatial condition
-                        parent_x = int(ann[ann['track'] == potential_parent[k]]["disapp_x"])
-                        parent_y = int(ann[ann['track'] == potential_parent[k]]["disapp_y"])
-                        parent_disapp_time = int(ann[ann['track'] == potential_parent[k]]["disapp_frame"])
-                        parent_id = int(ann[ann['track'] == potential_parent[k]]["track"])
-
-                        time_dif1 = abs(int(target_info_1['app_frame']) - parent_disapp_time)
-                        time_dif2 = abs(int(target_info_2['app_frame']) - parent_disapp_time)
-                        dist_dif1 = dist(target_info_1['app_x'], target_info_1['app_y'], parent_x, parent_y)
-                        dist_dif2 = dist(target_info_1['app_x'], target_info_2['app_y'], parent_x, parent_y)
-
-                        if dist_dif1 <= self.DIST_MT_TOLERANCE * time_dif1 and \
-                                dist_dif2 <= self.DIST_MT_TOLERANCE * time_dif2:
-                            # Note, only one distance constaint met is accepted.
-                            # Constraint A: parent close to both daughter tracks' appearance
-                            if time_dif1 < self.FRAME_MT_TOLERANCE and time_dif2 < self.FRAME_MT_TOLERANCE:
-                                # Constraint B: parent disappearance time close to daughter's appearance
-
-                                # Deduce M_entry and M_exit
-                                # If no mitosis entry/exit can be determined, assign first to be 'M'
-                                c1_exit = self.getMtransition(potential_daughter_pair_id[i], direction='exit')
-                                if c1_exit is None:
-                                    c1_exit = int(target_info_1['app_frame'])
-                                    idx = track[track['trackId']==potential_daughter_pair_id[i]].index
-                                    track.loc[idx[0], 'predicted_class'] = 'M'
-                                    self.imprecise.append(potential_daughter_pair_id[i])
-                                c2_exit = self.getMtransition(potential_daughter_pair_id[j], direction='exit')
-                                if c2_exit is None:
-                                    c2_exit = int(target_info_2['app_frame'])
-                                    idx = track[track['trackId']==potential_daughter_pair_id[j]].index
-                                    track.loc[idx[0], 'predicted_class'] = 'M'
-                                    self.imprecise.append(potential_daughter_pair_id[j])
-
-                                if ann.loc[ann['track'] == parent_id, "m_entry"].values[0] is None:
-                                    # parent has not been registered yet
-                                    c3_entry = self.getMtransition(parent_id, direction='entry')
-
-                                    # update information in ann and mt_dic table
-                                    if c1_exit > c3_entry:
-                                        # daughter must appear after parent enters into mitosis
-                                        ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic), parent_id,
-                                                                            potential_daughter_pair_id[i],
-                                                                            c1_exit, dist_dif1, m_entry=c3_entry)
-                                    if c2_exit > c3_entry:
-                                        ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic), parent_id,
-                                                                            potential_daughter_pair_id[j],
-                                                                            c2_exit, dist_dif2, m_entry=c3_entry)
-
-                                else:
-                                    # parent has been registered, compete with the former daughter
-                                    to_compete = []
-                                    dist_to = []
-                                    if c1_exit > ann.loc[ann['track'] == parent_id, "m_entry"].values[0]:
-                                        # daughter must appear after parent enters into mitosis
-                                        to_compete.append(potential_daughter_pair_id[i])
-                                        dist_to.append(dist_dif1)
-                                    if c2_exit > ann.loc[ann['track'] == parent_id, "m_entry"].values[0]:
-                                        to_compete.append(potential_daughter_pair_id[j])
-                                        dist_to.append(dist_dif2)
-                                    if not len(to_compete):
-                                        continue
-
-                                    result = self.compete(mt_dic, parent_id, to_compete, dist_to)
-                                    for rv in result['revert']:
-                                        ann, mt_dic = self.revert(deepcopy(ann), deepcopy(mt_dic), parent_id, rv)
-                                    for rg in result['register']:
-                                        if rg == potential_daughter_pair_id[i]:
-                                            ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic),
-                                                                                parent_id, rg, c1_exit, dist_dif1)
-                                        elif rg == potential_daughter_pair_id[j]:
-                                            ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic),
-                                                                                parent_id, rg, c2_exit, dist_dif2)
-
-        # calculate 2 daughters found relationships
         count = 0
         for i in mt_dic.keys():
             if len(list(mt_dic[i]['daug'].keys())) == 2:
@@ -889,23 +711,37 @@ class Refiner:
         par = self.track[self.track['trackId'] == parent].sort_values(by='frame')
         daug = self.track[self.track['trackId'] == daughter].sort_values(by='frame')
 
+        # Feature 1: distance
         x1 = par['Center_of_the_object_0'].iloc[-1]
         y1 = par['Center_of_the_object_1'].iloc[-1]
         x2 = daug['Center_of_the_object_0'].iloc[0]
         y2 = daug['Center_of_the_object_1'].iloc[0]
         distance_diff = dist(x1, y1, x2, y2)
 
-        m_score_par = self.mt_score_end[parent]
-        m_score_daug = self.mt_score_begin[daughter]
+        # Feature 2: mitosis frame difference
         m_entry = self.getMtransition(parent, direction='entry')
         m_exit = self.getMtransition(daughter, direction='exit')
         if m_entry is None:
             m_entry = par['frame'].iloc[-1]
+            self.mt_entry_lookup[parent] = (m_entry, 0)  # 0: imprecise
+        else:
+            self.mt_entry_lookup[parent] = (m_entry, 1)  # 1: precise
         if m_exit is None:
             m_exit = daug['frame'].iloc[0]
+            self.mt_exit_lookup[daughter] = (m_exit, 0)
+        else:
+            self.mt_exit_lookup[daughter] = (m_exit, 1)
         frame_diff = m_exit - m_entry
+
+        # Feature 3: mitosis score
+        m_score_par = self.mt_score_end[parent]
+        m_score_daug = self.mt_score_begin[daughter]
+
+        # Feature 4: minimum intensity, pcna intensity during mitosi is very low
         par_intensity = par['mean_intensity'].iloc[-1]
         daug_intensity = daug['mean_intensity'].iloc[0]
+
+        # Feature 5/6: length of parent and daughter track
         len_par = (par['frame'].iloc[-1] - par['frame'].iloc[0])/self.metaData['mt_len']
         len_daug = (daug['frame'].iloc[-1] - daug['frame'].iloc[0])/self.metaData['mt_len']
 
