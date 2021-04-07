@@ -539,12 +539,15 @@ class Refiner:
             # Train model further with already broken tracks
             ipts_brk = self.extract_train_from_break(sample_id, ipts, mt_dic)
             y = [1 for _ in range(ipts_brk.shape[0])]
-
             # Read in baseline training data
             baseline = np.array(pd.read_csv(self.SVM_PATH, header=None))
             X = np.concatenate((ipts_brk, baseline[:, :baseline.shape[1]-1]), axis=0)
             y.extend(list(baseline[:, baseline.shape[1]-1]))
             y = np.array(y)
+            # Both baseline and broken data are not normalized, normalize them
+            s = RobustScaler()
+            X = s.fit_transform(X)
+
             model.fit(X, y)
             res = model.predict_proba(ipts)
         else:
