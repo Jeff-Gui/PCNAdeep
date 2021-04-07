@@ -162,7 +162,7 @@ if __name__ == "__main__":
                             threshold_mt_T=int(refiner_cfg['MAX_FRAME_TRH']), smooth=int(refiner_cfg['SMOOTH']),
                             minGS=np.max((int(post_cfg['MIN_G']), int(post_cfg['MIN_S']))),
                             minM=int(post_cfg['MIN_M']), search_range=int(refiner_cfg['SEARCH_RANGE']),
-                            mt_len=int(refiner_cfg['MITOSIS_LEN']), sample_freq=int(refiner_cfg['SAMPLE_FREQ']),
+                            mt_len=int(refiner_cfg['MITOSIS_LEN']), sample_freq=float(refiner_cfg['SAMPLE_FREQ']),
                             model_train=refiner_cfg['SVM_TRAIN_DATA'],
                             mode=refiner_cfg['MODE'])
         ann, track_rfd, mt_dic, imprecise = myRefiner.doTrackRefine()

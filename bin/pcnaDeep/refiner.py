@@ -293,44 +293,6 @@ class Refiner:
                 end_cls[i] = 'M'
         return '-'.join(bg_cls), '-'.join(end_cls)
 
-    def compete(self, mt_dic, parentId, daughter_ids, distance):
-        # check if a track ID can be registered into the mitosis
-        # if a parent already have two parents, compete with distance
-        """
-        Args:
-            mt_dic (dict): dictionary storing mitosis information
-            parentId (int): parent track ID
-            daughter_ids (list): daughter_ids to compete
-            distance (list): daughter_ids and corresponding distance / score-to-minimize
-
-        Returns:
-            Dictionary: {register: id to register; revert: id to revert}
-        """
-
-        dg_list = mt_dic[parentId]['daug']
-        ids = daughter_ids
-        for i in list(dg_list.keys()):
-            if i not in ids:
-                ids.append(i)
-                distance.append(dg_list[i]['dist'])
-        rs = np.argsort(distance)[:2]
-        if len(rs) == 1:
-            ids = [ids[rs[0]]]
-        else:
-            ids = [ids[rs[0]], ids[rs[1]]]
-        rt = ids.copy()
-
-        for i in range(len(ids)):
-            if ids[i] in dg_list.keys():
-                rt.remove(ids[i])
-
-        rm = []
-        for i in list(dg_list.keys()):
-            if i not in ids:
-                rm.append(i)
-
-        return {'register': rt, 'revert': rm}
-
     def revert(self, ann, mt_dic, parentId, daughterId):
         """Remove information of a relationship registered to ann and mt_dic
         """
@@ -592,7 +554,7 @@ class Refiner:
                     to_register[par][0].append(daug)
                     to_register[par][1].append(cst)
 
-        print(to_register)
+        #print(to_register)
         ips_count = 0
         for par in to_register.keys():
             daugs, csts = to_register[par]
@@ -607,7 +569,7 @@ class Refiner:
                         self.imprecise.append(daugs[i])
                         ips_count += 1
                     ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic),
-                                                        par, daugs[i], m_exit, -csts[i], m_entry)
+                                                        par, daugs[i], m_exit, csts[i], m_entry)
             else:
                 ori_daugs = list(mt_dic[par]['daug'].keys())
                 for ori_daug in ori_daugs:
@@ -620,7 +582,7 @@ class Refiner:
                             self.imprecise.append(daugs[i])
                             ips_count += 1
                         ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic),
-                                                            par, daugs[i], m_exit, -csts[i], m_entry)
+                                                            par, daugs[i], m_exit, csts[i], m_entry)
                     else:
                         mt_dic[par]['daug'][daugs[i]]['dist'] = -csts[i]
 
@@ -633,7 +595,7 @@ class Refiner:
         print("Parent-Daughter-Daughter mitosis relations found: " + str(count))
         print("Parent-Daughter mitosis relations found: " + str(len(list(mt_dic.keys())) - count))
         print("Imprecise tracks involved in prediction: " + str(ips_count))
-        print(mt_dic)
+        #print(mt_dic)
         track = track.sort_values(by=['lineageId', 'trackId', 'frame'])
         return track, ann, mt_dic
 
