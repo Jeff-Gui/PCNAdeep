@@ -20,6 +20,6 @@ POST_PROCESS:
     SEARCH_RANGE: 20
     MITOSIS_LEN: 20
     SAMPLE_FREQ: 0.2
-    SVM_MODEL_PATH: '../models/mitosis_svm.m'
+    SVM_TRAIN_DATA: '../models/SVM_train.txt'
   RESOLVER:
     MIN_TRACK: 50

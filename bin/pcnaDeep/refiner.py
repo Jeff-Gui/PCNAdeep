@@ -457,7 +457,7 @@ class Refiner:
                         print('Considered ' + str(ft) + '/' + str(len(daug_pool) * len(par_pool)) + ' cases.')
                     ft += 1
                     ind = self.getSVMinput(i, daug_pool[j])
-                    if ind[0] >= 3 or ind[1] <0:
+                    if ind[0] >= 3 or ind[1] < 0:
                         # if distance over 3 (average radius + average move * time frame difference), discard it.
                         continue
                     ipts.append(ind)
