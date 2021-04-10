@@ -104,6 +104,7 @@ class Refiner:
         self.MT_DISCOUNT = 0.9
         self.metaData = {'mt_len': mt_len, 'sample_freq': sample_freq,
                          'meanDisplace': np.mean(self.getMeanDisplace()['mean_displace'])}
+        print(self.metaData)
         self.SEARCH_RANGE = search_range
         self.mt_score_begin, self.mt_score_end = self.getMTscore(self.SEARCH_RANGE, self.MT_DISCOUNT)
         if mode == 'SVM' or mode == 'TRAIN':
@@ -415,7 +416,7 @@ class Refiner:
         for i in par_pool:
             for j in range(len(daug_pool)):
                 if i != daug_pool[j]:
-                    if ft % 1000 == 0 and ft > 0:
+                    if ft % 500 == 0 and ft > 0:
                         print('Considered ' + str(ft) + '/' + str(len(daug_pool) * len(par_pool)) + ' cases.')
                     ft += 1
                     ind = self.getSVMinput(i, daug_pool[j])
@@ -484,6 +485,7 @@ class Refiner:
             par, daug = i, list(mt_dic[i]['daug'].keys())[0]
             idx.append(sample[(sample['par'] == par) & (sample['daug'] == daug)].index[0])
         idx = np.array(idx)
+        #print(ipts[idx])
         return ipts[idx].copy()
 
     def associate(self, mode=None):
@@ -493,7 +495,7 @@ class Refiner:
 
         parent_pool, pool = self.extract_pools()
 
-        ipts, sample_id = self.extract_features(parent_pool, pool, remove_outlier=None, normalize=True)
+        ipts, sample_id = self.extract_features(parent_pool, pool, remove_outlier=None, normalize=False)
 
         if mode is None or mode == 'SVM':
             model = SVC(kernel='rbf', C=100, gamma=1, probability=True, class_weight='balanced')
@@ -503,19 +505,31 @@ class Refiner:
             y = [1 for _ in range(ipts_brk.shape[0])]
             # Read in baseline training data
             baseline = np.array(pd.read_csv(self.SVM_PATH, header=None))
-            X = np.concatenate((ipts_brk, baseline[:, :baseline.shape[1]-1]), axis=0)
-            y.extend(list(baseline[:, baseline.shape[1]-1]))
+            # Merge baseline and broken data
+            X = np.concatenate((ipts_brk, baseline[:, :baseline.shape[1] - 1]), axis=0)
+            y.extend(list(baseline[:, baseline.shape[1] - 1]))
             y = np.array(y)
-            # Both baseline and broken data are not normalized, normalize them
+            # Normalize
             s = RobustScaler()
             X = s.fit_transform(X)
-
+            '''
+            save_train = np.concatenate((X, np.expand_dims(y, axis=1)), axis=1)
+            pd.DataFrame(save_train).to_csv('../../test/test_train.csv', index=False, header=False)
+            '''
             model.fit(X, y)
+            s = RobustScaler()
+            ipts = s.fit_transform(ipts)
             res = model.predict_proba(ipts)
         else:
+            s = RobustScaler()
+            ipts = s.fit_transform(ipts)
             res = self.plainPredict(ipts)
         print('Finished prediction.')
-
+        '''
+        # Render res and output prediction
+        save_ipts = np.concatenate((ipts, np.expand_dims(np.argmax(res, axis=1), axis=1)), axis=1)
+        pd.DataFrame(save_ipts).to_csv('../../test/test_res.csv', index=False, header=False)
+        '''
         parent_pool = list(np.unique(sample_id[:, 0]))
         cost_r_idx = np.array([val for val in parent_pool for _ in range(2)])
         cost_c_idx = np.unique(sample_id[:, 1])
@@ -555,6 +569,7 @@ class Refiner:
                     to_register[par][1].append(cst)
 
         #print(to_register)
+        #print(mt_dic)
         ips_count = 0
         for par in to_register.keys():
             daugs, csts = to_register[par]
@@ -720,27 +735,33 @@ class Refiner:
         par = self.track[self.track['trackId'] == parent].sort_values(by='frame')
         daug = self.track[self.track['trackId'] == daughter].sort_values(by='frame')
 
-        # Feature 1: distance
-        x1 = par['Center_of_the_object_0'].iloc[-1]
-        y1 = par['Center_of_the_object_1'].iloc[-1]
-        x2 = daug['Center_of_the_object_0'].iloc[0]
-        y2 = daug['Center_of_the_object_1'].iloc[0]
-        distance_diff = dist(x1, y1, x2, y2)
-
         # Feature 2: mitosis frame difference
         m_entry = self.getMtransition(parent, direction='entry')
         m_exit = self.getMtransition(daughter, direction='exit')
         if m_entry is None:
             m_entry = par['frame'].iloc[-1]
+            x1 = par['Center_of_the_object_0'].iloc[-1]
+            y1 = par['Center_of_the_object_1'].iloc[-1]
             self.mt_entry_lookup[parent] = (m_entry, 0)  # 0: imprecise
         else:
+            idx = list(par['frame']).index(m_entry)
+            x1 = par['Center_of_the_object_0'].iloc[idx]
+            y1 = par['Center_of_the_object_1'].iloc[idx]
             self.mt_entry_lookup[parent] = (m_entry, 1)  # 1: precise
         if m_exit is None:
             m_exit = daug['frame'].iloc[0]
+            x2 = daug['Center_of_the_object_0'].iloc[0]
+            y2 = daug['Center_of_the_object_1'].iloc[0]
             self.mt_exit_lookup[daughter] = (m_exit, 0)
         else:
+            idx = list(daug['frame']).index(m_exit)
+            x2 = daug['Center_of_the_object_0'].iloc[idx]
+            y2 = daug['Center_of_the_object_1'].iloc[idx]
             self.mt_exit_lookup[daughter] = (m_exit, 1)
         frame_diff = m_exit - m_entry
+
+        # Feature 1: distance
+        distance_diff = dist(x1, y1, x2, y2)
 
         # Feature 3: mitosis score
         m_score_par = self.mt_score_end[parent]
@@ -754,11 +775,11 @@ class Refiner:
         len_par = (par['frame'].iloc[-1] - par['frame'].iloc[0])/self.metaData['mt_len']
         len_daug = (daug['frame'].iloc[-1] - daug['frame'].iloc[0])/self.metaData['mt_len']
 
-        out = [distance_diff / (self.mean_size + np.abs(frame_diff) * self.metaData['meanDisplace']),
+        out = [distance_diff / (self.mean_size/2 + np.abs(frame_diff) * self.metaData['meanDisplace']),
                frame_diff / self.metaData['sample_freq'],
                np.min((par_intensity, daug_intensity)) / self.mean_intensity,
                m_score_par + m_score_daug,
-               len_par / self.metaData['sample_freq'], len_daug / self.metaData['sample_freq']]
+               np.min((len_par, len_daug)) / self.metaData['sample_freq']]
 
         return out
 
