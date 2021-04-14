@@ -9,6 +9,7 @@ from scipy.optimize import linear_sum_assignment
 from sklearn.preprocessing import RobustScaler
 from sklearn.preprocessing import MinMaxScaler
 from pcnaDeep.data.utils import get_outlier
+from imblearn.over_sampling import BorderlineSMOTE
 
 
 def dist(x1, y1, x2, y2):
@@ -17,7 +18,7 @@ def dist(x1, y1, x2, y2):
     return math.sqrt((float(x1) - float(x2)) ** 2 + (float(y1) - float(y2)) ** 2)
 
 
-def deduce_transition(l, tar, confidence, min_tar, max_res, escape=0):
+def deduce_transition(l, tar, confidence, min_tar, max_res, escape=0, casual_end=True):
     """ Deduce mitosis exit and entry based on adaptive searching
         
         Args:
@@ -27,6 +28,7 @@ def deduce_transition(l, tar, confidence, min_tar, max_res, escape=0):
             confidence (numpy.array): matrix of confidence
             max_res (int): maximum accumulative duration of unwanted phase
             escape (int): do not consider the first n instances
+            casual_end (bool): at the end of the track, whether loosen criteria of a match
             
         Returns:
             (entry, exit), index of index list that resolved as entry and exit
@@ -61,7 +63,7 @@ def deduce_transition(l, tar, confidence, min_tar, max_res, escape=0):
         i += 1
     if i == (len(idx) - 1) and found:
         m_exit = idx[-1]
-    elif i == (len(idx) - 1) and g_panelty < max_res and not found and cur_m_entry != idx[-1]:
+    elif casual_end and i == (len(idx) - 1) and g_panelty < max_res and not found and cur_m_entry != idx[-1]:
         found = True
         m_exit = idx[-1]
         if m_exit - cur_m_entry + 1 < min_tar:
@@ -406,7 +408,7 @@ class Refiner:
             sample (numpy.array): training mode only, supply positive sample information, will add y as 2nd output
         """
         if sample is not None and self.MODE != 'TRAIN':
-            raise ValueError('Only allowed to input sample in TRAIN mode.')
+            raise NotImplementedError('Only allowed to input sample in TRAIN mode.')
 
         print('Extracting features...')
         ft = 0
@@ -420,7 +422,7 @@ class Refiner:
                         print('Considered ' + str(ft) + '/' + str(len(daug_pool) * len(par_pool)) + ' cases.')
                     ft += 1
                     ind = self.getSVMinput(i, daug_pool[j])
-                    if ind[0] >= 3 or ind[1] < 0:
+                    if ind[0] >= 3 or ind[1] < 0 or ind[1] > 3 * self.metaData['mt_len'] / self.metaData['sample_freq']:
                         # if distance over 3 (average radius + average move * time frame difference), discard it.
                         continue
                     ipts.append(ind)
@@ -498,7 +500,6 @@ class Refiner:
         ipts, sample_id = self.extract_features(parent_pool, pool, remove_outlier=None, normalize=False)
 
         if mode is None or mode == 'SVM':
-            model = SVC(kernel='rbf', C=100, gamma=1, probability=True, class_weight='balanced')
 
             # Train model further with already broken tracks
             ipts_brk = self.extract_train_from_break(sample_id, ipts, mt_dic)
@@ -509,6 +510,10 @@ class Refiner:
             X = np.concatenate((ipts_brk, baseline[:, :baseline.shape[1] - 1]), axis=0)
             y.extend(list(baseline[:, baseline.shape[1] - 1]))
             y = np.array(y)
+
+            # Oversample positive instances
+            smote = BorderlineSMOTE(random_state=1, kind='borderline-1')
+            X, y = smote.fit_resample(X, y)
             # Normalize
             s = RobustScaler()
             X = s.fit_transform(X)
@@ -516,9 +521,11 @@ class Refiner:
             save_train = np.concatenate((X, np.expand_dims(y, axis=1)), axis=1)
             pd.DataFrame(save_train).to_csv('../../test/test_train.csv', index=False, header=False)
             '''
+            model = SVC(kernel='rbf', C=100, gamma=1, probability=True, class_weight='balanced')
             model.fit(X, y)
-            s = RobustScaler()
-            ipts = s.fit_transform(ipts)
+
+            s2 = RobustScaler()
+            ipts = s2.fit_transform(ipts)
             res = model.predict_proba(ipts)
         else:
             s = RobustScaler()
@@ -823,12 +830,12 @@ class Refiner:
         self.track = self.smooth_track()
         count = 1
         while True:
-            print('Level ' + str(count) + ' mitosis:')
             count += 1
             out = self.break_mitosis()
             self.track = out[0]
             if out[1] == 0:
                 break
+            print('Level ' + str(count) + ' mitosis:')
 
         self.track, self.short_tracks, self.ann = self.register_track()
         self.mt_score_begin, self.mt_score_end = self.getMTscore(self.SEARCH_RANGE, self.MT_DISCOUNT)

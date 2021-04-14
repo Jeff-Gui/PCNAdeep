@@ -103,7 +103,7 @@ class Resolver:
         cls = trk['predicted_class'].tolist()
         confid = np.array(trk[['Probability of G1/G2', 'Probability of S', 'Probability of M']])
         out = deduce_transition(l=cls, tar='S', confidence=confid, min_tar=self.minS,
-                                max_res=np.max((self.minM, self.minG)))
+                                max_res=np.max((self.minM, self.minG)), casual_end=False)
 
         if not (out is None or out[0] == out[1]):
             a = (out[0], np.min((out[1] + 1, len(resolved_class) - 1)))
@@ -142,6 +142,16 @@ class Resolver:
                                              max_res=np.max((self.minS, self.minG)))
             mt_out_end = deduce_transition(l=cls[::-1], tar='M', confidence=confid[::-1, :], min_tar=1,
                                            max_res=np.max((self.minS, self.minG)))
+            if mt_out_end is not None:
+                #  check if out and end interval overlaps
+                compare = (len(cls)-mt_out_end[1]-1, len(cls)-mt_out_end[0]-1)
+                if mt_out_begin is not None:
+                    if compare[0] == mt_out_begin[0] and compare[1] == mt_out_begin[1]:
+                        #  if overlap, assign larger index one to None
+                        if mt_out_end[0] < mt_out_begin[1]:
+                            mt_out_begin = None
+                        else:
+                            mt_out_end = None
 
             if mt_out_begin is not None and mt_out_end is None:
                 if mt_out_begin[0] == 0:
@@ -208,7 +218,8 @@ class Resolver:
                 cls = np.unique(sub['resolved_class']).tolist()
                 remain = ['G1', 'G2', 'S']
                 for c in cls:
-                    if c == 'M' or c == 'G1/G2': continue
+                    if c == 'M' or c == 'G1/G2':
+                        continue
                     l = np.sum(sub['resolved_class'] == c)
                     if sub['resolved_class'].tolist()[0] == c:
                         l = '>' + str(l)
