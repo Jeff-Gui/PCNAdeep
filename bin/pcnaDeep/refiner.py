@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import math
+import warnings
 import re
 import pandas as pd
 import numpy as np
@@ -485,7 +486,12 @@ class Refiner:
         idx = []
         for i in mt_dic.keys():
             par, daug = i, list(mt_dic[i]['daug'].keys())[0]
-            idx.append(sample[(sample['par'] == par) & (sample['daug'] == daug)].index[0])
+            sub = sample[(sample['par'] == par) & (sample['daug'] == daug)]
+            if sub.shape[0] == 0:
+                warnings.warn('Positive mitosis instance (parent-daughter) ' + str(par) + '-' + str(daug) + ' filtered out; your gating may be too strict.')
+            else:
+                idx.append(sub.index[0])
+
         idx = np.array(idx)
         #print(ipts[idx])
         return ipts[idx].copy()
@@ -517,26 +523,27 @@ class Refiner:
             # Normalize
             s = RobustScaler()
             X = s.fit_transform(X)
-            '''
+            
+            # Render training set to inspect
             save_train = np.concatenate((X, np.expand_dims(y, axis=1)), axis=1)
-            pd.DataFrame(save_train).to_csv('../../test/test_train.csv', index=False, header=False)
-            '''
+            pd.DataFrame(save_train).to_csv('../test/test_train.csv', index=False, header=False)
+            
             model = SVC(kernel='rbf', C=100, gamma=1, probability=True, class_weight='balanced')
             model.fit(X, y)
 
             s2 = RobustScaler()
-            ipts = s2.fit_transform(ipts)
-            res = model.predict_proba(ipts)
+            ipts_norm = s2.fit_transform(ipts)
+            res = model.predict_proba(ipts_norm)
         else:
             s = RobustScaler()
-            ipts = s.fit_transform(ipts)
-            res = self.plainPredict(ipts)
+            ipts_norm = s.fit_transform(ipts)
+            res = self.plainPredict(ipts_norm)
         print('Finished prediction.')
-        '''
+        
         # Render res and output prediction
-        save_ipts = np.concatenate((ipts, np.expand_dims(np.argmax(res, axis=1), axis=1)), axis=1)
-        pd.DataFrame(save_ipts).to_csv('../../test/test_res.csv', index=False, header=False)
-        '''
+        save_ipts = np.concatenate((ipts_norm, np.expand_dims(np.argmax(res, axis=1), axis=1)), axis=1)
+        pd.DataFrame(save_ipts).to_csv('../test/test_res.csv', index=False, header=False)
+        
         parent_pool = list(np.unique(sample_id[:, 0]))
         cost_r_idx = np.array([val for val in parent_pool for _ in range(2)])
         cost_c_idx = np.unique(sample_id[:, 1])

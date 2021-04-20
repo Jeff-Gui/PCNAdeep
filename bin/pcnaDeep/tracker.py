@@ -40,7 +40,7 @@ def track(df, displace=40, gap_fill=5):
     out = out[
         ['frame', 'trackId', 'lineageId', 'parentTrackId', 'Center_of_the_object_0', 'Center_of_the_object_1', 'phase',
          'Probability of G1/G2', 'Probability of S', 'Probability of M', 'continuous_label', 'major_axis', 'minor_axis',
-         'mean_intensity', 'emerging']]
+         'mean_intensity', 'emerging', 'background_mean']]
     names = list(out.columns)
     names[4] = 'Center_of_the_object_1'
     names[5] = 'Center_of_the_object_0'
@@ -132,6 +132,7 @@ def track_mask(mask, displace=40, gap_fill=5, render_phase=False,
             props['mean_intensity'] = 0
             props['emerging'] = 0
             p = p.append(props)
-
+    
+    p['background_mean'] = 0
     track_out = track(p, displace=displace, gap_fill=gap_fill)
     return track_out, mask_lbd
