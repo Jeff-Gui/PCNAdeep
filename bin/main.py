@@ -46,8 +46,19 @@ def get_parser():
         help="path to pcnaDeep tracker/refiner/resolver config file",
     )
     parser.add_argument(
-        "--input",
-        help="Path to image stack file.",
+        "--pcna",
+        default=None,
+        help="Path to PCNA channel time series image.",
+    )
+    parser.add_argument(
+        "--dic",
+        default=None,
+        help="Path to DIC channel time series image.",
+    )
+    parser.add_argument(
+        "--stack-input",
+        default=None,
+        help="Path to composite image stack file. Will overwrite pcna or dic input, not recommended.",
     )
     parser.add_argument(
         "--output",
@@ -101,18 +112,30 @@ if __name__ == "__main__":
     cfg = setup_cfg(args)
     logger.info("Finished setup.")
     demo = VisualizationDemo(cfg)
-     
-    logger.info("Start inferring.")
-    if args.input and not pcna_cfg_dict['BATCH']:
-        prefix = os.path.basename(args.input)
-        prefix = re.match('(.+)\.\w+',prefix).group(1)
-        # Input image must be uint8
-        imgs = io.imread(args.input)
-        logger.info("Run on image shape: "+str(imgs.shape))
 
+    logger.info("Start inferring.")
+    ipt = args.stack_input
+    if (ipt is not None or (args.pcna is not None and args.dic is not None)) and not pcna_cfg_dict['BATCH']:
+        flag = True
+        if ipt is not None:
+            prefix = os.path.basename(ipt)
+            prefix = re.match('(.+)\.\w+',prefix).group(1)
+            # Input image must be uint8
+            imgs = io.imread(args.input)
+        else:
+            prefix = os.path.basename(args.pcna)
+            prefix = re.match('(.+)\.\w+', prefix).group(1)
+            pcna = io.imread(args.pcna)
+            dic = io.imread(args.dic)
+            from pcnaDeep.data.utils import getDetectInput
+            logger.info("Generating composite...")
+            imgs = getDetectInput(pcna, dic)
+            del pcna
+            del dic
+
+        logger.info("Run on image shape: " + str(imgs.shape))
         table_out = pd.DataFrame()
         mask_out = []
-        
         spl = int(pcna_cfg_dict['SPLIT']['GRID'])
         if spl:
             new_imgs = []

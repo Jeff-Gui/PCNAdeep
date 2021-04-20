@@ -165,6 +165,9 @@ def getDetectInput(pcna, dic):
     """
     stack = pcna
     dic_img = dic
+    if stack.dtype != np.dtype('uint16') or dic_img.dtype != np.dtype('uint16'):
+        raise ValueError('Input image must be in uint16 format.')
+
     print("Input shape: " + str(stack.shape))
     if len(stack.shape) < 3:
         stack = np.expand_dims(stack, axis=0)
