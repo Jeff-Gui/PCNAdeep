@@ -16,6 +16,7 @@ from pcnaDeep.refiner import Refiner
 from pcnaDeep.resolver import Resolver
 from pcnaDeep.tracker import track
 from pcnaDeep.split import split_frame, join_frame, join_table, resolve_joined_stack
+from pcnaDeep.utils import getDetectInput
 
 
 def setup_cfg(args):
@@ -121,13 +122,12 @@ if __name__ == "__main__":
             prefix = os.path.basename(ipt)
             prefix = re.match('(.+)\.\w+',prefix).group(1)
             # Input image must be uint8
-            imgs = io.imread(args.input)
+            imgs = io.imread(ipt)
         else:
             prefix = os.path.basename(args.pcna)
             prefix = re.match('(.+)\.\w+', prefix).group(1)
             pcna = io.imread(args.pcna)
             dic = io.imread(args.dic)
-            from pcnaDeep.data.utils import getDetectInput
             logger.info("Generating composite...")
             imgs = getDetectInput(pcna, dic)
             del pcna
