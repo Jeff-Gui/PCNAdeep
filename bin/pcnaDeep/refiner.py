@@ -463,17 +463,17 @@ class Refiner:
     def plainPredict(self, ipts):
         out = np.zeros((ipts.shape[0],2))
         s = MinMaxScaler()
-        frame_norm = s.fit_transform(np.transpose([ipts[:,1]]))
-        mt_norm = s.fit_transform(np.transpose([ipts[:,3]]))
-        intensity_norm = s.fit_transform(np.transpose([ipts[:,2] * -1]))
-        dist_norm = s.fit_transform(np.transpose([ipts[:,0] * -1]))
+        ipts_norm = s.fit_transform(ipts)
+
+        frame_tol = self.FRAME_MT_TOLERANCE / self.metaData['sample_freq']
+        dist_tol = self.DIST_MT_TOLERANCE / (self.mean_size/2 +
+                                             self.FRAME_MT_TOLERANCE * self.metaData['meanDisplace'])
 
         for i in range(ipts.shape[0]):
-            if ipts[i,1] <= 0 or ipts[i,0] > self.DIST_MT_TOLERANCE or ipts[i,1] > self.FRAME_MT_TOLERANCE:
+            if ipts[i,1] <= 0 or ipts[i,0] > dist_tol or ipts[i,1] > frame_tol:
                 score = 0
             else:
-                score = 0.4 + 0.1 * frame_norm[i,0] + 0.1 * mt_norm[i,0] + 0.3 * dist_norm[i,0] + \
-                        0.1 * intensity_norm[i,0]
+                score = 1 - 0.25 * ipts_norm[i,0] - 0.25 * ipts_norm[i,1]
             out[i,0] = 1-score
             out[i,1] = score
         return out
@@ -493,7 +493,6 @@ class Refiner:
                 idx.append(sub.index[0])
 
         idx = np.array(idx)
-        #print(ipts[idx])
         return ipts[idx].copy()
 
     def associate(self, mode=None):
@@ -523,27 +522,26 @@ class Refiner:
             # Normalize
             s = RobustScaler()
             X = s.fit_transform(X)
-            
+            '''
             # Render training set to inspect
             save_train = np.concatenate((X, np.expand_dims(y, axis=1)), axis=1)
             pd.DataFrame(save_train).to_csv('../test/test_train.csv', index=False, header=False)
-            
+            '''
             model = SVC(kernel='rbf', C=100, gamma=1, probability=True, class_weight='balanced')
             model.fit(X, y)
 
             s2 = RobustScaler()
             ipts_norm = s2.fit_transform(ipts)
             res = model.predict_proba(ipts_norm)
+            '''
+            # Render res and output prediction
+            save_ipts = np.concatenate((ipts_norm, np.expand_dims(np.argmax(res, axis=1), axis=1)), axis=1)
+            pd.DataFrame(save_ipts).to_csv('../test/test_res.csv', index=False, header=False)
+            '''
         else:
-            s = RobustScaler()
-            ipts_norm = s.fit_transform(ipts)
-            res = self.plainPredict(ipts_norm)
+            res = self.plainPredict(ipts)
         print('Finished prediction.')
-        
-        # Render res and output prediction
-        save_ipts = np.concatenate((ipts_norm, np.expand_dims(np.argmax(res, axis=1), axis=1)), axis=1)
-        pd.DataFrame(save_ipts).to_csv('../test/test_res.csv', index=False, header=False)
-        
+
         parent_pool = list(np.unique(sample_id[:, 0]))
         cost_r_idx = np.array([val for val in parent_pool for _ in range(2)])
         cost_c_idx = np.unique(sample_id[:, 1])
