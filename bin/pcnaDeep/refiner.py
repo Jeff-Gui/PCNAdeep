@@ -789,10 +789,16 @@ class Refiner:
 
         out = [distance_diff / (self.mean_size/2 + np.abs(frame_diff) * self.metaData['meanDisplace']),
                frame_diff / self.metaData['sample_freq'],
+               #frame_diff / (self.metaData['sample_freq'] * self.metaData['mt_len']),
                np.min((par_intensity, daug_intensity)) / self.mean_intensity,
                m_score_par + m_score_daug,
                np.min((len_par, len_daug)) / self.metaData['sample_freq']]
 
+        '''
+        if parent==43 and daughter==106:
+            print(m_exit, m_entry)
+            print(out)
+        '''
         return out
 
     def get_SVM_train(self, sample):
@@ -833,14 +839,14 @@ class Refiner:
 
         self.flag = True
         self.track = self.smooth_track()
-        count = 1
+        count = 0
         while True:
             count += 1
+            print('Level ' + str(count) + ' mitosis:')
             out = self.break_mitosis()
             self.track = out[0]
             if out[1] == 0:
                 break
-            print('Level ' + str(count) + ' mitosis:')
 
         self.track, self.short_tracks, self.ann = self.register_track()
         self.mt_score_begin, self.mt_score_end = self.getMTscore(self.SEARCH_RANGE, self.MT_DISCOUNT)
