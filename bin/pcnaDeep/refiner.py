@@ -596,7 +596,7 @@ class Refiner:
                         self.imprecise.append(daugs[i])
                         ips_count += 1
                     ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic),
-                                                        par, daugs[i], m_exit, csts[i], m_entry)
+                                                        par, daugs[i], m_exit, 1+csts[i], m_entry)
             else:
                 ori_daugs = list(mt_dic[par]['daug'].keys())
                 for ori_daug in ori_daugs:
@@ -609,9 +609,9 @@ class Refiner:
                             self.imprecise.append(daugs[i])
                             ips_count += 1
                         ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic),
-                                                            par, daugs[i], m_exit, csts[i], m_entry)
+                                                            par, daugs[i], m_exit, 1+csts[i], m_entry)
                     else:
-                        mt_dic[par]['daug'][daugs[i]]['dist'] = -csts[i]
+                        mt_dic[par]['daug'][daugs[i]]['dist'] = 1+csts[i]
 
         # count 2 daughters-found relationships
         count = 0

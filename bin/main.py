@@ -16,7 +16,7 @@ from pcnaDeep.refiner import Refiner
 from pcnaDeep.resolver import Resolver
 from pcnaDeep.tracker import track
 from pcnaDeep.split import split_frame, join_frame, join_table, resolve_joined_stack
-from pcnaDeep.utils import getDetectInput
+from pcnaDeep.data.utils import getDetectInput
 
 
 def setup_cfg(args):
@@ -132,6 +132,9 @@ if __name__ == "__main__":
             imgs = getDetectInput(pcna, dic)
             del pcna
             del dic
+        
+        inspect = imgs[range(0, imgs.shape[0], 100),:,:,:].copy()
+        io.imsave(args.output + prefix + '_sample_intput.tif', inspect)
 
         logger.info("Run on image shape: " + str(imgs.shape))
         table_out = pd.DataFrame()
@@ -171,12 +174,12 @@ if __name__ == "__main__":
             mask_out, table_out = resolve_joined_stack(mask_out, table_out, n=spl, 
                                                        boundary_width=pcna_cfg_dict['SPLIT']['EDGE_SPLIT'],
                                                        dilate_time=pcna_cfg_dict['SPLIT']['DILATE_ROUND'])
-        
+       
         logger.info('Tracking...')
         track_out = track(df=table_out, displace=int(pcna_cfg_dict['TRACKER']['DISPLACE']),
                           gap_fill=int(pcna_cfg_dict['TRACKER']['GAP_FILL']))
         track_out.to_csv(os.path.join(args.output, prefix + '_tracks.csv'), index=0)
-        io.imsave(os.path.join(args.output, prefix + '_mask.tif'), mask_out)
+        #io.imsave(os.path.join(args.output, prefix + '_mask.tif'), mask_out)
 
         logger.info('Refining and Resolving...')
         post_cfg = pcna_cfg_dict['POST_PROCESS']
@@ -189,6 +192,9 @@ if __name__ == "__main__":
                             model_train=refiner_cfg['SVM_TRAIN_DATA'],
                             mode=refiner_cfg['MODE'])
         ann, track_rfd, mt_dic, imprecise = myRefiner.doTrackRefine()
+        
+        ann.to_csv(os.path.join(args.output, prefix + '_tracks_ann.csv'), index=0)
+        print(mt_dic)
 
         myResolver = Resolver(track_rfd, ann, mt_dic, minG=int(post_cfg['MIN_G']), minS=int(post_cfg['MIN_S']),
                               minM=int(post_cfg['MIN_M']), 
