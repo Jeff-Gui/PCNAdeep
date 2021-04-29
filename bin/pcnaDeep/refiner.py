@@ -336,33 +336,48 @@ class Refiner:
         mt_dic[parentId]['daug'][daughterId] = {'m_exit': m_exit, 'dist': dist_dif}
         return ann, mt_dic
 
-    def getMtransition(self, trackId, direction='entry'):
+    def getMtransition(self, trackId, direction='entry', skip=0):
         """Get mitosis transition time by trackId
 
         Args:
             trackId (int): track ID
             direction (str): either 'entry' or 'exit', mitosis entry or exit
+            skip (int): escape frames from deduce_transition() method
         """
-        c1 = list(self.track[self.track['trackId'] == trackId]['predicted_class'])
-        c1_confid = np.array(self.track[self.track['trackId'] == trackId][
-                                 ['Probability of G1/G2', 'Probability of S', 'Probability of M']])
+        skp = None
+        trk = self.track[self.track['trackId'] == trackId].copy()
+        c1 = list(trk['predicted_class'])
+        c1_confid = np.array(trk[['Probability of G1/G2', 'Probability of S', 'Probability of M']])
         if direction == 'exit':
-            trans = deduce_transition(c1, tar='M', confidence=c1_confid, min_tar=1, max_res=self.MIN_GS)
+            daug_entry = self.ann[self.ann['track'] == trackId]['m_entry'].values[0]
+            if daug_entry is not None:
+                skp = list(trk['frame']).index(daug_entry)
+                c1 = c1[:skp]
+                c1_confid = c1_confid[:skp, :]
+            trans = deduce_transition(c1, tar='M', confidence=c1_confid, min_tar=1, max_res=self.MIN_GS, escape=skip)
             if trans is not None:
                 trans = trans[1]
             else:
                 return None
         elif direction == 'entry':
+            par_exit = self.ann[self.ann['track'] == trackId]['m_exit'].values[0]
+            if par_exit is not None:
+                skp = list(trk['frame']).index(par_exit)
+                c1 = c1[skp+1:]
+                c1_confid = c1_confid[skp+1:, :]
             trans = deduce_transition(c1[::-1], tar='M', confidence=c1_confid[::-1, :],
-                                      min_tar=1, max_res=self.MIN_GS)
+                                      min_tar=1, max_res=self.MIN_GS, escape=skip)
             if trans is not None:
-                trans = -(1 + trans[1])
+                trans = len(c1) - (1 + trans[1])
             else:
                 return None
         else:
             raise ValueError('Direction can either be entry or exit')
 
-        trans = list(self.track[self.track['trackId'] == trackId]['frame'])[trans]
+        if skp is not None and direction == 'entry':
+            trans = list(trk['frame'])[trans + skp + 1]
+        else:
+            trans = list(trk['frame'])[trans]
 
         return trans
 
@@ -558,14 +573,14 @@ class Refiner:
                             cost[i, j] = 1
                         else:
                             cost[i, j] = res[sp_index[0]][1]
-
+        '''
         # Save input for debugging
         save_cost = pd.DataFrame(cost.copy())
         save_cost.index = cost_r_idx
         save_cost.columns = cost_c_idx
         save_cost.to_csv('../../test/test_cost.csv')
         pd.DataFrame(np.concatenate((ipts, sample_id), axis=1)).to_csv('../../test/test_input.csv')
-
+        '''
         cost = cost * -1
         row_ind, col_ind = linear_sum_assignment(cost)
 
@@ -749,6 +764,7 @@ class Refiner:
         daug = self.track[self.track['trackId'] == daughter].sort_values(by='frame')
 
         # Feature 2: mitosis frame difference
+        # For secondary mitosis, skip the frame before mitosis exit
         m_entry = self.getMtransition(parent, direction='entry')
         m_exit = self.getMtransition(daughter, direction='exit')
         if m_entry is None:
