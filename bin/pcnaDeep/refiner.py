@@ -467,7 +467,7 @@ class Refiner:
 
         frame_tol = self.FRAME_MT_TOLERANCE / self.metaData['sample_freq']
         dist_tol = self.DIST_MT_TOLERANCE / (self.mean_size/2 +
-                                             self.FRAME_MT_TOLERANCE * self.metaData['meanDisplace'])
+                                             1 * self.metaData['meanDisplace'])
 
         for i in range(ipts.shape[0]):
             if ipts[i,1] <= 0 or ipts[i,0] > dist_tol or ipts[i,1] > frame_tol:
@@ -558,13 +558,14 @@ class Refiner:
                             cost[i, j] = 1
                         else:
                             cost[i, j] = res[sp_index[0]][1]
-        '''
+
+        # Save input for debugging
         save_cost = pd.DataFrame(cost.copy())
         save_cost.index = cost_r_idx
         save_cost.columns = cost_c_idx
         save_cost.to_csv('../../test/test_cost.csv')
         pd.DataFrame(np.concatenate((ipts, sample_id), axis=1)).to_csv('../../test/test_input.csv')
-        '''
+
         cost = cost * -1
         row_ind, col_ind = linear_sum_assignment(cost)
 
@@ -789,16 +790,10 @@ class Refiner:
 
         out = [distance_diff / (self.mean_size/2 + np.abs(frame_diff) * self.metaData['meanDisplace']),
                frame_diff / self.metaData['sample_freq'],
-               #frame_diff / (self.metaData['sample_freq'] * self.metaData['mt_len']),
                np.min((par_intensity, daug_intensity)) / self.mean_intensity,
                m_score_par + m_score_daug,
                np.min((len_par, len_daug)) / self.metaData['sample_freq']]
 
-        '''
-        if parent==43 and daughter==106:
-            print(m_exit, m_entry)
-            print(out)
-        '''
         return out
 
     def get_SVM_train(self, sample):

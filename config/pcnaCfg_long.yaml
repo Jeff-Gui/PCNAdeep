@@ -11,15 +11,15 @@ POST_PROCESS:
   MIN_S: 20
   MIN_M: 10
   REFINER:
-    MODE: TRH
     SMOOTH: 5
+    MITOSIS_LEN: 25
+    SAMPLE_FREQ: 0.2
+    MODE: TRH
     # TRH mode only
     MAX_DIST_TRH: 100
     MAX_FRAME_TRH: 25
     # SVM mode only
     SEARCH_RANGE: 20
-    MITOSIS_LEN: 25
-    SAMPLE_FREQ: 0.2
     SVM_TRAIN_DATA: '../models/SVM_train.txt'
   RESOLVER:
     MIN_TRACK: 50

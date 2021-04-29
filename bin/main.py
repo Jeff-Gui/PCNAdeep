@@ -4,6 +4,7 @@ import os
 import re
 import time
 import yaml
+import pprint
 
 import numpy as np
 import pandas as pd
@@ -194,7 +195,7 @@ if __name__ == "__main__":
         ann, track_rfd, mt_dic, imprecise = myRefiner.doTrackRefine()
         
         ann.to_csv(os.path.join(args.output, prefix + '_tracks_ann.csv'), index=0)
-        print(mt_dic)
+        pprint.pprint(mt_dic, indent=4)
 
         myResolver = Resolver(track_rfd, ann, mt_dic, minG=int(post_cfg['MIN_G']), minS=int(post_cfg['MIN_S']),
                               minM=int(post_cfg['MIN_M']), 
