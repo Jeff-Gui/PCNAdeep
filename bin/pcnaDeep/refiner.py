@@ -488,7 +488,7 @@ class Refiner:
             if ipts[i,1] <= 0 or ipts[i,0] > dist_tol or ipts[i,1] > frame_tol:
                 score = 0
             else:
-                score = 1 - 0.25 * ipts_norm[i,0] - 0.25 * ipts_norm[i,1]
+                score = np.round(1 - 0.25 * ipts_norm[i,0] - 0.25 * ipts_norm[i,1], 3)
             out[i,0] = 1-score
             out[i,1] = score
         return out

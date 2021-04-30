@@ -199,7 +199,8 @@ if __name__ == "__main__":
 
         myResolver = Resolver(track_rfd, ann, mt_dic, minG=int(post_cfg['MIN_G']), minS=int(post_cfg['MIN_S']),
                               minM=int(post_cfg['MIN_M']), 
-                              minTrack=int(post_cfg['RESOLVER']['MIN_TRACK']), impreciseExit=imprecise)
+                              minTrack=int(post_cfg['RESOLVER']['MIN_TRACK']), impreciseExit=imprecise,
+                              G2_trh=int(post_cfg['RESOLVER']['G2_TRH']))
         track_rsd, phase = myResolver.doResolve()
         track_rsd.to_csv(os.path.join(args.output, prefix + '_tracks_refined.csv'), index=0)
         phase.to_csv(os.path.join(args.output, prefix + '_phase.csv'), index=0)
