@@ -62,9 +62,9 @@ class Resolver:
         rt = rt.sort_values(by=['trackId', 'frame'])
         self.rsTrack = rt.copy()
         if self.mt_unresolved:
-            print('Sequential mitosis without S phase; Ignore tracks: ' + str(self.mt_unresolved))
+            print('Sequential mitosis without S phase; Ignore tracks: ' + str(self.mt_unresolved)[1:-1])
         if self.unresolved:
-            print('Numerous classification change after resolving, check: ' + str(self.unresolved))
+            print('Numerous classification change after resolving, check: ' + str(self.unresolved)[1:-1])
 
         self.resolveArrest(self.G2_trh)
         phase = self.doResolvePhase()
@@ -148,8 +148,9 @@ class Resolver:
         """
 
         UNRESOLVED_FRACTION = 0.2  # after resolving the class, if more than x% class has been corrected, label with
-        # unresolved
         resolved_class = ['G1/G2' for _ in range(trk.shape[0])]
+        if trk.shape[0] == 0:
+            raise ValueError('Track not found!')
 
         track_id = trk['trackId'].tolist()[0]
         cls = list(trk['predicted_class'])

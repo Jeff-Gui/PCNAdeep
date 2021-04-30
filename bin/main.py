@@ -112,7 +112,7 @@ def main(stack, config, output, prefix, logger):
         )
     
     tw = stack.shape[1]
-    del stack  # save memory space TODO: use image buffer input
+    del stack
     gc.collect()
     
     mask_out = np.stack(mask_out, axis=0)
@@ -127,8 +127,8 @@ def main(stack, config, output, prefix, logger):
     logger.info('Tracking...')
     track_out = track(df=table_out, displace=int(config['TRACKER']['DISPLACE']),
                         gap_fill=int(config['TRACKER']['GAP_FILL']))
-    track_out.to_csv(os.path.join(output, prefix + '_tracks.csv'), index=0)
-    #io.imsave(os.path.join(output, prefix + '_mask.tif'), mask_out)
+    track_out.to_csv(os.path.join(output, prefix + 'tracks.csv'), index=0)
+    #io.imsave(os.path.join(output, prefix + 'mask.tif'), mask_out)
 
     logger.info('Refining and Resolving...')
     post_cfg = config['POST_PROCESS']
@@ -142,18 +142,18 @@ def main(stack, config, output, prefix, logger):
                         mode=refiner_cfg['MODE'])
     ann, track_rfd, mt_dic, imprecise = myRefiner.doTrackRefine()
     
-    ann.to_csv(os.path.join(output, prefix + '_tracks_ann.csv'), index=0)
+    ann.to_csv(os.path.join(output, prefix + 'tracks_ann.csv'), index=0)
     pprint.pprint(mt_dic, indent=4)
 
     myResolver = Resolver(track_rfd, ann, mt_dic, minG=int(post_cfg['MIN_G']), minS=int(post_cfg['MIN_S']),
-                            minM=int(post_cfg['MIN_M']), 
-                            minTrack=int(post_cfg['RESOLVER']['MIN_TRACK']), impreciseExit=imprecise,
-                            G2_trh=int(post_cfg['RESOLVER']['G2_TRH']))
+                          minM=int(post_cfg['MIN_M']), 
+                          minTrack=int(post_cfg['RESOLVER']['MIN_TRACK']), impreciseExit=imprecise,
+                          G2_trh=int(post_cfg['RESOLVER']['G2_TRH']))
     track_rsd, phase = myResolver.doResolve()
-    track_rsd.to_csv(os.path.join(output, prefix + '_tracks_refined.csv'), index=0)
-    phase.to_csv(os.path.join(output, prefix + '_phase.csv'), index=0)
+    track_rsd.to_csv(os.path.join(output, prefix + 'tracks_refined.csv'), index=0)
+    phase.to_csv(os.path.join(output, prefix + 'phase.csv'), index=0)
 
-    logger.info(prefix+' Finished: '+time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()))
+    logger.info(prefix[:-1]+' Finished: '+time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()))
     logger.info('='*50)
 
     return
@@ -195,7 +195,7 @@ if __name__ == "__main__":
     logger.info("Start inferring.")
     ipt = args.stack_input
 
-    if pcna_cfg_dict['BATCH']:
+    if bool(pcna_cfg_dict['BATCH']):
         ### Under construction
         if args.pcna is not None and args.dic is not None:
             if os.path.isdir(args.pcna) and os.path.isdir(args.dic) and os.path.isdir(args.output):
@@ -204,13 +204,24 @@ if __name__ == "__main__":
                 pairs = []
                 for pi in pcna_imgs:
                     prefix = os.path.basename(pi)
-                    mat_obj = re.match('(.+)pcna\.tif',prefix)
+                    mat_obj = re.match('(.+)pcna\.tif|(.+)PCNA\.tif',prefix)
                     if mat_obj is None:
                         raise ValueError('PCNA file ' + pi + ' must ends with \"pcna\" and in .tif format')
                     prefix = mat_obj.group(1)
-                    if prefix + 'dic.tif' not in dic_imgs:
+                    if prefix is None:
+                        prefix = mat_obj.group(2)
+                        pcna_fp = prefix + 'PCNA.tif'
+                    else:
+                        pcna_fp = prefix + 'pcna.tif'
+
+                    if prefix + 'dic.tif' in dic_imgs:
+                        dic_fp = prefix + 'dic.tif'
+                    elif prefix + 'DIC.tif' in dic_imgs:
+                        dic_fp = prefix + 'DIC.tif'
+                    else:
                         raise ValueError('DIC file ' + prefix + 'dic.tif does not exit.')
-                    pairs.append((prefix, prefix + 'pcna.tif', prefix + 'dic.tif'))
+                    prefix = prefix[:-1] if prefix[-1] in ['_','-'] else prefix
+                    pairs.append((prefix, pcna_fp, dic_fp))
                 
                 for si in pairs:
                     os.mkdir(os.path.join(args.output, si[0]))
@@ -221,7 +232,9 @@ if __name__ == "__main__":
                     io.imsave(os.path.join(args.output, si[0], si[0] + '_sample_intput.tif'), inspect)
     
                     main(stack=imgs, config=pcna_cfg_dict, output=os.path.join(args.output, si[0]), 
-                         prefix=si[0], logger=logger)
+                         prefix=si[0]+'_', logger=logger)
+                    del imgs
+                    gc.collect()
             else:
                 raise ValueError('Must input directory in batch mode, not single file.')
         
@@ -231,6 +244,7 @@ if __name__ == "__main__":
                 for si in stack_imgs:
                     prefix = os.path.basename(si)
                     prefix = re.match('(.+)\.\w+',si).group(1)
+                    prefix = prefix[:-1] if prefix[-1] in ['_','-'] else prefix
                     os.mkdir(os.path.join(args.output, prefix))
                     imgs = io.imread(os.path.join(ipt, si))
 
@@ -238,11 +252,13 @@ if __name__ == "__main__":
                     io.imsave(os.path.join(args.output, prefix, prefix + '_sample_intput.tif'), inspect)
 
                     main(stack=imgs, config=pcna_cfg_dict, output=os.path.join(args.output, prefix), 
-                         prefix=prefix, logger=logger)
+                         prefix=prefix+'_', logger=logger)
+                    del imgs
+                    gc.collect()
             else:
                 raise ValueError('Must input directory in batch mode, not single file.')
 
-    if (ipt is not None or (args.pcna is not None and args.dic is not None)) and not pcna_cfg_dict['BATCH']:
+    if (ipt is not None or (args.pcna is not None and args.dic is not None)) and not bool(pcna_cfg_dict['BATCH']):
         flag = True
         if ipt is not None:
             prefix = os.path.basename(ipt)
@@ -261,7 +277,7 @@ if __name__ == "__main__":
             gc.collect()
         
         inspect = imgs[range(0, imgs.shape[0], 100),:,:,:].copy()
-        io.imsave(args.output + prefix + '_sample_intput.tif', inspect)
+        io.imsave(args.output + prefix + 'sample_intput.tif', inspect)
 
         main(stack=imgs, config=pcna_cfg_dict, output=args.output, prefix=prefix, logger=logger)
         

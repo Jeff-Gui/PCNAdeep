@@ -190,7 +190,8 @@ class Refiner:
                     x2 = sub.iloc[sp_time - 1]['Center_of_the_object_0']
                     y2 = sub.iloc[sp_time - 1]['Center_of_the_object_1']
                     self.mt_dic[trk] = {'div': m_entry,
-                                        'daug': {cur_max: {'m_exit': frame_list[m_exit], 'dist': dist(x1, y1, x2, y2)}}}
+                                        'daug': {cur_max: {'m_exit': frame_list[m_exit], 
+                                            'dist': np.round(dist(x1, y1, x2, y2), 2)}}}
                     cur_max += 1
                     count += 1
                     old_track = sub[sub['frame'] < frame_list[sp_time]].copy()
@@ -438,11 +439,22 @@ class Refiner:
                         print('Considered ' + str(ft) + '/' + str(len(daug_pool) * len(par_pool)) + ' cases.')
                     ft += 1
                     ind = self.getSVMinput(i, daug_pool[j])
-                    if ind[0] >= 3 or ind[1] < 0 or ind[1] > 3 * self.metaData['mt_len'] / self.metaData['sample_freq']:
+
+                    rgd = False  # first register input from broken pairs
+                    if i in self.mt_dic.keys():
+                        if daug_pool[j] in self.mt_dic[i]['daug'].keys():
+                            ipts.append(ind)
+                            sample_id.append([i, daug_pool[j]])
+                            rgd = True
+
+                    if not rgd and (ind[0] >= 3 or ind[1] < 0 or
+                                    ind[1] > 3 * self.metaData['mt_len'] / self.metaData['sample_freq']):
                         # if distance over 3 (average radius + average move * time frame difference), discard it.
                         continue
-                    ipts.append(ind)
-                    sample_id.append([i, daug_pool[j]])
+                    elif not rgd:
+                        ipts.append(ind)
+                        sample_id.append([i, daug_pool[j]])
+
                     if sample is not None:
                         a = np.where(sample[:, 0] == i)[0].tolist()
                         b = np.where(sample[:, 1] == daug_pool[j])[0].tolist()
@@ -596,7 +608,7 @@ class Refiner:
                     to_register[par][0].append(daug)
                     to_register[par][1].append(cst)
 
-        #print(to_register)
+        print(to_register)
         #print(mt_dic)
         ips_count = 0
         for par in to_register.keys():
@@ -612,7 +624,7 @@ class Refiner:
                         self.imprecise.append(daugs[i])
                         ips_count += 1
                     ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic),
-                                                        par, daugs[i], m_exit, 1+csts[i], m_entry)
+                                                        par, daugs[i], m_exit, np.round(1+csts[i],3), m_entry)
             else:
                 ori_daugs = list(mt_dic[par]['daug'].keys())
                 for ori_daug in ori_daugs:
@@ -625,9 +637,9 @@ class Refiner:
                             self.imprecise.append(daugs[i])
                             ips_count += 1
                         ann, mt_dic = self.register_mitosis(deepcopy(ann), deepcopy(mt_dic),
-                                                            par, daugs[i], m_exit, 1+csts[i], m_entry)
+                                                            par, daugs[i], m_exit, np.round(1+csts[i],3), m_entry)
                     else:
-                        mt_dic[par]['daug'][daugs[i]]['dist'] = 1+csts[i]
+                        mt_dic[par]['daug'][daugs[i]]['dist'] = np.round(1+csts[i],3)
 
         # count 2 daughters-found relationships
         count = 0
