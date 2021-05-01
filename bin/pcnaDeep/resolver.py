@@ -68,7 +68,7 @@ class Resolver:
 
         self.resolveArrest(self.G2_trh)
         phase = self.doResolvePhase()
-        return rt, phase
+        return self.rsTrack, phase
 
     def resolveArrest(self, G2_trh=None):
         """Determine G1/G2 arrest tracks;

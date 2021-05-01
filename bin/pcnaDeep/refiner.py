@@ -250,7 +250,7 @@ class Refiner:
             ann['app_stage'][i] = rt[0]
             ann['disapp_stage'][i] = rt[1]
 
-            if cur_track.shape[0] < 2 * frame_tolerance:
+            if max(cur_track['frame']) - min(cur_track['frame']) < frame_tolerance:
                 short_tracks.append(trks[i])
         self.short_tracks = short_tracks.copy()
 
@@ -447,7 +447,7 @@ class Refiner:
                             sample_id.append([i, daug_pool[j]])
                             rgd = True
 
-                    if not rgd and (ind[0] >= 3 or ind[1] < 0 or
+                    if not rgd and (ind[0] >= 3 or ind[1] <= 0 or
                                     ind[1] > 3 * self.metaData['mt_len'] / self.metaData['sample_freq']):
                         # if distance over 3 (average radius + average move * time frame difference), discard it.
                         continue
@@ -528,6 +528,9 @@ class Refiner:
         mt_dic = deepcopy(self.mt_dic)
 
         parent_pool, pool = self.extract_pools()
+        print(self.short_tracks)
+        print(parent_pool)
+        print(pool)
 
         ipts, sample_id = self.extract_features(parent_pool, pool, remove_outlier=None, normalize=False)
 
@@ -585,14 +588,15 @@ class Refiner:
                             cost[i, j] = 1
                         else:
                             cost[i, j] = res[sp_index[0]][1]
-        '''
+
         # Save input for debugging
         save_cost = pd.DataFrame(cost.copy())
         save_cost.index = cost_r_idx
         save_cost.columns = cost_c_idx
         save_cost.to_csv('../../test/test_cost.csv')
-        pd.DataFrame(np.concatenate((ipts, sample_id), axis=1)).to_csv('../../test/test_input.csv')
-        '''
+        pd.DataFrame(np.concatenate((ipts, sample_id, np.expand_dims(np.argmax(res, axis=1), axis=1)),
+                                    axis=1)).to_csv('../../test/test_input.csv')
+
         cost = cost * -1
         row_ind, col_ind = linear_sum_assignment(cost)
 
@@ -608,7 +612,7 @@ class Refiner:
                     to_register[par][0].append(daug)
                     to_register[par][1].append(cst)
 
-        print(to_register)
+        #print(to_register)
         #print(mt_dic)
         ips_count = 0
         for par in to_register.keys():
@@ -799,7 +803,12 @@ class Refiner:
             x2 = daug['Center_of_the_object_0'].iloc[idx]
             y2 = daug['Center_of_the_object_1'].iloc[idx]
             self.mt_exit_lookup[daughter] = (m_exit, 1)
-        frame_diff = m_exit - m_entry
+
+        if m_entry >= daug['frame'].iloc[0]:
+            # mitosis daughter should appear after NEBD of parent, set -1 to be filtered out in extract_feature() method
+            frame_diff = -1
+        else:
+            frame_diff = m_exit - m_entry
 
         # Feature 1: distance
         distance_diff = dist(x1, y1, x2, y2)
