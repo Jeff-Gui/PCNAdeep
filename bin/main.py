@@ -127,8 +127,8 @@ def main(stack, config, output, prefix, logger):
     logger.info('Tracking...')
     track_out = track(df=table_out, displace=int(config['TRACKER']['DISPLACE']),
                         gap_fill=int(config['TRACKER']['GAP_FILL']))
-    track_out.to_csv(os.path.join(output, prefix + 'tracks.csv'), index=0)
-    #io.imsave(os.path.join(output, prefix + 'mask.tif'), mask_out)
+    track_out.to_csv(os.path.join(output, prefix + '_tracks.csv'), index=0)
+    io.imsave(os.path.join(output, prefix + '_mask.tif'), mask_out)
 
     logger.info('Refining and Resolving...')
     post_cfg = config['POST_PROCESS']
@@ -139,10 +139,12 @@ def main(stack, config, output, prefix, logger):
                         minM=int(post_cfg['MIN_M']), search_range=int(refiner_cfg['SEARCH_RANGE']),
                         mt_len=int(refiner_cfg['MITOSIS_LEN']), sample_freq=float(refiner_cfg['SAMPLE_FREQ']),
                         model_train=refiner_cfg['SVM_TRAIN_DATA'],
-                        mode=refiner_cfg['MODE'])
+                        mode=refiner_cfg['MODE'], mask=mask_out)
     ann, track_rfd, mt_dic, imprecise = myRefiner.doTrackRefine()
+    del mask_out
+    gc.collect()
     
-    ann.to_csv(os.path.join(output, prefix + 'tracks_ann.csv'), index=0)
+    ann.to_csv(os.path.join(output, prefix + '_tracks_ann.csv'), index=0)
     pprint.pprint(mt_dic, indent=4)
 
     myResolver = Resolver(track_rfd, ann, mt_dic, minG=int(post_cfg['MIN_G']), minS=int(post_cfg['MIN_S']),
@@ -150,7 +152,7 @@ def main(stack, config, output, prefix, logger):
                           minTrack=int(post_cfg['RESOLVER']['MIN_TRACK']), impreciseExit=imprecise,
                           G2_trh=int(post_cfg['RESOLVER']['G2_TRH']))
     track_rsd, phase = myResolver.doResolve()
-    track_rsd.to_csv(os.path.join(output, prefix + 'tracks_refined.csv'), index=0)
+    track_rsd.to_csv(os.path.join(output, prefix + '_tracks_refined.csv'), index=0)
     phase.to_csv(os.path.join(output, prefix + 'phase.csv'), index=0)
 
     logger.info(prefix[:-1]+' Finished: '+time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()))
@@ -280,4 +282,3 @@ if __name__ == "__main__":
         io.imsave(args.output + prefix + 'sample_intput.tif', inspect)
 
         main(stack=imgs, config=pcna_cfg_dict, output=args.output, prefix=prefix, logger=logger)
-        

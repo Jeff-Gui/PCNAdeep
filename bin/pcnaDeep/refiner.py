@@ -80,7 +80,7 @@ class Refiner:
 
     def __init__(self, track, smooth=5, minGS=6, minM=3, mode='SVM',
                  threshold_mt_F=150, threshold_mt_T=5,
-                 search_range=5, mt_len=5, sample_freq=1/20, model_train=''):
+                 search_range=5, mt_len=5, sample_freq=1/20, model_train='', mask=None):
         """Refinement of the tracks
 
         Class variables:
@@ -97,9 +97,10 @@ class Refiner:
                 mt_len (int): mitosis length of the cells, evaluated manually
                 sample_freq (int): sampling frequency: x minute per frame
                 model_train (str): path to SVM model training data
-
+            mask (numpy.array): object masks, same shape as input, must labeled with object ID
         """
         self.flag = False
+        self.mask = mask
         self.track = track.copy()
         self.count = np.unique(track['trackId'])
 
@@ -125,6 +126,7 @@ class Refiner:
         self.short_tracks = []
         self.daug_from_broken = []
         self.mt_dic = {}
+        self.par_mt_mask = {}
         self.mt_exit_lookup = {}  # {parent ID: (exit frame, quality)}
         self.mt_entry_lookup = {}  # {daughter ID: (exit frame, quality)}
         self.imprecise = []  # imprecise mitosis: daughter exit without M classification
@@ -414,6 +416,51 @@ class Refiner:
 
         return parent_pool, daughter_pool
 
+    def get_parent_mask(self, p):
+        """Extract parent mask, begin from mitosis entry, end with parent disappearance
+
+        Args:
+            p (int): parent track ID
+        """
+        if p not in self.par_mt_mask.keys():
+            sub = self.track[(self.track['trackId'] == p) & (self.track['frame'] >= (self.mt_entry_lookup[p][0] - 2))]
+            lbs = list(sub['continuous_label'])
+            frame = list(sub['frame'])
+            sls = []
+            for i in range(len(lbs)):
+                sl = self.mask[frame[i], :, :].copy()
+                sl[sl != lbs[i]] = 0
+                sl = sl.astype('bool')
+                sls.append(sl)
+            out = np.sum(np.stack(sls, axis=0), axis=0)
+            out = out.astype('bool')
+            if np.sum(out) == 0:
+                warnings.warn('Object not found in mask for parent: ' + str(p) + ' in frames: ' + str(frame)[1:-1])
+            self.par_mt_mask[p] = out
+            '''
+            import skimage.io as io
+            io.imsave('../../test/test_files/mask/'+str(p)+'.tif', out)
+            '''
+            return out
+        else:
+            return self.par_mt_mask[p]
+
+    def daug_app_in_par_mask(self, par, daug):
+        """Check if daughter appears in the mask of parent
+
+        Args:
+            par (int): parent track ID
+            daug (int): daughter track ID
+        """
+        mask = self.get_parent_mask(par)
+        sub = self.ann[self.ann['track'] == daug]
+        x = int(np.floor(sub['app_x']))
+        y = int(np.floor(sub['app_y']))
+        if mask[y, x]:
+            return True
+        else:
+            return False
+
     def extract_features(self, par_pool, daug_pool, remove_outlier=None, normalize=None, sample=None):
         """Extract Input Features for the classifier
 
@@ -452,6 +499,9 @@ class Refiner:
                         # if distance over 3 (average radius + average move * time frame difference), discard it.
                         continue
                     elif not rgd:
+                        if self.mask is not None:
+                            if not self.daug_app_in_par_mask(i, daug_pool[j]):
+                                continue
                         ipts.append(ind)
                         sample_id.append([i, daug_pool[j]])
 
@@ -528,10 +578,11 @@ class Refiner:
         mt_dic = deepcopy(self.mt_dic)
 
         parent_pool, pool = self.extract_pools()
+        '''
         print(self.short_tracks)
         print(parent_pool)
         print(pool)
-
+        '''
         ipts, sample_id = self.extract_features(parent_pool, pool, remove_outlier=None, normalize=False)
 
         if mode is None or mode == 'SVM':
@@ -588,7 +639,7 @@ class Refiner:
                             cost[i, j] = 1
                         else:
                             cost[i, j] = res[sp_index[0]][1]
-
+        '''
         # Save input for debugging
         save_cost = pd.DataFrame(cost.copy())
         save_cost.index = cost_r_idx
@@ -596,7 +647,7 @@ class Refiner:
         save_cost.to_csv('../../test/test_cost.csv')
         pd.DataFrame(np.concatenate((ipts, sample_id, np.expand_dims(np.argmax(res, axis=1), axis=1)),
                                     axis=1)).to_csv('../../test/test_input.csv')
-
+        '''
         cost = cost * -1
         row_ind, col_ind = linear_sum_assignment(cost)
 
