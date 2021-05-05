@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 from copy import deepcopy
 from sklearn.svm import SVC
+import skimage.morphology as morph
 from scipy.optimize import linear_sum_assignment
 from sklearn.preprocessing import RobustScaler
 from sklearn.preprocessing import MinMaxScaler
@@ -434,6 +435,8 @@ class Refiner:
                 sls.append(sl)
             out = np.sum(np.stack(sls, axis=0), axis=0)
             out = out.astype('bool')
+            dilate_range = np.floor(self.mean_size/4)  # dilate the mask by 50% mean radius
+            out = morph.binary_dilation(out, selem=np.ones((dilate_range, dilate_range)))
             if np.sum(out) == 0:
                 warnings.warn('Object not found in mask for parent: ' + str(p) + ' in frames: ' + str(frame)[1:-1])
             self.par_mt_mask[p] = out
