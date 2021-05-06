@@ -184,8 +184,13 @@ class Resolver:
 
         frame = trk['frame'].tolist()
         if m_exit is not None:
-            resolved_class[:frame.index(m_exit) + 1] = ['M' for _ in range(frame.index(m_exit) + 1)]
-            i = frame.index(m_exit) + 1
+            emerging = trk['emerging'].tolist()
+            if 1 in emerging:
+                exit_idx = int(np.min((frame.index(m_exit), emerging.index(1))))  # Emerging classification refers to G1
+            else:
+                exit_idx = frame.index(m_exit)
+            resolved_class[:exit_idx + 1] = ['M' for _ in range(exit_idx + 1)]
+            i = exit_idx + 1
             while i < len(resolved_class):
                 if resolved_class[i] == 'G1/G2':
                     resolved_class[i] = 'G1'
