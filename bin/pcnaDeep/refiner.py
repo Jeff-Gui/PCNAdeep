@@ -587,7 +587,7 @@ class Refiner:
         self.logger.debug('Short tracks excluded: ' + 
                           str(self.short_tracks)[1:-1])
         self.logger.debug('Candidate parents: ' + str(parent_pool)[1:-1])
-        self.logger.debug('Candidate daughter: ' + str(pool)[1:-1])
+        self.logger.debug('Candidate daughters: ' + str(pool)[1:-1])
         
         ipts, sample_id = self.extract_features(parent_pool, pool, remove_outlier=None, normalize=False)
 
@@ -669,6 +669,7 @@ class Refiner:
                     to_register[par][0].append(daug)
                     to_register[par][1].append(cst)
 
+        self.logger.debug('Parent-Daughter relation to register')
         self.logger.debug(to_register)
         #print(mt_dic)
         ips_count = 0

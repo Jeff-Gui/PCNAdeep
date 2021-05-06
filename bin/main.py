@@ -153,9 +153,9 @@ def main(stack, config, output, prefix, logger):
                           G2_trh=int(post_cfg['RESOLVER']['G2_TRH']))
     track_rsd, phase = myResolver.doResolve()
     track_rsd.to_csv(os.path.join(output, prefix + '_tracks_refined.csv'), index=0)
-    phase.to_csv(os.path.join(output, prefix + 'phase.csv'), index=0)
+    phase.to_csv(os.path.join(output, prefix + '_phase.csv'), index=0)
 
-    logger.info(prefix[:-1]+' Finished: '+time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()))
+    logger.info(prefix + ' Finished: ' + time.strftime("%Y/%m/%d %H:%M:%S", time.localtime()))
     logger.info('='*50)
 
     return
@@ -164,7 +164,7 @@ def main(stack, config, output, prefix, logger):
 if __name__ == "__main__":
     mp.set_start_method("spawn", force=True)
     args = get_parser().parse_args()
-    logger = setup_logger(name='pcna', abberv_name='pcna', 
+    logger = setup_logger(name='pcna', abbrev_name='pcna', 
                           output=os.path.join(args.output, 'log.txt'))
     logger.info("Arguments: " + str(args))
     # resolve pcnaDeep Config
@@ -279,6 +279,6 @@ if __name__ == "__main__":
             gc.collect()
         
         inspect = imgs[range(0, imgs.shape[0], 100),:,:,:].copy()
-        io.imsave(args.output + prefix + 'sample_intput.tif', inspect)
+        io.imsave(args.output + prefix + '_sample_intput.tif', inspect)
 
         main(stack=imgs, config=pcna_cfg_dict, output=args.output, prefix=prefix, logger=logger)

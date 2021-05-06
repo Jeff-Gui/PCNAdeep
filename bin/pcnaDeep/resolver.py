@@ -63,9 +63,9 @@ class Resolver:
         rt = rt.sort_values(by=['trackId', 'frame'])
         self.rsTrack = rt.copy()
         if self.mt_unresolved:
-            self.logger.info('Sequential mitosis without S phase; Ignore tracks: ' + str(self.mt_unresolved)[1:-1])
+            self.logger.warning('Sequential mitosis without S phase; Ignore tracks: ' + str(self.mt_unresolved)[1:-1])
         if self.unresolved:
-            self.logger.info('Numerous classification change after resolving, check: ' + str(self.unresolved)[1:-1])
+            self.logger.warning('Numerous classification change after resolving, check: ' + str(self.unresolved)[1:-1])
 
         self.resolveArrest(self.G2_trh)
         phase = self.doResolvePhase()
