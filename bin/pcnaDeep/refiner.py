@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import math
+import logging
 import warnings
 import re
 import pandas as pd
@@ -100,6 +101,7 @@ class Refiner:
                 model_train (str): path to SVM model training data
             mask (numpy.array): object masks, same shape as input, must labeled with object ID
         """
+        self.logger = logging.getLogger('pcna.Refiner')
         self.flag = False
         self.mask = mask
         self.track = track.copy()
@@ -109,7 +111,7 @@ class Refiner:
         self.MT_DISCOUNT = 0.9
         self.metaData = {'mt_len': mt_len, 'sample_freq': sample_freq,
                          'meanDisplace': np.mean(self.getMeanDisplace()['mean_displace'])}
-        print(self.metaData)
+        self.logger.info(self.metaData)
         self.SEARCH_RANGE = search_range
         self.mt_score_begin, self.mt_score_end = self.getMTscore(self.SEARCH_RANGE, self.MT_DISCOUNT)
         if mode == 'SVM' or mode == 'TRAIN':
@@ -203,7 +205,7 @@ class Refiner:
             if not found:
                 filtered_track = filtered_track.append(sub.copy())
 
-        print('Found mitosis track: ' + str(count))
+        self.logger.info('Found mitosis track: ' + str(count))
         return filtered_track, count
 
     def register_track(self):
@@ -274,7 +276,7 @@ class Refiner:
             ann.loc[idx, 'm_exit'] = self.mt_dic[i]['daug'][daug_trk]['m_exit']
 
         track['lineageId'] = track['trackId'].copy()  # erase original lineage ID, assign in following steps
-        print("High quality tracks subjected to predict relationship: " + str(ann.shape[0] - len(short_tracks)))
+        self.logger.info("High quality tracks subjected to predict relationship: " + str(ann.shape[0] - len(short_tracks)))
 
         return track, short_tracks, ann
 
@@ -304,7 +306,7 @@ class Refiner:
     def revert(self, ann, mt_dic, parentId, daughterId):
         """Remove information of a relationship registered to ann and mt_dic
         """
-        print('Revert: ' + str(parentId) + '-' + str(daughterId))
+        self.logger.info('Revert: ' + str(parentId) + '-' + str(daughterId))
         # parent
         mt_dic[parentId]['daug'].pop(daughterId)
         ori = ann.loc[ann['track'] == parentId]['mitosis_identity'].values[0]
@@ -326,7 +328,7 @@ class Refiner:
     def register_mitosis(self, ann, mt_dic, parentId, daughterId, m_exit, dist_dif, m_entry=0):
         """Register parent and dduahgter information to ann and mt_dic
         """
-        print('Register: ' + str(parentId) + '-' + str(daughterId))
+        self.logger.info('Register: ' + str(parentId) + '-' + str(daughterId))
         ori = ann.loc[ann['track'] == parentId, "mitosis_daughter"].values[0]
         ori_idt = ann.loc[ann['track'] == parentId, "mitosis_identity"].values[0]
         s1 = ann.loc[ann['track'] == daughterId, "mitosis_identity"].values
@@ -435,7 +437,7 @@ class Refiner:
                 sls.append(sl)
             out = np.sum(np.stack(sls, axis=0), axis=0)
             out = out.astype('bool')
-            dilate_range = np.floor(self.mean_size/4)  # dilate the mask by 50% mean radius
+            dilate_range = int(np.floor(self.mean_size/4))  # dilate the mask by 50% mean radius
             out = morph.binary_dilation(out, selem=np.ones((dilate_range, dilate_range)))
             if np.sum(out) == 0:
                 warnings.warn('Object not found in mask for parent: ' + str(p) + ' in frames: ' + str(frame)[1:-1])
@@ -477,7 +479,7 @@ class Refiner:
         if sample is not None and self.MODE != 'TRAIN':
             raise NotImplementedError('Only allowed to input sample in TRAIN mode.')
 
-        print('Extracting features...')
+        self.logger.info('Extracting features...')
         ft = 0
         ipts = []
         sample_id = []
@@ -486,7 +488,7 @@ class Refiner:
             for j in range(len(daug_pool)):
                 if i != daug_pool[j]:
                     if ft % 500 == 0 and ft > 0:
-                        print('Considered ' + str(ft) + '/' + str(len(daug_pool) * len(par_pool)) + ' cases.')
+                        self.logger.info('Considered ' + str(ft) + '/' + str(len(daug_pool) * len(par_pool)) + ' cases.')
                     ft += 1
                     ind = self.getSVMinput(i, daug_pool[j])
 
@@ -528,13 +530,13 @@ class Refiner:
             sample_id = sample_id[idx,]
             if sample is not None:
                 y = y[idx,]
-            print('Removed outliers, remaining: ' + str(ipts.shape[0]))
+            self.logger.info('Removed outliers, remaining: ' + str(ipts.shape[0]))
 
         if normalize:
             scaler = RobustScaler()
             ipts = scaler.fit_transform(ipts)
 
-        print('Finished feature extraction: ' + str(ipts.shape[0]) + ' samples.')
+        self.logger.info('Finished feature extraction: ' + str(ipts.shape[0]) + ' samples.')
         if sample is not None:
             return ipts, y, sample_id
         else:
@@ -581,11 +583,12 @@ class Refiner:
         mt_dic = deepcopy(self.mt_dic)
 
         parent_pool, pool = self.extract_pools()
-        '''
-        print(self.short_tracks)
-        print(parent_pool)
-        print(pool)
-        '''
+        
+        self.logger.debug('Short tracks excluded: ' + 
+                          str(self.short_tracks)[1:-1])
+        self.logger.debug('Candidate parents: ' + str(parent_pool)[1:-1])
+        self.logger.debug('Candidate daughter: ' + str(pool)[1:-1])
+        
         ipts, sample_id = self.extract_features(parent_pool, pool, remove_outlier=None, normalize=False)
 
         if mode is None or mode == 'SVM':
@@ -624,7 +627,7 @@ class Refiner:
             '''
         else:
             res = self.plainPredict(ipts)
-        print('Finished prediction.')
+        self.logger.info('Finished prediction.')
 
         parent_pool = list(np.unique(sample_id[:, 0]))
         cost_r_idx = np.array([val for val in parent_pool for _ in range(2)])
@@ -666,7 +669,7 @@ class Refiner:
                     to_register[par][0].append(daug)
                     to_register[par][1].append(cst)
 
-        #print(to_register)
+        self.logger.debug(to_register)
         #print(mt_dic)
         ips_count = 0
         for par in to_register.keys():
@@ -705,9 +708,9 @@ class Refiner:
             if len(list(mt_dic[i]['daug'].keys())) == 2:
                 count += 1
 
-        print("Parent-Daughter-Daughter mitosis relations found: " + str(count))
-        print("Parent-Daughter mitosis relations found: " + str(len(list(mt_dic.keys())) - count))
-        print("Imprecise tracks involved in prediction: " + str(ips_count))
+        self.logger.info("Parent-Daughter-Daughter mitosis relations found: " + str(count))
+        self.logger.info("Parent-Daughter mitosis relations found: " + str(len(list(mt_dic.keys())) - count))
+        self.logger.info("Imprecise tracks involved in prediction: " + str(ips_count))
         #print(mt_dic)
         track = track.sort_values(by=['lineageId', 'trackId', 'frame'])
         return track, ann, mt_dic
@@ -753,7 +756,7 @@ class Refiner:
                 cur_track.loc[:, 'predicted_class'] = phase
 
             track_filtered = track_filtered.append(cur_track.copy())
-        print("Object classification corrected by smoothing: " + str(count))
+        self.logger.info("Object classification corrected by smoothing: " + str(count))
 
         return track
 
@@ -928,7 +931,7 @@ class Refiner:
         count = 0
         while True:
             count += 1
-            print('Level ' + str(count) + ' mitosis:')
+            self.logger.info('Level ' + str(count) + ' mitosis:')
             out = self.break_mitosis()
             self.track = out[0]
             if out[1] == 0:

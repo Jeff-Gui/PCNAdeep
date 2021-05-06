@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-
+import logging
 import pandas as pd
 import numpy as np
 from pcnaDeep.refiner import deduce_transition
@@ -28,6 +28,7 @@ class Resolver:
     def __init__(self, track, ann, mt_dic, minG=6, minS=5, minM=3, minTrack=10, impreciseExit=None, G2_trh=100):
         if impreciseExit is None:
             impreciseExit = []
+        self.logger = logging.getLogger('pcna.Resolver')
         self.impreciseExit = impreciseExit
         self.track = track
         self.ann = ann
@@ -62,9 +63,9 @@ class Resolver:
         rt = rt.sort_values(by=['trackId', 'frame'])
         self.rsTrack = rt.copy()
         if self.mt_unresolved:
-            print('Sequential mitosis without S phase; Ignore tracks: ' + str(self.mt_unresolved)[1:-1])
+            self.logger.info('Sequential mitosis without S phase; Ignore tracks: ' + str(self.mt_unresolved)[1:-1])
         if self.unresolved:
-            print('Numerous classification change after resolving, check: ' + str(self.unresolved)[1:-1])
+            self.logger.info('Numerous classification change after resolving, check: ' + str(self.unresolved)[1:-1])
 
         self.resolveArrest(self.G2_trh)
         phase = self.doResolvePhase()

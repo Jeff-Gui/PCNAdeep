@@ -145,7 +145,7 @@ def main(stack, config, output, prefix, logger):
     gc.collect()
     
     ann.to_csv(os.path.join(output, prefix + '_tracks_ann.csv'), index=0)
-    pprint.pprint(mt_dic, indent=4)
+    logger.debug(pprint.pformat(mt_dic, indent=4))
 
     myResolver = Resolver(track_rfd, ann, mt_dic, minG=int(post_cfg['MIN_G']), minS=int(post_cfg['MIN_S']),
                           minM=int(post_cfg['MIN_M']), 
@@ -164,8 +164,8 @@ def main(stack, config, output, prefix, logger):
 if __name__ == "__main__":
     mp.set_start_method("spawn", force=True)
     args = get_parser().parse_args()
-    setup_logger(name="pcna")
-    logger = setup_logger()
+    logger = setup_logger(name='pcna', abberv_name='pcna', 
+                          output=os.path.join(args.output, 'log.txt'))
     logger.info("Arguments: " + str(args))
     # resolve pcnaDeep Config
     with open(args.pcna_config, 'rb') as f:
