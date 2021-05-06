@@ -442,7 +442,7 @@ class Refiner:
             if np.sum(out) == 0:
                 warnings.warn('Object not found in mask for parent: ' + str(p) + ' in frames: ' + str(frame)[1:-1])
             self.par_mt_mask[p] = out
-            '''
+            ''' 
             import skimage.io as io
             io.imsave('../../test/test_files/mask/'+str(p)+'.tif', out)
             '''

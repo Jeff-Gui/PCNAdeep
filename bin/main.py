@@ -128,7 +128,7 @@ def main(stack, config, output, prefix, logger):
     track_out = track(df=table_out, displace=int(config['TRACKER']['DISPLACE']),
                         gap_fill=int(config['TRACKER']['GAP_FILL']))
     track_out.to_csv(os.path.join(output, prefix + '_tracks.csv'), index=0)
-    #io.imsave(os.path.join(output, prefix + '_mask.tif'), mask_out)
+    io.imsave(os.path.join(output, prefix + '_mask.tif'), mask_out)
 
     logger.info('Refining and Resolving...')
     post_cfg = config['POST_PROCESS']

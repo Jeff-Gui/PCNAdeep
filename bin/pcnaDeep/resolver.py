@@ -69,7 +69,19 @@ class Resolver:
 
         self.resolveArrest(self.G2_trh)
         phase = self.doResolvePhase()
+        self.getAnn()
         return self.rsTrack, phase
+    
+    def getAnn(self):
+        ann = []
+        for i in range(self.rsTrack.shape[0]):
+            inform = list(self.rsTrack.iloc[i][['trackId', 'parentTrackId', 'resolved_class']])
+            inform = list(map(lambda x:str(x), inform))
+            if inform[1] == '0':
+                del inform[1]
+            ann.append('-'.join(inform))
+        self.rsTrack['name'] = ann
+        return
 
     def resolveArrest(self, G2_trh=None):
         """Determine G1/G2 arrest tracks;
