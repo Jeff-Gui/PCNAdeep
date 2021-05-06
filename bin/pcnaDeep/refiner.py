@@ -732,6 +732,14 @@ class Refiner:
     def smooth_track(self):
         """Re-assign cell cycle classification based on smoothed confidence
         """
+        if self.SMOOTH == 0:
+            self.logger.info('No smoothing on object classification.')
+            return self.track.copy()
+        if self.SMOOTH < 0:
+            raise ValueError('Smoothing window must be positive odd number, not ' + str(self.SMOOTH))
+        elif self.SMOOTH%2 != 1:
+            self.logger.warning('Even smoothing window found, use the biggest odd smaller than ' + str(self.SMOOTH))
+            self.SMOOTH -= 1
         count = 0
         dic = {0: 'G1/G2', 1: 'S', 2: 'M'}
         track = self.track.copy()

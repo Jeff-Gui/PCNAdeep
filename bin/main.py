@@ -128,7 +128,7 @@ def main(stack, config, output, prefix, logger):
     track_out = track(df=table_out, displace=int(config['TRACKER']['DISPLACE']),
                         gap_fill=int(config['TRACKER']['GAP_FILL']))
     track_out.to_csv(os.path.join(output, prefix + '_tracks.csv'), index=0)
-    io.imsave(os.path.join(output, prefix + '_mask.tif'), mask_out)
+    #io.imsave(os.path.join(output, prefix + '_mask.tif'), mask_out)
 
     logger.info('Refining and Resolving...')
     post_cfg = config['POST_PROCESS']
@@ -226,7 +226,11 @@ if __name__ == "__main__":
                     pairs.append((prefix, pcna_fp, dic_fp))
                 
                 for si in pairs:
-                    os.mkdir(os.path.join(args.output, si[0]))
+                    md = os.path.join(args.output, si[0])
+                    if os.path.exists(md):
+                        logger.warning('Directory ' + md + ' exists, will override files inside.')
+                    else:
+                        os.mkdir(md)
                     imgs = getDetectInput(io.imread(os.path.join(args.pcna, si[1])), 
                                           io.imread(os.path.join(args.dic, si[2])))
 
@@ -234,7 +238,7 @@ if __name__ == "__main__":
                     io.imsave(os.path.join(args.output, si[0], si[0] + '_sample_intput.tif'), inspect)
     
                     main(stack=imgs, config=pcna_cfg_dict, output=os.path.join(args.output, si[0]), 
-                         prefix=si[0]+'_', logger=logger)
+                         prefix=si[0], logger=logger)
                     del imgs
                     gc.collect()
             else:
@@ -247,14 +251,18 @@ if __name__ == "__main__":
                     prefix = os.path.basename(si)
                     prefix = re.match('(.+)\.\w+',si).group(1)
                     prefix = prefix[:-1] if prefix[-1] in ['_','-'] else prefix
-                    os.mkdir(os.path.join(args.output, prefix))
+                    md = os.path.join(args.output, prefix)
+                    if os.path.exists(md):
+                        logger.warning('Directory ' + md + ' exists, will override files inside.')
+                    else:
+                        os.mkdir(md)
                     imgs = io.imread(os.path.join(ipt, si))
 
                     inspect = imgs[range(0, imgs.shape[0], 100),:,:,:].copy()
                     io.imsave(os.path.join(args.output, prefix, prefix + '_sample_intput.tif'), inspect)
 
                     main(stack=imgs, config=pcna_cfg_dict, output=os.path.join(args.output, prefix), 
-                         prefix=prefix+'_', logger=logger)
+                         prefix=prefix, logger=logger)
                     del imgs
                     gc.collect()
             else:

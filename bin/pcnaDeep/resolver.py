@@ -289,7 +289,7 @@ class Resolver:
                 for c in cls:
                     if c == 'M' or c == 'G1/G2':
                         continue
-                    l = np.sum(sub['resolved_class'] == c)
+                    l = int(np.sum(sub['resolved_class'] == c))
                     if sub['resolved_class'].tolist()[0] == c:
                         l = '>' + str(l)
                     elif sub['resolved_class'].tolist()[-1] == c:
