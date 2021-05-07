@@ -2,7 +2,9 @@
 import logging
 import pandas as pd
 import numpy as np
+import pprint
 from pcnaDeep.refiner import deduce_transition
+from pcnaDeep.data.annotate import findM
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import MinMaxScaler
 
@@ -21,6 +23,87 @@ def list_dist(a, b):
             count -= 1
 
     return count
+
+
+def resolve_from_gt(track, gt_name='predicted_class'):
+    """Resolve cell cycle phase from ground truth
+
+    Args:
+        track (pandas.DataFrame): data frame of each object each row, must have following columns:
+            trackId, frame, parentTrackId, <ground truth column>
+        gt_name (str): refers to the column in track that corresponds to ground truth classification
+    """
+    logger = logging.getLogger('pcna.Resolver.resolveGroundTruth')
+
+    track['lineageId'] = track['trackId']
+    track['emerging'] = 0
+    track.loc[track[gt_name] == 'E', 'emerging'] = 1
+    ann = {'track':[], 'mitosis_parent':[], 'm_entry':[], 'm_exit':[]}
+    mt_dic = {}
+    imprecise_m = []
+    for i in np.unique(track['trackId']):
+        sub = track[track['trackId'] == i]
+        ann['track'].append(i)
+        par = list(sub['parentTrackId'])[0]
+        if par:
+            par_lin = list(track.loc[track['trackId'] == par, 'lineageId'])[0]
+            track.loc[track['trackId'] == i, 'lineageId'] = par_lin
+            track.loc[track['parentTrackId'] == i, 'lineageId'] = par_lin
+            m_exit = findM(sub[gt_name].tolist(), 'begin')
+            if m_exit is None:
+                m_exit = sub['frame'].iloc[0]
+                logger.warning('Mitosis exit not found for daughter: ' + str(i))
+                imprecise_m.append(i)
+            else:
+                m_exit = sub['frame'].iloc[m_exit]
+            if par not in mt_dic.keys():
+                mt_dic[par] = {'daug':{i:{'dist':0, 'm_exit':m_exit}}, 'div':-1}
+            else:
+                mt_dic[par]['daug'][i] = {'dist':0, 'm_exit':m_exit}
+            ann['mitosis_parent'].append(int(par))
+            ann['m_entry'].append(None)
+            ann['m_exit'].append(int(m_exit))
+        else:
+            ann['mitosis_parent'].append(None)
+            ann['m_entry'].append(None)
+            ann['m_exit'].append(None)
+    ann = pd.DataFrame(ann, dtype=int)
+    for i in mt_dic.keys():
+        par_sub = track[track['trackId'] == i]
+        m_entry = findM(par_sub[gt_name].tolist(), 'end')
+        if m_entry is None:
+            logger.warning('Mitosis entry not found for parent: ' + str(i))
+        else:
+            m_entry = par_sub['frame'].iloc[m_entry]
+            mt_dic[i]['div'] = m_entry
+            ann.loc[ann['track'] == i, 'm_entry'] = m_entry
+
+    # resolve probability
+    if 'Probability of G1/G2' not in track.columns:
+        track['Probability of G1/G2'] = 0
+        track['Probability of S'] = 0
+        track['Probability of M'] = 0
+        track.loc[track[gt_name].str.contains('G'), 'Probability of G1/G2'] = 1
+        track.loc[track[gt_name] == 'S', 'Probability of S'] = 1
+        track.loc[track[gt_name] == 'M', 'Probability of M'] = 1
+
+    # Note resolver only takes predicted class G1/G2, no G1 or G2;
+    # Resolver classifies G1 or G2 based on intensity, so first mask intensity and background intensity,
+    # then recover from table joining
+    track_masked = track.copy()
+    track_masked['mean_intensity'] = 0
+    track_masked['background_mean'] = 0
+    track_masked.loc[track_masked[gt_name] == 'G2', 'mean_intensity'] = 200
+    track_masked.loc[track_masked[gt_name].str.contains('G'), gt_name] = 'G1/G2'
+    track_masked.to_csv('../../test/test_files/mock/masked.csv')
+    logger.debug(pprint.pformat(mt_dic))
+
+    r = Resolver(track_masked, ann, mt_dic, minG=1, minS=1, minM=1, minTrack=0, impreciseExit=imprecise_m, G2_trh=100)
+    rsTrack, phase = r.doResolve()
+    rsTrack = rsTrack[['trackId', 'frame', 'resolved_class']]
+    rsTrack = track.merge(rsTrack, on=['trackId','frame'])
+
+    return rsTrack, phase
 
 
 class Resolver:
@@ -265,7 +348,7 @@ class Resolver:
             if info['track'] in self.unresolved or info['track'] in self.mt_unresolved:
                 continue
             sub = self.rsTrack[self.rsTrack['trackId'] == info['track']]
-            length = np.max(sub['frame']) - np.min(sub['frame'])
+            length = int(np.max(sub['frame']) - np.min(sub['frame']) + 1)
             par = info['mitosis_parent']
             if par is None or par in self.mt_unresolved:
                 par = 0
@@ -306,12 +389,13 @@ class Resolver:
                 for c in cls:
                     if c == 'M' or c == 'G1/G2':
                         continue
-                    l = int(np.sum(sub['resolved_class'] == c))
+                    fme = list(sub[sub['resolved_class'] == c]['frame'])
+                    lgt = fme[-1] - fme[0] + 1
                     if sub['resolved_class'].tolist()[0] == c:
-                        l = '>' + str(l)
+                        lgt = '>' + str(lgt)
                     elif sub['resolved_class'].tolist()[-1] == c:
-                        l = '>' + str(l)
-                    out[c].append(l)
+                        lgt = '>' + str(lgt)
+                    out[c].append(lgt)
                     remain.remove(c)
                 for u in remain:
                     out[u].append(np.nan)
@@ -322,8 +406,8 @@ class Resolver:
             if i in self.mt_unresolved:
                 continue
             for j in self.mt_dic[i]['daug'].keys():
-                m = self.mt_dic[i]['daug'][j]['m_exit'] - self.mt_dic[i]['div']
-                out.loc[out['track'] == j, 'M'] = m
+                m = self.mt_dic[i]['daug'][j]['m_exit'] - self.mt_dic[i]['div'] + 1
+                out.loc[out['track'] == j, 'M'] = int(m)
 
         # filter length
         out = out[out['length'] >= self.minTrack]
