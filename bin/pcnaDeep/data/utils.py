@@ -153,12 +153,13 @@ def mask2json(in_dir, out_dir, phase_labeled=False, phase_dic={10: "G1/G2", 50: 
     return
 
 
-def getDetectInput(pcna, dic):
+def getDetectInput(pcna, dic, sat=2):
     """Generate pcna-mScarlet and DIC channel to RGB format for detectron2 model prediction
 
     Args:
         pcna (numpy.array): uint16 PCNA-mScarlet image stack (T*H*W)
         dic (numpy.array): uint16 DIC or phase contrast image stack
+        sat (int): percent saturation, 0~100, default 0.
 
     Returns:
         (numpy.array): uint8 composite image (T*H*W*C)
@@ -167,6 +168,8 @@ def getDetectInput(pcna, dic):
     dic_img = dic
     if stack.dtype != np.dtype('uint16') or dic_img.dtype != np.dtype('uint16'):
         raise ValueError('Input image must be in uint16 format.')
+    if sat < 0 or sat > 100:
+        raise ValueError('Saturated pixel should not be negative or exceeds 100')
 
     print("Input shape: " + str(stack.shape))
     if len(stack.shape) < 3:
@@ -174,11 +177,13 @@ def getDetectInput(pcna, dic):
         dic_img = np.expand_dims(dic_img, axis=0)
 
     outs = []
+    sat = sat//2
+    rg = (sat, 100-sat)
     for f in range(stack.shape[0]):
         # rescale mCherry intensity
-        fme = exposure.rescale_intensity(stack[f, :, :], in_range=tuple(np.percentile(stack[f, :, :], (2, 98))))
+        fme = exposure.rescale_intensity(stack[f, :, :], in_range=tuple(np.percentile(stack[f, :, :], rg)))
         dic_img[f, :, :] = exposure.rescale_intensity(dic_img[f, :, :],
-                                                      in_range=tuple(np.percentile(dic_img[f, :, :], (2, 98))))
+                                                      in_range=tuple(np.percentile(dic_img[f, :, :], rg)))
 
         # save two-channel image for downstream
         fme = fme / 65535 * 255
