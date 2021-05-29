@@ -59,7 +59,7 @@ class pcna_ctcEvaluator:
         """Save raw images by slice
 
         Args:
-            stack (numpy.array): raw image
+            stack (numpy.ndarray): raw image
         """
         fm = ("%0" + str(self.digit_num) + "d") % self.dt_id
         save_seq(stack, os.path.join(self.root, fm), 't', dig_num=self.digit_num, base=self.t_base)
@@ -69,8 +69,8 @@ class pcna_ctcEvaluator:
         """Generate RES format for Cell Tracking Challenge Evaluation
 
         Args:
-            mask (numpy.array): mask output, no need to have cell cycle labeled
-            track (pandas.DataFrame): tracked object table, can have gapped tracks
+            mask (numpy.ndarray): mask output, no need to have cell cycle labeled
+            track (pandas.DataFrame): tracked object table, can have gaped tracks
         """
         track_new = relabel_trackID(track.copy())
         track_new = break_track(track_new.copy())
@@ -103,6 +103,13 @@ class pcna_ctcEvaluator:
 
     def init_ctc_dir(self):
         """Initialize Cell Tracking Challenge directory
+
+        Directory example:
+            |-----0001----
+                |-----0001_RES--
+                |-----0001_GT---
+                    |----SEG-----
+                    |----TRA-----
         """
         root = self.root
         fm = ("%0" + str(self.digit_num) + "d") % self.dt_id
@@ -119,17 +126,16 @@ class pcna_ctcEvaluator:
 
     def generate_Trk(self, raw, mask, displace=100, gap_fill=5, out_dir=None, track=None, render_phase=False):
         """Generate deepcell caliban readable trk file
+
         Args:
             out_dir (str): output directory of the file (optional, default root)
-            raw (numpy.array): raw image
-            mask (numpy.array): image mask
-            displace (int): for tracking:
-                maximum displace of two linked objects between frame (default: 100)
-            gap_fill (int): for tracking:
-                memory track for some frames is disappeared (default: 5)
+            raw (numpy.ndarray): raw image
+            mask (numpy.ndarray): image mask
+            displace (int): for tracking, maximum displace of two linked objects between frame (default: 100)
+            gap_fill (int): for tracking, memory track for some frames is disappeared (default: 5)
             track (pandas.DataFrame): tracked object table (optional to suppress tracking on mask)
-            render_phase (bool): if true, will resolve labels on mask into cell cycle phase, the label should 
-                follow: {10: 'G1/G2', 50: 'S', 100: 'M', 200: 'G1/G2'}
+            render_phase (bool): if true, will resolve labels on mask into cell cycle phase, the label should
+            follow {10: 'G1/G2', 50: 'S', 100: 'M', 200: 'G1/G2'}
         """
         if out_dir is None:
             out_dir = self.root

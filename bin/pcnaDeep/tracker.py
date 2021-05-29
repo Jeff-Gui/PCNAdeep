@@ -56,7 +56,7 @@ def track_mask(mask, displace=40, gap_fill=5, render_phase=False,
     """Track binary mask objects
 
     Args:
-        mask (numpy.array): dtype=uint8, can either be binary or labeled with cell cycle phases
+        mask (numpy.ndarray): dtype=uint8, can either be binary or labeled with cell cycle phases
         displace (int): distance restriction, see track()
         gap_fill (int): time restriction, see track()
         render_phase (bool): whether to deduce cell cycle phase from the labeled mask
@@ -69,7 +69,7 @@ def track_mask(mask, displace=40, gap_fill=5, render_phase=False,
     
     for i in range(mask.shape[0]):
         # remove small objects: may have unexpected behavior
-        mask[i, :, :] = remove_small_objects(mask[i, :, :], min_size=100, connectivity=1)
+        mask[i, :, :] = remove_small_objects(mask[i, :, :], min_size=size_min, connectivity=1)
         mask_lbd[i, :, :] = measure.label(mask[i, :, :], connectivity=1)
     if np.max(mask_lbd) <= 255:
         mask_lbd = mask_lbd.astype('uint8')

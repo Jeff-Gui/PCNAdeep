@@ -1,18 +1,7 @@
-pcnaDeep package
+pcnaDeep
 ================
 
-Subpackages
------------
-
-.. toctree::
-   :maxdepth: 4
-
-   pcnaDeep.data
-
-Submodules
-----------
-
-pcnaDeep.predictor module
+pcnaDeep.predictor
 -------------------------
 
 .. automodule:: pcnaDeep.predictor
@@ -20,7 +9,7 @@ pcnaDeep.predictor module
    :undoc-members:
    :show-inheritance:
 
-pcnaDeep.refiner module
+pcnaDeep.refiner
 -----------------------
 
 .. automodule:: pcnaDeep.refiner
@@ -28,7 +17,7 @@ pcnaDeep.refiner module
    :undoc-members:
    :show-inheritance:
 
-pcnaDeep.resolver module
+pcnaDeep.resolver
 ------------------------
 
 .. automodule:: pcnaDeep.resolver
@@ -36,7 +25,7 @@ pcnaDeep.resolver module
    :undoc-members:
    :show-inheritance:
 
-pcnaDeep.tracker module
+pcnaDeep.tracker
 -----------------------
 
 .. automodule:: pcnaDeep.tracker
@@ -44,7 +33,7 @@ pcnaDeep.tracker module
    :undoc-members:
    :show-inheritance:
 
-pcnaDeep.evaluate module
+pcnaDeep.evaluate
 ------------------------
 
 .. automodule:: pcnaDeep.evaluate
@@ -52,18 +41,18 @@ pcnaDeep.evaluate module
    :undoc-members:
    :show-inheritance:
 
-pcnaDeep.run_rfn_rsv module
----------------------------
+pcnaDeep.split
+------------------------
 
-.. automodule:: pcnaDeep.run_rfn_rsv
+.. automodule:: pcnaDeep.split
    :members:
    :undoc-members:
    :show-inheritance:
 
-Module contents
----------------
+Subpackages
+-----------
 
-.. automodule:: pcnaDeep
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. toctree::
+   :maxdepth: 6
+
+   pcnaDeep.data

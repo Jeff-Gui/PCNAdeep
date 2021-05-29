@@ -28,14 +28,14 @@ def deduce_transition(l, tar, confidence, min_tar, max_res, escape=0, casual_end
             l (list): list of the target cell cycle phase
             tar (str): target cell cycle phase
             min_tar (int): minimum duration of an entire target phase
-            confidence (numpy.array): matrix of confidence
+            confidence (numpy.ndarray): matrix of confidence
             max_res (int): maximum accumulative duration of unwanted phase
             escape (int): do not consider the first n instances
             casual_end (bool): at the end of the track, whether loosen criteria of a match
             
         Returns:
-            (entry, exit), index of index list that resolved as entry and exit
-        """
+            tuple: two indices of the classification list corresponding to entry and exit
+    """
     mp = {'G1/G2': 0, 'S': 1, 'M': 2}
     confid_cls = list(map(lambda x: confidence[x, mp[l[x]]], range(confidence.shape[0])))
     idx = np.where(np.array(l) == tar)[0]
@@ -83,13 +83,18 @@ class Refiner:
     def __init__(self, track, smooth=5, minGS=6, minM=3, mode='SVM',
                  threshold_mt_F=150, threshold_mt_T=5,
                  search_range=5, mt_len=5, sample_freq=1/20, model_train='', mask=None):
-        """Refinement of the tracks
+        """Refinement of the tracked objects.
+
+        Algorithms:
+            1. Smooth classification by convolution of the confidence score
+            2. Register track information, temporal and spatial. Additionally, classification within certain range will
+            be used as feature for recognizing parent-daughter relationship.
 
         Class variables:
             track (pandas.DataFrame): tracked object table
             smooth (int): smoothing window on classification confidence
             minGS (int): minimum duration of G1/G2/S phase, choose maximum if differs among three
-            mode (str): how to resolve parent-daughte relationship, either 'SVM', 'TRAIN' or 'TRH'
+            mode (str): how to resolve parent-daughter relationship, either 'SVM', 'TRAIN' or 'TRH'
             - Essential for TRH mode:
                 threshold_mt_F (int): mitosis displace maximum, can be evaluated as maximum cytokinesis distance.
                 threshold_mt_T (int): mitosis frame difference maximum,
@@ -99,8 +104,9 @@ class Refiner:
                 mt_len (int): mitosis length of the cells, evaluated manually
                 sample_freq (int): sampling frequency: x minute per frame
                 model_train (str): path to SVM model training data
-            mask (numpy.array): object masks, same shape as input, must labeled with object ID
+            mask (numpy.ndarray): object masks, same shape as input, must labeled with object ID
         """
+
         self.logger = logging.getLogger('pcna.Refiner')
         self.flag = False
         self.mask = mask
@@ -140,8 +146,7 @@ class Refiner:
                      'disapp_stage', 'predicted_parent'])
 
     def break_mitosis(self):
-        """break mitosis tracks
-        iterate until no track is broken
+        """Break mitosis tracks; iterate until no track is broken.
         """
         track = self.track.copy()
         cur_max = np.max(track['trackId']) + 1
@@ -348,7 +353,7 @@ class Refiner:
         Args:
             trackId (int): track ID
             direction (str): either 'entry' or 'exit', mitosis entry or exit
-            skip (int): escape frames from deduce_transition() method
+            skip (int): escape frames from `deduce_transition` method
         """
         skp = None
         trk = self.track[self.track['trackId'] == trackId].copy()
@@ -473,12 +478,13 @@ class Refiner:
         """Extract Input Features for the classifier
 
         Args:
-            par_pool (list): parent pool
-            daug_pool (list): daughter pool
-            remove_outlier ([int]): remove outlier of columns in the feature map
-            normalize (bool): normalize each column
-            sample (numpy.array): training mode only, supply positive sample information, will add y as 2nd output
+            par_pool (list): Parent pool.
+            daug_pool (list): Daughter pool.
+            remove_outlier (list[int]): Remove outlier of columns in the feature map.
+            normalize (bool): Normalize each column.
+            sample (numpy.ndarray): Training mode only, supply positive sample information, will add y as 2nd output.
         """
+
         if sample is not None and self.MODE != 'TRAIN':
             raise NotImplementedError('Only allowed to input sample in TRAIN mode.')
 
@@ -546,6 +552,9 @@ class Refiner:
             return ipts, sample_id
 
     def plainPredict(self, ipts):
+        """Generate cost of each potential daughter-parent pair (sample).
+        """
+
         out = np.zeros((ipts.shape[0],2))
         s = MinMaxScaler()
         ipts_norm = s.fit_transform(ipts)
@@ -564,8 +573,9 @@ class Refiner:
         return out
 
     def extract_train_from_break(self, sample_id, ipts, mt_dic):
-        """Extract broken mitosis information to train model
+        """Extract broken mitosis information to train model.
         """
+
         sample = pd.DataFrame(sample_id)
         sample.columns = ['par', 'daug']
         idx = []
@@ -581,6 +591,9 @@ class Refiner:
         return ipts[idx].copy()
 
     def associate(self, mode=None):
+        """Main algorithm to associate parent and daughter relationship.
+        """
+
         ann = deepcopy(self.ann)
         track = deepcopy(self.track)
         mt_dic = deepcopy(self.mt_dic)
@@ -720,7 +733,7 @@ class Refiner:
         return track, ann, mt_dic
 
     def update_table_with_mt(self):
-        """Update tracked object table with information in self.mt_dic (mitosis lookup dict)
+        """Update tracked object table with information in self.mt_dic (mitosis lookup dict).
         """
         track = self.track.copy()
         dic = self.mt_dic.copy()
@@ -733,7 +746,7 @@ class Refiner:
         return track
 
     def smooth_track(self):
-        """Re-assign cell cycle classification based on smoothed confidence
+        """Re-assign cell cycle classification based on smoothed confidence.
         """
         if self.SMOOTH == 0:
             self.logger.info('No smoothing on object classification.')
@@ -773,10 +786,7 @@ class Refiner:
         return track_filtered
 
     def getMeanDisplace(self):
-        """Calculate mean displace of each track normalized with frame
-
-        Returns:
-            (pandas.DataFrame): trackId, mean_displace
+        """Calculate mean displace of each track normalized with frame.
         """
         d = {'trackId': [], 'mean_displace': []}
         for i in np.unique(self.track['trackId']):
@@ -796,7 +806,7 @@ class Refiner:
         return pd.DataFrame(d)
 
     def getMTscore(self, search_range, discount=0.9):
-        """Measure mitosis score based on cell cycle classification
+        """Measure mitosis score based on cell cycle classification.
 
         Args:
             search_range (int): region for calculation
@@ -831,19 +841,20 @@ class Refiner:
         return mt_score_begin, mt_score_end
 
     def getSVMinput(self, parent, daughter):
-        """Generate SVM classifier input for track 1 & 2
+        """Generate SVM classifier input for track 1 & 2.
 
         Args:
-            parent (int): parent track ID
-            daughter (int): daughter track ID
+            parent (int): parent track ID.
+            daughter (int): daughter track ID.
 
         Returns:
-            input vector of SVM classifier:
-                [distance_diff, frame_diff, m_score_par + m_score_daug]    <-  track specific
-                * ave_major/minor_axis_diff = abs(parent_axis - daughter_axis) / parent_axis
-                some parameters are normalized with dataset specific features:
-                    distance_diff /= ave_displace
-                    frame_diff /= (sample_freq * mt_len)
+            Input vector of SVM classifier:
+            - [distance_diff, frame_diff, m_score_par + m_score_daug]    <-  track specific
+            - ave_major/minor_axis_diff = abs(parent_axis - daughter_axis) / parent_axis
+
+            Some parameters are normalized with dataset specific features:
+            - distance_diff /= ave_displace
+            - frame_diff /= (sample_freq * mt_len)
         """
         par = self.track[self.track['trackId'] == parent].sort_values(by='frame')
         daug = self.track[self.track['trackId'] == daughter].sort_values(by='frame')
@@ -903,15 +914,15 @@ class Refiner:
         return out
 
     def get_SVM_train(self, sample):
-        """Save training data for SVM classifier of this particular dataset
+        """Save training data for SVM classifier of this particular dataset.
 
         Args:
-            sample (numpy.array): matrix of shape (sample, (parent ID, daughter ID, y))
+            sample (numpy.ndarray): matrix of shape (sample, (parent ID, daughter ID, y)).
 
         Returns:
-            (numpy.array): Input feature map
-            (numpy.array): Ground truth label
-            (numpy.array): Track ID of the corresponding feature (row)
+            (numpy.ndarray): Input feature map.
+            (numpy.ndarray): Ground truth label.
+            (numpy.ndarray): Track ID of the corresponding feature (row).
         """
 
         if not self.flag:
@@ -930,10 +941,10 @@ class Refiner:
         """Perform track refinement process
 
         Returns:
-            If run in TRH/SVM mode, will return annotation table, tracked object table and mitosis directory
-            If run in TRAIN mode, will only return tracked object table after smoothing, mitosis breaking
-                for manual inspection. After determining the training instance, generate training data through
-                get_SVM_train(sample).
+            If run in TRH/SVM mode, will return annotation table, tracked object table and mitosis directory.
+            If run in TRAIN mode, will only return tracked object table after smoothing, mitosis breaking.
+            for manual inspection. After determining the training instance, generate training data through.
+            get_SVM_train(sample).
         """
         if self.flag:
             raise NotImplementedError('Do not call track refine object twice!')

@@ -17,10 +17,13 @@ from pcnaDeep.tracker import track_mask
 
 
 def relabel_trackID(label_table):
-    """Relabel trackID in tracking table, starting from 1
+    """Relabel trackID in tracking table, starting from 1.
 
     Args:
-        label_table (pandas.DataFrame): track table
+        label_table (pandas.DataFrame): tracked object table.
+
+    Returns:
+        pandas.DataFrame: tracked object table with relabeled trackID.
     """
 
     dic = {}
@@ -40,11 +43,11 @@ def label_by_track(mask, label_table):
     """Label objects in mask with track ID
 
     Args:
-        mask (numpy.array): uint8 np array, output from main model
-        label_table (pandas.DataFrame): track table
+        mask (numpy.ndarray): uint8 np array, output from main model.
+        label_table (pandas.DataFrame): track table.
     
-    Return:
-        unit8/uint16 numpy array, dtype based on track count
+    Returns:
+        numpy.ndarray: uint8/16 dtype based on track count.
     """
 
     assert mask.shape[0] == np.max(label_table['frame'] + 1)
@@ -74,10 +77,13 @@ def label_by_track(mask, label_table):
 
 
 def get_lineage_dict(label_table):
-    """Generate lineage dictionary in deepcell tracking format
+    """Generate lineage dictionary in Deepcell tracking format.
     
     Args:
-        label_table (pandas.DataFrame): table processed
+        label_table (pandas.DataFrame): table processed.
+
+    Returns:
+        dict: lineage dictionary that fits Deepcell.
     """
 
     out = {}
@@ -93,13 +99,13 @@ def get_lineage_dict(label_table):
 
 
 def get_lineage_txt(label_table):
-    """Generate txt table in Cell Tracking Challenge format
+    """Generate txt table in Cell Tracking Challenge (CTC) format.
 
     Args:
-        label_table (pandas.DataFrame): table processed, should not has gaped tracks
+        label_table (pandas.DataFrame): table processed, should not has gaped tracks.
 
-    Return:
-        pandas.DataFrame, remove index and col name before output.
+    Returns:
+        pandas.DataFrame: lineage table in .txt format that fits CTC.
     """
 
     dic = {'id': [], 'appear': [], 'disappear': [], 'parent': []}
@@ -118,16 +124,16 @@ def get_lineage_txt(label_table):
 
 
 def save_trks(filename, lineages, raw, tracked):
-    """Copied from deepcell_tracking.utils, version 0.3.1. Author Van Valen Lab
-        ! Changed trks to trk to fit caliban labeler
+    """Copied from deepcell_tracking.utils, version 0.3.1. Author Van Valen Lab.
+    Modification: changed trks to trk to fit caliban labeler.
 
     Saves raw, tracked, and lineage data into one trk_file.
 
     Args:
         filename (str): full path to the final trk files.
         lineages (dict): a list of dictionaries saved as a json.
-        raw (np.array): 4D raw images data. THWC
-        tracked (np.array): 4D annotated image data. THWC
+        raw (numpy.ndarray): 4D raw images data. THWC
+        tracked (numpy.ndarray): 4D annotated image data. THWC
 
     Raises:
         ValueError: filename does not end in ".trk".
@@ -204,10 +210,13 @@ def load_trks(filename):
 
 
 def lineage_dic2txt(lineage_dic):
-    """Convert deepcell .trk lineage format to CTC txt format
+    """Convert deepcell .trk lineage format to CTC txt format.
 
     Args:
-        lineage_dic (list[dict]): [index:dict], extracted from deepcell .trk file
+        lineage_dic (list[dict]): Dictionary in Deepcell format extracted from .trk file.
+
+    Returns:
+        dict: dictionary with three columns: track ID, appear frame, disappear frame.
     """
 
     lineage_dic = lineage_dic[0]
@@ -237,22 +246,23 @@ def lineage_dic2txt(lineage_dic):
 
 def break_track(label_table):
     """Break tracks in a lineage table into single tracks, where
-    No gapped tracks allowed. All gap must be transferred into parent-daughter
+    NO gaped tracks allowed. All gaps will be transferred into parent-daughter
     relationship.
 
     Args:
-        label_table (pandas.DataFrame): table to process
+        label_table (pandas.DataFrame): tracked object table to process.
 
     Algorithm:
-        Rename raw parentTrackId to mtParTrk
-        Initiate new parentTrackId column with 0
-        Separate all tracks individually
-    
-    (In original lineage table, single track can be gapped, lineage only associates
-     mitosis tracks, not gapped tracks.)
+        1. Rename raw parentTrackId to mtParTrk.
+        2. Initiate new parentTrackId column with 0.
+        3. Separate all tracks individually.
+
+    Notes:
+        In original lineage table, single track can be gaped, lineage only associates
+        mitosis tracks, not gaped tracks.
     
     Returns:
-        processed tracked object table
+        pandas.DataFrame: processed tracked object table.
     """
 
     # For parent track that have one daughter extrude into the parent frame, 
@@ -322,17 +332,20 @@ def break_track(label_table):
 
 
 def separate(frame_list, mtPar_list, ori_id, base):
-    """For single track, separate into all complete tracks
+    """For single gaped track, separate it into all complete tracks.
     
     Args:
-        frame_list (list): frames of exist, length equals to label table
-        mtPar_list (list): mitosis parent list, for solving mitosis relationship
-        ori_id (int): original track ID
-        base (int): base track ID, will assign new track ID sequentially from base + 1
+        frame_list (list): frames list, length equals to label table.
+        mtPar_list (list): mitosis parent list, for solving mitosis relationship.
+        ori_id (int): original track ID.
+        base (int): base track ID, will assign new track ID sequentially from base + 1.
+
+    Returns:
+        dict: Dictionary of having following keys: frame, trackId, parentTrackId, mtParTrk.
     """
 
-    trackId = [ori_id for i in range(len(frame_list))]
-    parentTrackId = [0 for i in range(len(frame_list))]
+    trackId = [ori_id for _ in range(len(frame_list))]
+    parentTrackId = [0 for _ in range(len(frame_list))]
     for i in range(1, len(frame_list)):
         if frame_list[i] - frame_list[i - 1] != 1:
             trackId[i:] = [base + 1 for s in range(i, len(trackId))]
@@ -344,19 +357,19 @@ def separate(frame_list, mtPar_list, ori_id, base):
 
 
 def save_seq(stack, out_dir, prefix, dig_num=3, dtype='uint16', base=0, img_format='.tif', keep_chn=True, sep='-'):
-    """Save image stack and label sequentially
+    """Save image stack and label sequentially.
     
     Args:
-        stack (numpy array) : nparray, THW
-        out_dir (str) : output directory
-        prefix (str) : prefix of single slice, output will be prefix-000x.tif/png
-            (see sep below for separater)
-        dig_num (int) : digit number (3 -> 00x) for labeling image sequentially
-        dtype (numpy.dtype) : data type to save, either 'uint8' or 'uint16'
-        base (int) : base number of the label (starting from)
-        img_format (str): image format, '.tif' or '.png', remind the dot
-        keep_chn (bool): whether to keep full channel or not
-        sep (str): separater between file name and id, default '-'
+        stack (numpy array) : image stack in THW format (Time, Height, Width).
+        out_dir (str) : output directory.
+        prefix (str) : prefix of single slice, output will be prefix-000x.tif/png.
+            (see sep below for separator).
+        dig_num (int) : digit number (3 -> 00x) for labeling image sequentially.
+        dtype (numpy.dtype) : data type to save, either 'uint8' or 'uint16'.
+        base (int) : base number of the label (starting from).
+        img_format (str): image format, '.tif' or '.png', remind the dot.
+        keep_chn (bool): whether to keep full channel or not.
+        sep (str): separator between file name and id, default '-'.
     """
     if len(stack.shape) == 4 and not keep_chn:
         stack = stack[:, :, :, 0]
@@ -377,8 +390,25 @@ def save_seq(stack, out_dir, prefix, dig_num=3, dtype='uint16', base=0, img_form
 
 def generate_calibanTrk(raw, mask, out_dir, dt_id, digit_num=3, displace=100, gap_fill=3, track=None,
                         render_phase=False):
-    """Generate caliban .trk format for annotation
+    """Generate caliban .trk format for annotation from raw and ground truth mask.
+
+    Args:
+        raw (numpy.ndarray): raw image stack.
+        mask (numpy.ndarray): mask of the image, can be either.
+        out_dir (str): output directory.
+        digit_num (int): digit of ID in the output image prefix.
+        displace (int): maximum movement for tracking ground truth mask.
+        gap_fill (int): gap filling for tracking ground truth mask.
+        track (pandas.DataFrame): tracked object table, if None, will track the mask first.
+        render_phase (bool): whether to render cell cycle phase from the mask, will pass to `pcnaDeep.tracker.track_mask`.
+
+    Outputs:
+        File of deepcell caliban .trk format.
+
+    Returns:
+        pandas.DataFrame: processed tracked object table, no gaped tracks in the table (as required by .trk).
     """
+
     fm = ("%0" + str(digit_num) + "d") % dt_id
     if track is None:
         track, mask = track_mask(mask, displace=displace, gap_fill=gap_fill, render_phase=render_phase)
@@ -393,11 +423,17 @@ def generate_calibanTrk(raw, mask, out_dir, dt_id, digit_num=3, displace=100, ga
 
 
 def findM(gt_cls, direction='begin'):
-    """Find M exit/entry from ground truth classification
+    """Find M exit/entry from ground truth classification.
+
+    The method assumes that all mitosis classification is continuous, therefore only suitable.
+    for processing classification ground truth. For processing prediction, use `pcnaDeep.refiner.deduce_transition`.
 
     Args:
-        gt_cls (list): list of classifications
-        direction (str): begin/end, search M from
+        gt_cls (list): list of classifications.
+        direction (str): begin/end, search M from which terminal of the classification list.
+
+    Returns:
+        int: index of the mitosis entry/exit.
     """
     # possible for parent end with 'G', but daughter must begin with 'M'
     i = 0
@@ -422,7 +458,7 @@ def findM(gt_cls, direction='begin'):
 
 
 def check_continuous_track(table):
-    """Check if every track is continuous (no gap)
+    """Check if every track is continuous (no gap). Returns trackID list that is gaped.
     """
     out = []
     for i in np.unique(table['trackId']).tolist():
@@ -433,18 +469,23 @@ def check_continuous_track(table):
 
 
 def mergeTrkAndTrack(trk_path, table_path, return_mask=False):
-    """Merge ground truth .trk and tracked table
+    """Merge ground truth .trk and tracked table. Used to generate ground truth tracked table.
     
     Args:
-        trk_path (str): path to deepcell-label .trk file
-        table_path (str): path to tracked object table
-        return_mask (bool): whether to return mask
+        trk_path (str): path to deepcell-label Caliban .trk file.
+        table_path (str): path to tracked object table.
+        return_mask (bool): whether to return mask.
     
     Returns:
-        tracked object table, trackId, parentTrackId, mtParTrk
-            corrected by ground truth
-        mt_dic: standard table for initializing pcnaDeep.resolver.Resolver()
-        mask: tracked mask
+        pandas.DataFrame: tracked object table, trackId, parentTrackId, mtParTrk
+        corrected by ground truth.
+
+        numpy.ndarray: tracked mask. If parameter return_mask=True, will not return mask.
+
+        dict: standard table for initializing `pcnaDeep.resolver.Resolver`.
+        
+        list: Mitosis daughter that does not has mitosis classification. This should not happen if
+        the annotation is correct.
     """
     trk = load_trks(trk_path)
     lin = trk['lineages'][0]

@@ -10,13 +10,13 @@ import math
 
 
 def load_PCNA_from_json(json_path, image_path, width=1200, height=1200):
-    """Load PCNA training data and ground truth from json
+    """Load PCNA training data and ground truth from json.
 
     Args:
-        json_path (str): path to .json ground truth in VIA2 format
-        image_path (str): path to raw image
-        width (int): width of the image
-        height (int): height of the image
+        json_path (str): path to .json ground truth in VIA2 format.
+        image_path (str): path to raw image.
+        width (int): width of the image.
+        height (int): height of the image.
 
     """
     cc_stageDic = {"G1/G2": 0, "S": 1, "M": 2, "E": 3}
@@ -55,7 +55,7 @@ def load_PCNA_from_json(json_path, image_path, width=1200, height=1200):
 
 
 def load_PCNAs_json(json_paths, image_paths):
-    """Load multiple training dataset
+    """Load multiple training dataset.
     """
     import random
     assert len(json_paths) == len(image_paths)
@@ -69,7 +69,7 @@ def load_PCNAs_json(json_paths, image_paths):
 
 
 def inspect_PCNA_data(json_path, image_path, out_dir='../../../inspect/test'):
-    """Inspect PCNA training data
+    """Inspect PCNA training data.
     """
     import cv2
     from detectron2.utils.visualizer import Visualizer

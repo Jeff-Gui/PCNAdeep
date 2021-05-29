@@ -18,8 +18,8 @@ sys.path.insert(0, os.path.abspath('../bin/pcnaDeep'))
 # -- Project information -----------------------------------------------------
 
 project = 'pcnaDeep'
-copyright = '2021, Chan KuanYoow Group'
-author = 'Chan KuanYoow Group'
+copyright = '2021, Chan Kuan Yoow Group'
+author = 'Chan Kuan Yoow Group'
 
 # The full version, including alpha/beta/rc tags
 release = '0.1'
@@ -30,8 +30,33 @@ release = '0.1'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
-extensions = ['sphinx.ext.autodoc','sphinx.ext.napoleon'
+extensions = [
+    "recommonmark",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.napoleon",
+    "sphinx.ext.intersphinx",
+    "sphinx.ext.todo",
+    "sphinx.ext.coverage",
+    "sphinx.ext.mathjax",
+    "sphinx.ext.viewcode",
+    "sphinx.ext.githubpages",
 ]
+
+# -- Configurations for plugins ------------
+napoleon_google_docstring = True
+napoleon_include_init_with_doc = True
+napoleon_include_special_with_doc = True
+napoleon_numpy_docstring = False
+napoleon_use_rtype = False
+autodoc_inherit_docstrings = False
+autodoc_member_order = "bysource"
+
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3.6", None),
+    "numpy": ("https://docs.scipy.org/doc/numpy/", None),
+    "pandas": ("https://pandas.pydata.org/docs/", None),
+}
+# -------------------------
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

@@ -4,15 +4,16 @@ import pandas as pd
 import skimage.measure as measure
 import skimage.morphology as morphology
 
+
 def split_frame(frame, n=4):
     """Split frame into several quadrants
 
     Args:
-        frame (numpy.array): single frame slice to split, shape HWC, if HW, will expand C
+        frame (numpy.ndarray): single frame slice to split, shape HWC, if HW, will expand C
         n (int): split count, either 4 or 9
 
     Returns:
-        (numpy.array): stack of splitted slice, order by row
+        numpy.ndarray: stack of split slice, order by row
     """
     if n not in [4,9]:
         raise ValueError('Split number should be 4 or 9.')
@@ -38,13 +39,12 @@ def join_frame(stack, n=4, crop_size=None):
     """For each n frame in the stack, join into one complete frame (by row)
 
     Args:
-        stack (numpy.array): tiles to join
+        stack (numpy.ndarray): tiles to join
         n (int): each n tiles to join, should be either 4 or 9.
-        crop_size (int): crop the square image into certain size (lower-right), 
-            default no crop
+        crop_size (int): crop the square image into certain size (lower-right), default no crop
 
     Returns:
-        (numpy.array): stack of joined frames
+        numpy.ndarray: stack of joined frames
     """
 
     if n not in [4,9]:
@@ -87,12 +87,14 @@ def join_table(table, n=4, tile_width=1200):
     """Join object table according to tiled frames
 
     Args:
-        table (pandas.DataFrame): object table to join, 
-            essential columns: frame, Center_of_the_object_0 (x), Center_of_the_object_1 (y).
-            The method will join frames by row.
+        table (pandas.DataFrame): object table to join,
+        essential columns: frame, Center_of_the_object_0 (x), Center_of_the_object_1 (y).
+        The method will join frames by row.
         n (int): each n frames form a tiled slice, either 4 or 9
         tile_width (int): width of each tile
-        
+
+    Returns:
+        pandas.DataFrame: object table for further processing (tracking, resolving)
     """
     NINE_DICT = {0:(0,0), 1:(0,1), 2:(0,2), 3:(1,0), 4:(1,1), 
                 5:(1,2), 6:(2,0), 7:(2,1), 8:(2,2)}
@@ -203,18 +205,21 @@ def resolve_joined_frame(frame, table, n=4, boundary_width=5, dilate_time=3):
     """Resolve joined frame and table of single slice
 
     Args:
-        frame (numpy.array): joined image slice
+        frame (numpy.ndarray): joined image slice
         table (pandas.DataFrame): object table with coordinate adjusted from joining
         n (int): tile count
         boundary_width (int): maximum pixel value for sealing objects at the boundary
         dilate_time (int): round of dilation on boundary objects to seal them
 
     Returns:
-        (numpy.array): relabeled slice with objects at the edge joined
-        (pandas.DataFrame): resolved object with object labels updated. 
-            Objects at the edge will be deleted, new objects due to joining will be registered.
-            Cell cycle phase information (prediction class and confidence) is drawn from the object
-            of larger size.
+        numpy.ndarray: relabeled slice with objects at the edge joined
+        pandas.DataFrame: resolved object with object labels updated.
+
+    Note:
+        Objects at the edge will be deleted, new objects due to joining will be registered.
+
+        Cell cycle phase information (prediction class and confidence) is drawn from the object
+        of larger size.
 
     """
     frame = frame.copy()

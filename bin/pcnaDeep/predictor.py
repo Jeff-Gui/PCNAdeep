@@ -16,6 +16,8 @@ from detectron2.utils.visualizer import ColorMode, Visualizer
 class VisualizationDemo(object):
     def __init__(self, cfg, instance_mode=ColorMode.IMAGE, parallel=False):
         """
+        Copied from Facebook Detectron2 Demo. Apache 2.0 Licence.
+
         Args:
             cfg (CfgNode):
             instance_mode (ColorMode):
@@ -37,12 +39,15 @@ class VisualizationDemo(object):
 
     def run_on_image(self, image, vis=True):
         """
+        Adapted from Facebook Detectron2 Demo. Apache 2.0 Licence.
+
         Args:
-            image (np.ndarray): an image of shape (H, W, C) (in BGR order).
+            image (numpy.ndarray): an image of shape (H, W, C) (in BGR order).
                 This is the format used by OpenCV.
 
         Returns:
             predictions (dict): the output of the model.
+
             vis_output (VisImage): the visualized image output.
         """
         vis_output = None
@@ -71,6 +76,8 @@ class VisualizationDemo(object):
 
 class AsyncPredictor:
     """
+    Copied from Facebook Detectron2 Demo. Apache 2.0 Licence.
+
     A predictor that runs the model asynchronously, possibly on >1 GPUs.
     Because rendering the visualization takes considerably amount of time,
     this helps improve throughput a little bit when rendering videos.
@@ -161,14 +168,15 @@ class AsyncPredictor:
 
 
 def pred2json(masks, labels, fp):
-    """Transform detectron2 prediction to VIA2 (VGG Image Annotator) json format
+    """Transform detectron2 prediction to VIA2 (VGG Image Annotator) json format.
+
     Args:
-        masks (numpy.array): list of instance mask in the frame, each mask should contain only one object.
+        masks (numpy.ndarray): list of instance mask in the frame, each mask should contain only one object.
         labels (list): list of instance label in the frame, should be corresponding to the mask in order.
-        fp (str) : file name for this frame
-    
+        fp (str): file name for this frame.
+
     Returns:
-        (dict) json format readable by VIA2 annotator
+        dict: json format readable by VIA2 annotator.
     """
 
     cc_stage = {0: 'G1/G2', 1: 'S', 2: 'M', 3: "E"}
@@ -236,17 +244,17 @@ def pred2json(masks, labels, fp):
 
 
 def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000):
-    """Predict single frame and deduce meta information
+    """Predict single frame and deduce meta information.
     
     Args:
-        img (numpy.array): __uint8__ image slice
-        frame_id (int): index of the slice, start from 0
-        demonstrator (VisualizationDemo): an detectron2 demonstrator object
-        size_flt (int): size filter
-        is_gray (bool): whether the slice is gray. If true, will convert to 3 channels at first
+        img (numpy.ndarray): must be `uint8` image slice.
+        frame_id (int): index of the slice, start from 0.
+        demonstrator (VisualizationDemo): an detectron2 demonstrator object.
+        size_flt (int): size filter.
+        is_gray (bool): whether the slice is gray. If true, will convert to 3 channels at first.
 
     Returns:
-        (tuple) labeled mask and corresponding table
+        tuple: labeled mask and corresponding table.
     """
 
     if is_gray:

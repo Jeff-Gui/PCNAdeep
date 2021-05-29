@@ -10,10 +10,13 @@ from sklearn.preprocessing import MinMaxScaler
 
 
 def list_dist(a, b):
-    """Count different between elements of two lists
-    a (list): original cls
-    b (list): resolved cls
+    """Count difference between elements of two lists.
+
+    Args:
+        a (list): classifications with method A
+        b (list): classifications with method B
     """
+
     count = 0
     assert len(a) == len(b)
     for i in range(len(a)):
@@ -26,13 +29,14 @@ def list_dist(a, b):
 
 
 def resolve_from_gt(track, gt_name='predicted_class'):
-    """Resolve cell cycle phase from ground truth
+    """Resolve cell cycle phase from the ground truth.
 
     Args:
         track (pandas.DataFrame): data frame of each object each row, must have following columns:
-            trackId, frame, parentTrackId, <ground truth column>
-        gt_name (str): refers to the column in track that corresponds to ground truth classification
+            - trackId, frame, parentTrackId, <ground truth classification column>
+        gt_name (str): refers to the column in track that corresponds to ground truth classification.
     """
+
     logger = logging.getLogger('pcna.Resolver.resolveGroundTruth')
 
     track['lineageId'] = track['trackId']
@@ -128,13 +132,13 @@ class Resolver:
         self.phase = pd.DataFrame(columns=['track', 'type', 'G1', 'S', 'M', 'G2', 'parent'])
 
     def doResolve(self):
-        """Resolve cell cycle duration, identify G1 or G2
+        """Resolve cell cycle duration, identify G1 or G2.
         
-        Main function of class resolver
+        Main function of class resolver.
         
         Returns:
-            1. track table with additional column 'resolved_class'
-            2. phase table with cell cycle durations
+            pandas.DataFrame: tracked object table with additional column 'resolved_class'.
+            pandas.DataFrame: phase table with cell cycle durations.
         """
 
         track = self.track.copy()
@@ -156,6 +160,9 @@ class Resolver:
         return self.rsTrack, phase
     
     def getAnn(self):
+        """Add an annotation column to tracked object table
+        The annotation format is track ID - (parentTrackId, optional) - resolved_class
+        """
         ann = []
         for i in range(self.rsTrack.shape[0]):
             inform = list(self.rsTrack.iloc[i][['trackId', 'parentTrackId', 'resolved_class']])

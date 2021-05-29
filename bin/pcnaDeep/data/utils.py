@@ -157,12 +157,12 @@ def getDetectInput(pcna, dic, sat=2):
     """Generate pcna-mScarlet and DIC channel to RGB format for detectron2 model prediction
 
     Args:
-        pcna (numpy.array): uint16 PCNA-mScarlet image stack (T*H*W)
-        dic (numpy.array): uint16 DIC or phase contrast image stack
+        pcna (numpy.ndarray): uint16 PCNA-mScarlet image stack (T*H*W)
+        dic (numpy.ndarray): uint16 DIC or phase contrast image stack
         sat (int): percent saturation, 0~100, default 0.
 
     Returns:
-        (numpy.array): uint8 composite image (T*H*W*C)
+        (numpy.ndarray): uint8 composite image (T*H*W*C)
     """
     stack = pcna
     dic_img = dic
@@ -210,8 +210,8 @@ def retrieve(table, mask, image, rp_fields=[], funcs=[]):
             should have 2 fields:
             1. frame: time location; 
             2. continuous label: region label on mask
-        mask (numpy.array): labeled mask corresponding to table
-        image (numpy.array): intensity image, only the first channel allowed
+        mask (numpy.ndarray): labeled mask corresponding to table
+        image (numpy.ndarray): intensity image, only the first channel allowed
         rp_fields (list(str)): skimage.measure.regionpprops allowed fields
         funcs (list(function)): customized function that outputs one value from
             an array input
@@ -289,7 +289,7 @@ def get_outlier(array, col_ids=None):
     """Get outlier index in an array, specify target column
     
     Args:
-        array (numpy.array): original array
+        array (numpy.ndarray): original array
         col_ids ([int]): target columns to remove outliers. Default all
         
     Returns:

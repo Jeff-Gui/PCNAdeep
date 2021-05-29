@@ -1,10 +1,7 @@
-pcnaDeep.data package
+pcnaDeep.data
 =====================
 
-Submodules
-----------
-
-pcnaDeep.data.annotate module
+pcnaDeep.data.annotate
 -----------------------------
 
 .. automodule:: pcnaDeep.data.annotate
@@ -12,7 +9,7 @@ pcnaDeep.data.annotate module
    :undoc-members:
    :show-inheritance:
 
-pcnaDeep.data.preparePCNA module
+pcnaDeep.data.preparePCNA
 --------------------------------
 
 .. automodule:: pcnaDeep.data.preparePCNA
@@ -20,18 +17,10 @@ pcnaDeep.data.preparePCNA module
    :undoc-members:
    :show-inheritance:
 
-pcnaDeep.data.utils module
+pcnaDeep.data.utils
 --------------------------
 
 .. automodule:: pcnaDeep.data.utils
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: pcnaDeep.data
    :members:
    :undoc-members:
    :show-inheritance:
