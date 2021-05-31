@@ -65,28 +65,44 @@ class pcna_ctcEvaluator:
         save_seq(stack, os.path.join(self.root, fm), 't', dig_num=self.digit_num, base=self.t_base)
         return
 
-    def generate_ctcRES(self, mask, track):
-        """Generate RES format for Cell Tracking Challenge Evaluation
+    def generate_ctc(self, mask, track, mode='RES'):
+        """Generate standard format for Cell Tracking Challenge Evaluation, for RES or GT.
 
         Args:
             mask (numpy.ndarray): mask output, no need to have cell cycle labeled
             track (pandas.DataFrame): tracked object table, can have gaped tracks
+            mode (str): either "RES" or "GT".
         """
         track_new = relabel_trackID(track.copy())
         track_new = break_track(track_new.copy())
         tracked_mask = label_by_track(mask.copy(), track_new.copy())
         txt = get_lineage_txt(track_new)
-        # write out processed files for RES folder
         fm = ("%0" + str(self.digit_num) + "d") % self.dt_id
-        save_seq(tracked_mask, os.path.join(self.root, fm + '_RES'), 'mask', dig_num=self.digit_num, base=self.t_base, sep='')
-        txt.to_csv(os.path.join(self.root, fm + '_RES', 'res_track.txt'), sep=' ', index=0, header=False)
+
+        if mode == 'RES':
+            # write out processed files for RES folder
+            save_seq(tracked_mask, os.path.join(self.root, fm + '_RES'), 'mask', dig_num=self.digit_num, base=self.t_base, sep='')
+            txt.to_csv(os.path.join(self.root, fm + '_RES', 'res_track.txt'), sep=' ', index=0, header=False)
+        elif mode == 'GT':
+            fm = os.path.join(self.root, fm + '_GT')
+            self.__saveGT(fm, txt, mask)
+        else:
+            raise ValueError('Can only generate CTC format files as RES or GT, not: ' + mode)
+        return
+
+    def __saveGT(self, fm, txt, mask):
+        """Save ground truth in Cell Tracking Challenge format.
+        """
+        txt.to_csv(os.path.join(fm, 'TRA', 'man_track.txt'), index=0, sep=' ', header=False)
+        save_seq(mask, os.path.join(fm, 'SEG'), 'man_seg', dig_num=self.digit_num, base=self.t_base, sep='')
+        save_seq(mask, os.path.join(fm, 'TRA'), 'man_track', dig_num=self.digit_num, base=self.t_base, sep='')
         return
 
     def caliban2ctcGT(self, trk_path):
-        """Convert caliban ground truth to Cell Tracking Challenge ground truth
+        """Convert caliban ground truth to Cell Tracking Challenge ground truth.
 
         Args:
-            trk_path (str): path to deepcell-label .trk file
+            trk_path (str): path to deepcell-label .trk file.
         """
         t = load_trks(trk_path)
         self.trk_path = trk_path
@@ -96,9 +112,7 @@ class pcna_ctcEvaluator:
 
         fm = ("%0" + str(self.digit_num) + "d") % self.dt_id
         fm = os.path.join(self.root, fm + '_GT')
-        txt.to_csv(os.path.join(fm, 'TRA', 'man_track.txt'), index=0, sep=' ', header=False)
-        save_seq(mask, os.path.join(fm, 'SEG'), 'man_seg', dig_num=self.digit_num, base=self.t_base, sep='')
-        save_seq(mask, os.path.join(fm, 'TRA'), 'man_track', dig_num=self.digit_num, base=self.t_base, sep='')
+        self.__saveGT(fm, txt, mask)
         return
 
     def init_ctc_dir(self):

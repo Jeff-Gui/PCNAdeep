@@ -216,7 +216,7 @@ def lineage_dic2txt(lineage_dic):
         lineage_dic (list[dict]): Dictionary in Deepcell format extracted from .trk file.
 
     Returns:
-        dict: dictionary with three columns: track ID, appear frame, disappear frame.
+        pandas.DataFrame: dictionary with three columns: track ID, appear frame, disappear frame.
     """
 
     lineage_dic = lineage_dic[0]
