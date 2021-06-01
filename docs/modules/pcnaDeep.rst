@@ -49,6 +49,14 @@ pcnaDeep.split
    :undoc-members:
    :show-inheritance:
 
+pcnaDeep.correct
+------------------------
+
+.. automodule:: pcnaDeep.correct
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Subpackages
 -----------
 
