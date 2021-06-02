@@ -118,12 +118,13 @@ class pcna_ctcEvaluator:
     def init_ctc_dir(self):
         """Initialize Cell Tracking Challenge directory
 
-        Directory example:
-            |-----0001----
-                |-----0001_RES--
-                |-----0001_GT---
-                    |----SEG-----
-                    |----TRA-----
+        Directory example  
+            >-----0001----------  
+               >-----0001_RES---  
+               >-----0001_GT----  
+                   >----SEG------  
+                   >----TRA------ 
+        
         """
         root = self.root
         fm = ("%0" + str(self.digit_num) + "d") % self.dt_id

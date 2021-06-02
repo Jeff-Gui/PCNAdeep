@@ -9,23 +9,20 @@ import numpy as np
 
 
 def track(df, displace=40, gap_fill=5):
-    """Track and relabel mask with trackID
+    """Track and relabel mask with trackID.
 
     Args:
-        df: pandas data frame with fields:
-            Center_of_the_object_0: x location of each object
-            Center_of_the_object_1: y location of each object
-            frame: time location
-            (other optional columns)
-        
-        mask: ndarray of corresponding table
-        displace: maximum distance an object can move between frames
-        gap_fill: temporal filling fo tracks
+        df (pandas.DataFrame): Data frame with fields:
+            - Center_of_the_object_0: x location of each object
+            - Center_of_the_object_1: y location of each object
+            - frame: time location
+            - (other optional columns)
+
+        displace (int): maximum distance an object can move between frames.
+        gap_fill (int): temporal filling fo tracks.
     
     Return:
-        tracked table
-        y: mask relabeled with trackID
-
+        (pandas.DataFrame): tracked object table.
     """
 
     f = df[['Center_of_the_object_0', 'Center_of_the_object_1', 'frame']]
@@ -53,15 +50,15 @@ def track(df, displace=40, gap_fill=5):
 
 def track_mask(mask, displace=40, gap_fill=5, render_phase=False,
                phase_dic={10: 'G1/G2', 50: 'S', 100: 'M', 200: 'G1/G2'}, size_min=100):
-    """Track binary mask objects
+    """Track binary mask objects.
 
     Args:
-        mask (numpy.ndarray): dtype=uint8, can either be binary or labeled with cell cycle phases
-        displace (int): distance restriction, see track()
-        gap_fill (int): time restriction, see track()
-        render_phase (bool): whether to deduce cell cycle phase from the labeled mask
-        phase_dic (dict): mapping of object label and cell cycle phase
-        size_min (int): remove object smaller then some size, in case the mask labeling is not precise
+        mask (numpy.ndarray): dtype=uint8, can either be binary or labeled with cell cycle phases.
+        displace (int): distance restriction, see track().
+        gap_fill (int): time restriction, see track().
+        render_phase (bool): whether to deduce cell cycle phase from the labeled mask.
+        phase_dic (dict): mapping of object label and cell cycle phase.
+        size_min (int): remove object smaller then some size, in case the mask labeling is not precise.
     """
 
     p = pd.DataFrame()

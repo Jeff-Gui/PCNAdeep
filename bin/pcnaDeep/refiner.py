@@ -88,22 +88,21 @@ class Refiner:
         Algorithms:
             1. Smooth classification by convolution of the confidence score
             2. Register track information, temporal and spatial. Additionally, classification within certain range will
-            be used as feature for recognizing parent-daughter relationship.
+               be used as feature for recognizing parent-daughter relationship.
 
-        Class variables:
+        Args:
             track (pandas.DataFrame): tracked object table
             smooth (int): smoothing window on classification confidence
             minGS (int): minimum duration of G1/G2/S phase, choose maximum if differs among three
             mode (str): how to resolve parent-daughter relationship, either 'SVM', 'TRAIN' or 'TRH'
             - Essential for TRH mode:
-                threshold_mt_F (int): mitosis displace maximum, can be evaluated as maximum cytokinesis distance.
-                threshold_mt_T (int): mitosis frame difference maximum,
-                    can be evaluated as maximum mitosis frame length.
+            threshold_mt_F (int): mitosis displace maximum, can be evaluated as maximum cytokinesis distance.
+            threshold_mt_T (int): mitosis frame difference maximum, can be evaluated as maximum mitosis frame length.
             - Essential for SVM/TRAIN mode (for normalizing different imaging conditions):
-                search_range (int): when calculating mitosis score, how many time points to consider
-                mt_len (int): mitosis length of the cells, evaluated manually
-                sample_freq (int): sampling frequency: x minute per frame
-                model_train (str): path to SVM model training data
+            search_range (int): when calculating mitosis score, how many time points to consider
+            mt_len (int): mitosis length of the cells, evaluated manually
+            sample_freq (int): sampling frequency: x minute per frame
+            model_train (str): path to SVM model training data
             mask (numpy.ndarray): object masks, same shape as input, must labeled with object ID
         """
 

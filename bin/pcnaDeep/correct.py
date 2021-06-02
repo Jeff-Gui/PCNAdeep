@@ -170,6 +170,7 @@ class Trk_obj:
     def save(self):
         """Save current table.
         """
+        self.getAnn()
         self.track.to_csv(self.track_path, index=None)
         return
 
@@ -185,6 +186,20 @@ class Trk_obj:
         """Erase all editing to the original file.
         """
         self.track = self.original.copy()
+        return
+
+    def getAnn(self):
+        """Add an annotation column to tracked object table
+        The annotation format is track ID - (parentTrackId, optional) - resolved_class
+        """
+        ann = []
+        for i in range(self.track.shape[0]):
+            inform = list(self.track.iloc[i][['trackId', 'parentTrackId', 'resolved_class']])
+            inform = list(map(lambda x:str(x), inform))
+            if inform[1] == '0':
+                del inform[1]
+            ann.append('-'.join(inform))
+        self.track['name'] = ann
         return
 
     def doCorrect(self):
