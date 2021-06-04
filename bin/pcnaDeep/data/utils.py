@@ -177,7 +177,7 @@ def getDetectInput(pcna, dic, sat=2):
         dic_img = np.expand_dims(dic_img, axis=0)
 
     outs = []
-    sat = sat//2
+    sat = sat/2
     rg = (sat, 100-sat)
     for f in range(stack.shape[0]):
         # rescale mCherry intensity

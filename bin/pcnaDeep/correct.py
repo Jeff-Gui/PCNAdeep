@@ -65,8 +65,11 @@ class Trk_obj:
             frame (int): frame to begin with new ID.
             new_id (int): new track ID, only required when replacing track identity.
         """
-        if frame not in list(self.track[self.track['trackId']==old_id, 'frame']):
+        if old_id not in self.track['trackId']:
+            raise ValueError('Selected track is not in the table.')
+        if frame not in list(self.track[self.track['trackId'] == old_id]['frame']):
             raise ValueError('Selected frame is not in the original track.')
+
         dir_daugs = list(np.unique(self.track.loc[self.track['parentTrackId'] == old_id, 'trackId']))
         for dd in dir_daugs:
             self.del_parent(dd)
@@ -74,15 +77,22 @@ class Trk_obj:
         if new_id is None:
             self.track_count += 1
             new = self.track_count
+            new_lin = new
+            new_par = 0
         else:
+            if new_id not in self.track['trackId']:
+                raise ValueError('Selected new ID not in the table.')
             new = new_id
+            new_lin = self.track[self.track['trackId'] == new_id]['lineageId'].values[0]
+            new_par = self.track[self.track['trackId'] == new_id]['parentTrackId'].values[0]
         self.track.loc[(self.track['trackId'] == old_id) & (self.track['frame'] >= frame), 'trackId'] = new
-        self.track.loc[self.track['trackId'] == self.track_count, 'lineageId'] = new
-        self.track.loc[self.track['trackId'] == self.track_count, 'parentTrackId'] = 0
-        print('Replaced/Created track ' + str(old_id) + ' from ' + str(frame) + ' with new ID ' + str(new) + '.')
+        self.track.loc[self.track['trackId'] == new, 'lineageId'] = new_lin
+        self.track.loc[self.track['trackId'] == new, 'parentTrackId'] = new_par
+        print('Replaced/Created track ' + str(old_id) + ' from ' + str(frame+self.frame_base) +
+              ' with new ID ' + str(new) + '.')
 
         for dd in dir_daugs:
-            self.create_parent(self.track_count, dd)
+            self.create_parent(new, dd)
 
         return
 
@@ -93,6 +103,11 @@ class Trk_obj:
             par (int): parent track ID.
             daug (int): daughter track ID.
         """
+        if par not in self.track['trackId']:
+            raise ValueError('Selected parent is not in the table.')
+        if daug not in self.track['trackId']:
+            raise ValueError('Selected daughter is not in the table.')
+
         par_lin = self.track[self.track['trackId'] == par]['lineageId'].iloc[0]
         self.track.loc[self.track['trackId'] == daug, 'lineageId'] = par_lin
         self.track.loc[self.track['trackId'] == daug, 'parentTrackId'] = par
@@ -107,6 +122,9 @@ class Trk_obj:
         Args:
             daug (int): daughter track ID.
         """
+        if daug not in self.track['trackId']:
+            raise ValueError('Selected daughter is not in the table.')
+
         self.track.loc[self.track['trackId'] == daug, 'lineageId'] = daug
         self.track.loc[self.track['trackId'] == daug, 'parentTrackId'] = 0
         daugs = find_daugs(self.track, daug)
@@ -126,6 +144,8 @@ class Trk_obj:
             mode (str): either 'to_next', 'single', or 'range'
             end_frame (int): optional, in 'range' mode, stop correction at this frame.
         """
+        if trk_id not in self.track['trackId']:
+            raise ValueError('Selected track is not in the table.')
         if cls not in ['G1', 'G2', 'M', 'S', 'G1/G2']:
             raise ValueError('cell cycle phase can only be G1, G2, G1/G2, S or M')
 
@@ -149,6 +169,7 @@ class Trk_obj:
             raise ValueError('Mode can only be single, to_next or range, not ' + mode)
 
         for r in rg:
+            self.track.loc[idx[r], 'resolved_class'] = cls
             self.track.loc[idx[r], 'predicted_class'] = cls
             if cls in ['G1', 'G2', 'G1/G2']:
                 self.track.loc[idx[r], 'Probability of G1/G2'] = 1
@@ -162,8 +183,8 @@ class Trk_obj:
                 self.track.loc[idx[r], 'Probability of G1/G2'] = 0
                 self.track.loc[idx[r], 'Probability of S'] = 0
                 self.track.loc[idx[r], 'Probability of M'] = 1
-        print('Classification for track ' + str(trk_id) + ' corrected as ' + str(cls) + ' from ' + str(frames[rg[0]])
-              + ' to ' + str(frames[rg[-1]]) + '.')
+        print('Classification for track ' + str(trk_id) + ' corrected as ' + str(cls) + ' from ' +
+              str(frames[rg[0]] + self.frame_base) + ' to ' + str(frames[rg[-1]] + self.frame_base) + '.')
 
         return
 
@@ -172,6 +193,7 @@ class Trk_obj:
         """
         self.getAnn()
         self.track.to_csv(self.track_path, index=None)
+        self.saved = self.track.copy()
         return
 
     def revert(self):
