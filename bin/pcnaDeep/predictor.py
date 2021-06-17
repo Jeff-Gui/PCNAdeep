@@ -94,6 +94,7 @@ class AsyncPredictor:
             super().__init__()
 
         def run(self):
+        
             predictor = DefaultPredictor(self.cfg)
 
             while True:
@@ -188,7 +189,11 @@ def pred2json(masks, labels, fp):
 
     tmp = {"filename": fp, "size": masks[0].astype('bool').size, "regions": [], "file_attributes": {}}
     for i in range(len(masks)):
-        region = measure.regionprops(measure.label(masks[i], connectivity=1))[0]
+        region = measure.regionprops(measure.label(masks[i], connectivity=1))
+        if region:
+            region = region[0]
+        else:
+            continue
         if region.image.shape[0] < 2 or region.image.shape[1] < 2:
             continue
         # register regions
@@ -260,7 +265,7 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000):
     if is_gray:
         img = np.stack([img, img, img], axis=2)  # convert gray to 3 channels
     # Generate mask or visualized output
-    predictions = demonstrator.run_on_image(img)[0]
+    predictions = demonstrator.run_on_image(img, vis=False)
 
     # Generate mask
     mask = predictions['instances'].pred_masks
@@ -270,19 +275,22 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000):
     # For visualising class prediction
     # 0: G1/G2, 1: S, 2: M, 3: E-early G1
     cls = predictions['instances'].pred_classes
-    conf = predictions['instances'].scores
-    #factor = {0: 'G1/G2', 1: 'S', 2: 'M', 3: 'G1/G2'}
+    conf = predictions['instances'].scores_all.cpu().numpy()
     factor = {0: 'G1/G2', 1: 'S', 2: 'M', 3: 'E'}
+    ovl_count = 0
     for s in range(mask.shape[0]):
         if np.sum(mask[s, :, :]) < size_flt:
             continue
-        sc = conf[s].item()
+        sc = np.max(conf[s])
         ori = np.max(mask_slice[mask[s, :, :] != 0])
         if ori != 0:
-            if sc > conf[ori - 1].item():
+            ovl_count += 1
+            if sc > np.max(conf[ori - 1]):
+                mask_slice[mask_slice == ori] = 0
                 mask_slice[mask[s, :, :] != 0] = s + 1
         else:
             mask_slice[mask[s, :, :] != 0] = s + 1
+    #  print('Overlapping rate: ' + str(ovl_count / mask.shape[0]))
 
     props = measure.regionprops_table(mask_slice, intensity_image=img[:, :, 0], properties=(
         'label', 'bbox', 'centroid', 'mean_intensity', 'major_axis_length', 'minor_axis_length'))
@@ -320,21 +328,11 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000):
             e.append(1)
         else:
             e.append(0)
-        confid = conf[lb - 1].item()
-        confid_rest = (1-confid) / 2
+        confid = conf[lb - 1]
         phase.append(p)
-        if p == 'G1/G2':
-            g_confid.append(confid)
-            s_confid.append(confid_rest)
-            m_confid.append(confid_rest)
-        elif p == 'S':
-            s_confid.append(confid)
-            g_confid.append(confid_rest)
-            m_confid.append(confid_rest)
-        else:
-            m_confid.append(confid)
-            g_confid.append(confid_rest)
-            s_confid.append(confid_rest)
+        s_confid.append(confid[1])
+        g_confid.append(confid[0] + confid[3])
+        m_confid.append(confid[2])
 
     out_props['phase'] = phase
     out_props['Probability of G1/G2'] = g_confid
