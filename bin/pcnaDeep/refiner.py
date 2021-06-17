@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import math
 import logging
+import os
 import warnings
 import re
 import pandas as pd
@@ -101,7 +102,7 @@ class Refiner:
             - Essential for SVM/TRAIN mode (for normalizing different imaging conditions):
             search_range (int): when calculating mitosis score, how many time points to consider
             mt_len (int): mitosis length of the cells, evaluated manually
-            sample_freq (int): sampling frequency: x minute per frame
+            sample_freq (float): sampling frequency: x frame per minute
             model_train (str): path to SVM model training data
             mask (numpy.ndarray): object masks, same shape as input, must labeled with object ID
         """
@@ -507,9 +508,10 @@ class Refiner:
                             sample_id.append([i, daug_pool[j]])
                             rgd = True
 
-                    if not rgd and (ind[0] >= 3 or ind[1] <= 0 or
-                                    ind[1] > 3 * self.metaData['mt_len'] / self.metaData['sample_freq']):
+                    if not rgd and (ind[0] >= 10 or ind[1] <= 0 or
+                                    ind[1] > 10 * self.metaData['mt_len'] / self.metaData['sample_freq']):
                         # if distance over 3 (average radius + average move * time frame difference), discard it.
+                        # if frame difference smaller than 0 or over 3 (mitosis length / sample frequency), discard it.
                         continue
                     elif not rgd:
                         if self.mask is not None:
@@ -627,7 +629,7 @@ class Refiner:
             '''
             # Render training set to inspect
             save_train = np.concatenate((X, np.expand_dims(y, axis=1)), axis=1)
-            pd.DataFrame(save_train).to_csv('../test/test_train.csv', index=False, header=False)
+            pd.DataFrame(save_train).to_csv('../../test/test_train.csv', index=False, header=False)
             '''
             model = SVC(kernel='rbf', C=100, gamma=1, probability=True, class_weight='balanced')
             model.fit(X, y)
@@ -638,7 +640,7 @@ class Refiner:
             '''
             # Render res and output prediction
             save_ipts = np.concatenate((ipts_norm, np.expand_dims(np.argmax(res, axis=1), axis=1)), axis=1)
-            pd.DataFrame(save_ipts).to_csv('../test/test_res.csv', index=False, header=False)
+            pd.DataFrame(save_ipts).to_csv('../../test/test_res.csv', index=False, header=False)
             '''
         else:
             res = self.plainPredict(ipts)
