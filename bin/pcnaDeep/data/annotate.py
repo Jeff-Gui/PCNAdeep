@@ -490,7 +490,7 @@ def mergeTrkAndTrack(trk_path, table_path, return_mask=False):
     trk = load_trks(trk_path)
     lin = trk['lineages'][0]
     mask = trk['y'][:, :, :, 0]
-    del (trk)
+    del trk
     table = pd.read_csv(table_path)
     new_table = pd.DataFrame()
     for i in range(mask.shape[0]):

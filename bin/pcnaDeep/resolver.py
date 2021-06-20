@@ -41,6 +41,8 @@ def resolve_from_gt(track, gt_name='predicted_class'):
 
     track['lineageId'] = track['trackId']
     track['emerging'] = 0
+    track['BF_mean'] = 0
+    track['BF_std'] = 0
     track.loc[track[gt_name] == 'E', 'emerging'] = 1
     ann = {'track':[], 'mitosis_parent':[], 'm_entry':[], 'm_exit':[]}
     mt_dic = {}
@@ -99,7 +101,7 @@ def resolve_from_gt(track, gt_name='predicted_class'):
     track_masked['background_mean'] = 0
     track_masked.loc[track_masked[gt_name] == 'G2', 'mean_intensity'] = 200
     track_masked.loc[track_masked[gt_name].str.contains('G'), gt_name] = 'G1/G2'
-    track_masked.to_csv('../../test/test_files/mock/masked.csv')
+    #  track_masked.to_csv('../../test/test_files/mock/masked.csv')
     logger.debug(pprint.pformat(mt_dic))
 
     r = Resolver(track_masked, ann, mt_dic, minG=1, minS=1, minM=1, minTrack=0, impreciseExit=imprecise_m, G2_trh=100)

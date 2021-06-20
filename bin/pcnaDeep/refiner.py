@@ -171,7 +171,7 @@ class Refiner:
                 out = deduce_transition(l=cls, tar='M', confidence=confid, min_tar=self.MIN_M, max_res=self.MIN_GS,
                                         escape=esp)
 
-                if out is not None and out[0] != out[1] and out[1] != len(cls) - 1:
+                if out is not None and out[0] != out[1] and out[1] != len(cls) - 1 and out[0] != esp:
                     found = True
                     cur_m_entry, m_exit = out
                     cla = list(sub['predicted_class'])
@@ -507,11 +507,14 @@ class Refiner:
                             ipts.append(ind)
                             sample_id.append([i, daug_pool[j]])
                             rgd = True
-
+                    '''
                     if not rgd and (ind[0] >= 10 or ind[1] <= 0 or
                                     ind[1] > 10 * self.metaData['mt_len'] / self.metaData['sample_freq']):
                         # if distance over 3 (average radius + average move * time frame difference), discard it.
                         # if frame difference smaller than 0 or over 3 (mitosis length / sample frequency), discard it.
+                        continue
+                    '''
+                    if not rgd and ind[1] <= 0:
                         continue
                     elif not rgd:
                         if self.mask is not None:
@@ -555,6 +558,8 @@ class Refiner:
     def plainPredict(self, ipts):
         """Generate cost of each potential daughter-parent pair (sample).
         """
+        WEIGHT_DIST = 0.25
+        WEIGHT_TIME = 0.25
 
         out = np.zeros((ipts.shape[0],2))
         s = MinMaxScaler()
@@ -568,7 +573,7 @@ class Refiner:
             if ipts[i,1] <= 0 or ipts[i,0] > dist_tol or ipts[i,1] > frame_tol:
                 score = 0
             else:
-                score = np.round(1 - 0.25 * ipts_norm[i,0] - 0.25 * ipts_norm[i,1], 3)
+                score = np.round(1 - WEIGHT_DIST * ipts_norm[i,0] - WEIGHT_TIME * ipts_norm[i,1], 3)
             out[i,0] = 1-score
             out[i,1] = score
         return out
@@ -584,7 +589,8 @@ class Refiner:
             par, daug = i, list(mt_dic[i]['daug'].keys())[0]
             sub = sample[(sample['par'] == par) & (sample['daug'] == daug)]
             if sub.shape[0] == 0:
-                warnings.warn('Positive mitosis instance (parent-daughter) ' + str(par) + '-' + str(daug) + ' filtered out; your gating may be too strict.')
+                warnings.warn('Positive mitosis instance (parent-daughter) ' + str(par) + '-' + str(daug) +
+                              ' filtered out; your gating may be too strict.')
             else:
                 idx.append(sub.index[0])
 
@@ -623,14 +629,16 @@ class Refiner:
             # Oversample positive instances
             smote = BorderlineSMOTE(random_state=1, kind='borderline-1')
             X, y = smote.fit_resample(X, y)
-            # Normalize
-            s = RobustScaler()
-            X = s.fit_transform(X)
             '''
             # Render training set to inspect
             save_train = np.concatenate((X, np.expand_dims(y, axis=1)), axis=1)
             pd.DataFrame(save_train).to_csv('../../test/test_train.csv', index=False, header=False)
             '''
+
+            # Normalize
+            s = RobustScaler()
+            X = s.fit_transform(X)
+
             model = SVC(kernel='rbf', C=100, gamma=1, probability=True, class_weight='balanced')
             model.fit(X, y)
 
@@ -639,7 +647,7 @@ class Refiner:
             res = model.predict_proba(ipts_norm)
             '''
             # Render res and output prediction
-            save_ipts = np.concatenate((ipts_norm, np.expand_dims(np.argmax(res, axis=1), axis=1)), axis=1)
+            save_ipts = np.concatenate((ipts, np.expand_dims(np.argmax(res, axis=1), axis=1)), axis=1)
             pd.DataFrame(save_ipts).to_csv('../../test/test_res.csv', index=False, header=False)
             '''
         else:
@@ -821,7 +829,9 @@ class Refiner:
         mt_score_end = {}
         for trackId in np.unique(self.track['trackId']):
             sub = self.track[self.track['trackId'] == trackId]
-            idx = sub.index[: np.min((sub.shape[0], search_range))]
+            fme_begin = sub['frame'].iloc[0] + search_range - 1
+            fme_end = sub['frame'].iloc[-1] - search_range + 1
+            idx = sub[sub['frame'] <= fme_begin].index
 
             frame_start = sub['frame'].loc[idx[0]]
             x_start = np.power(discount, np.abs(sub['frame'].loc[idx] - frame_start))
@@ -830,7 +840,7 @@ class Refiner:
                             sub['Probability of M'].loc[idx] - sub['Probability of S'].loc[idx] +
                             int(sub['emerging'].loc[idx].values[0])))
 
-            idx2 = sub.index[np.max((0, sub.shape[0] - search_range)):][::-1]
+            idx2 = sub[sub['frame'] >= fme_end].index
             frame_end = sub['frame'].loc[idx2[0]]
             x_end = np.power(discount, np.abs(sub['frame'].loc[idx2] - frame_end))
             score_end = np.sum(
@@ -898,13 +908,15 @@ class Refiner:
         m_score_par = self.mt_score_end[parent]
         m_score_daug = self.mt_score_begin[daughter]
 
-        # Feature 4: minimum intensity, pcna intensity during mitosi is very low
-        par_intensity = par['mean_intensity'].iloc[-1]
-        daug_intensity = daug['mean_intensity'].iloc[0]
+        # Feature 4: minimum intensity, pcna intensity during mitosis is very low
+        par_idx = par[par['frame'] >= par['frame'].iloc[-1] - self.SEARCH_RANGE + 1].index
+        daug_idx = daug[daug['frame'] <= daug['frame'].iloc[0] + self.SEARCH_RANGE - 1].index
+        par_intensity = np.mean(par['mean_intensity'].loc[par_idx] - par['background_mean'].loc[par_idx])
+        daug_intensity = np.mean(daug['mean_intensity'].loc[daug_idx] - daug['background_mean'].loc[daug_idx])
 
         # Feature 5/6: length of parent and daughter track
-        len_par = (par['frame'].iloc[-1] - par['frame'].iloc[0])/self.metaData['mt_len']
-        len_daug = (daug['frame'].iloc[-1] - daug['frame'].iloc[0])/self.metaData['mt_len']
+        len_par = (par['frame'].iloc[-1] - par['frame'].iloc[0] + 1)/self.metaData['mt_len']
+        len_daug = (daug['frame'].iloc[-1] - daug['frame'].iloc[0] + 1)/self.metaData['mt_len']
 
         out = [distance_diff / (self.mean_size/2 + np.abs(frame_diff) * self.metaData['meanDisplace']),
                frame_diff / self.metaData['sample_freq'],

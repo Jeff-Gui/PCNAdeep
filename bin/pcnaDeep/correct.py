@@ -188,6 +188,22 @@ class Trk_obj:
 
         return
 
+    def delete_track(self, trk_id):
+        """Delete entire track.
+
+        Args:
+            trk_id (int): track ID.
+        """
+
+        # For all direct daughter of the track to delete, first remove association
+        dir_daugs = list(np.unique(self.track.loc[self.track['parentTrackId'] == trk_id, 'trackId']))
+        for dd in dir_daugs:
+            self.del_parent(dd)
+
+        # Delete entire track
+        self.track.drop(index=self.track[self.track['trackId'] == trk_id].index)
+        return
+
     def save(self):
         """Save current table.
         """
@@ -254,6 +270,8 @@ class Trk_obj:
                     self.create_parent(int(args.p), int(args.d))
                 elif cmd == 'dp':
                     self.del_parent(int(args.d))
+                elif cmd == 'del':
+                    self.delete_track(int(args.t))
                 elif cmd == 's':
                     self.save()
                 elif cmd == 'q':
@@ -274,6 +292,7 @@ class Trk_obj:
                                    'c   -t  -f            ':'Create new track ID for track (t) from frame (f)',
                                    'cp  -p  -d            ':'Create parent (p) - daughter (d) relationship',
                                    'dp  -d                ':'Delete parent - daughter (d) relationship',
+                                   'del -t                ':'Delete entire track',
                                    'q                     ':'Quit the interface',
                                    's                     ':'Save the current table',
                                    'wq                    ':'Save and quit the interface',

@@ -311,15 +311,20 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000):
     m_confid = []
     e = []
     background = []
+    dic_mean = []
+    dic_std = []
     for row in range(out_props.shape[0]):
         lb = int(out_props.iloc[row][0])
 
         # get background intensity
         b1,b2,b3,b4 = int(out_props.iloc[row][1]), int(out_props.iloc[row][3]),\
                       int(out_props.iloc[row][2]), int(out_props.iloc[row][4])
-        obj_region = mask_slice[b1:b2, b3:b4].copy()
-        its_region = img[b1:b2, b3:b4,0].copy()
-        background.append(np.mean(its_region[obj_region==0]))
+        obj_region = img_relabel[b1:b2, b3:b4].copy()
+        its_region = img[b1:b2, b3:b4, 0].copy()
+        dic_region = img[b1:b2, b3:b4, 2].copy()
+        background.append(np.mean(its_region[obj_region == 0]))
+        dic_mean.append(np.mean(dic_region[obj_region == lb]))
+        dic_std.append(np.mean(dic_region[obj_region == lb]))
         
         # get confidence score and emerging status
         p = factor[cls[lb - 1].item()]
@@ -340,6 +345,8 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000):
     out_props['Probability of M'] = m_confid
     out_props['emerging'] = e
     out_props['background_mean'] = background
+    out_props['BF_mean'] = dic_mean
+    out_props['BF_std'] = dic_std
 
     del out_props['label']
 

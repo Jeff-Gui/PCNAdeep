@@ -198,7 +198,6 @@ if __name__ == "__main__":
     ipt = args.stack_input
 
     if bool(pcna_cfg_dict['BATCH']):
-        ### Under construction
         if args.pcna is not None and args.dic is not None:
             if os.path.isdir(args.pcna) and os.path.isdir(args.dic) and os.path.isdir(args.output):
                 pcna_imgs = os.listdir(args.pcna)
@@ -248,7 +247,6 @@ if __name__ == "__main__":
             if os.path.isdir(ipt):
                 stack_imgs = os.listdir(ipt)
                 for si in stack_imgs:
-                    prefix = os.path.basename(si)
                     prefix = re.match('(.+)\.\w+',si).group(1)
                     prefix = prefix[:-1] if prefix[-1] in ['_','-'] else prefix
                     md = os.path.join(args.output, prefix)
