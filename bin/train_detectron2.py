@@ -56,7 +56,10 @@ def build_sem_seg_train_aug(cfg):
                 cfg.INPUT.CROP.SIZE,
             )
         )
+    augs.append(T.RandomBrightness(0.95, 1.05))
+    augs.append(T.RandomContrast(0.95, 1.05))
     augs.append(T.RandomFlip())
+    augs.append(T.RandomRotation([0,90,180,270], sample_style='choice'))
     return augs
 
 
@@ -227,7 +230,7 @@ if __name__ == "__main__":
     DATASET_ROOT = '/home/zje/dataset/pcna'
     
     TRAIN_PREFIX = ['20200902-MCF10A-dual', '20210103-MCF10A', '20210127-MCF10A-mRels2', '20200902-MCF10A-s1_cpd',
-                    '20201118-RPE_rand', '20201030-MBAMD231', 'MCF10A_rand']
+                    '20201118-RPE_rand', '20201030-MBAMD231', 'MCF10A_rand', '20200902-MCF10A-s2_cpd', '20200729-RPE-s2_cpd']
     TRAIN_PATH = []
     TRAIN_ANN_PATH = []
     for p in TRAIN_PREFIX:
