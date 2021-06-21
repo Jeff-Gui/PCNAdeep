@@ -80,13 +80,16 @@ def track_mask(mask, displace=40, gap_fill=5, render_phase=False, size_min=100, 
     mask_lbd = np.zeros(mask.shape)
     
     for i in range(mask.shape[0]):
-        # remove small objects: may have unexpected behavior
-        mask[i, :, :] = remove_small_objects(mask[i, :, :], min_size=size_min, connectivity=1)
-        mask_lbd[i, :, :] = measure.label(mask[i, :, :], connectivity=1)
+        # remove small objects
+        mask_lbd[i, :, :] = measure.label(mask[i, :, :], connectivity=1).astype('uint16')
+
     if np.max(mask_lbd) <= 255:
         mask_lbd = mask_lbd.astype('uint8')
     else:
         mask_lbd = img_as_uint(mask_lbd)
+
+    mask_lbd = remove_small_objects(mask_lbd, min_size=size_min, connectivity=1)
+    mask[mask_lbd == 0] = 0
 
     if PCNA_intensity is None or BF_intensity is None:
         PCNA_intensity = mask.copy()
