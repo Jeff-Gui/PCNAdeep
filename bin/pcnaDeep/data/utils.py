@@ -308,3 +308,59 @@ def get_outlier(array, col_ids=None):
     idx.sort()
     return idx
 
+
+def deduce_transition(l, tar, confidence, min_tar, max_res, escape=0, casual_end=True):
+    """ Deduce mitosis exit and entry based on adaptive searching
+
+        Args:
+            l (list): list of the target cell cycle phase
+            tar (str): target cell cycle phase
+            min_tar (int): minimum duration of an entire target phase
+            confidence (numpy.ndarray): matrix of confidence
+            max_res (int): maximum accumulative duration of unwanted phase
+            escape (int): do not consider the first n instances
+            casual_end (bool): at the end of the track, whether loosen criteria of a match
+
+        Returns:
+            tuple: two indices of the classification list corresponding to entry and exit
+    """
+    mp = {'G1/G2': 0, 'S': 1, 'M': 2}
+    confid_cls = list(map(lambda x: confidence[x, mp[l[x]]], range(confidence.shape[0])))
+    idx = np.where(np.array(l) == tar)[0]
+    idx = idx[idx >= escape].tolist()
+    if len(idx) == 0:
+        return None
+    if len(idx) == 1:
+        return idx[0], idx[0]
+    found = False
+    i = 0
+    g_panelty = 0
+    acc_m = confid_cls[idx[0]]
+    cur_m_entry = idx[i]
+    m_exit = None
+    while i < len(idx) - 1:
+        acc_m += confid_cls[idx[i + 1]]
+        g_panelty += np.sum(confid_cls[idx[i] + 1:idx[i + 1]])
+        if acc_m >= min_tar:
+            found = True
+        if g_panelty >= max_res:
+            if found:
+                m_exit = idx[i]
+                break
+            else:
+                g_panelty = 0
+                acc_m = 0
+                cur_m_entry = idx[i + 1]
+        i += 1
+    if i == (len(idx) - 1) and found:
+        m_exit = idx[-1]
+    elif casual_end and i == (len(idx) - 1) and g_panelty < max_res and not found and cur_m_entry != idx[-1]:
+        found = True
+        m_exit = idx[-1]
+        if m_exit - cur_m_entry + 1 < min_tar:
+            return None
+
+    if found and m_exit is not None:
+        return cur_m_entry, m_exit
+    else:
+        return None

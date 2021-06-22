@@ -108,6 +108,11 @@ class Trk_obj:
         if daug not in self.track['trackId']:
             raise ValueError('Selected daughter is not in the table.')
 
+        ori_par = self.track[self.track['trackId'] == daug]['parentTrackId'].iloc[0]
+        if ori_par != 0:
+            raise ValueError('One daughter cannot have more than one parent, disassociate ' + str(ori_par) + '-'
+                             + str(daug) + ' first.')
+
         par_lin = self.track[self.track['trackId'] == par]['lineageId'].iloc[0]
         self.track.loc[self.track['trackId'] == daug, 'lineageId'] = par_lin
         self.track.loc[self.track['trackId'] == daug, 'parentTrackId'] = par

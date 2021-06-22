@@ -3,7 +3,7 @@ import logging
 import pandas as pd
 import numpy as np
 import pprint
-from pcnaDeep.refiner import deduce_transition
+from pcnaDeep.data.utils import deduce_transition
 from pcnaDeep.data.annotate import findM
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import MinMaxScaler
@@ -28,23 +28,19 @@ def list_dist(a, b):
     return count
 
 
-def resolve_from_gt(track, gt_name='predicted_class'):
-    """Resolve cell cycle phase from the ground truth.
-
-    Args:
-        track (pandas.DataFrame): data frame of each object each row, must have following columns:
-            - trackId, frame, parentTrackId, <ground truth classification column>
-        gt_name (str): refers to the column in track that corresponds to ground truth classification.
+def get_rsv_input_gt(track, gt_name='predicted_class'):
+    """Deduce essential input of resolver from a ground truth.
     """
 
     logger = logging.getLogger('pcna.Resolver.resolveGroundTruth')
-
     track['lineageId'] = track['trackId']
     track['emerging'] = 0
-    track['BF_mean'] = 0
-    track['BF_std'] = 0
+    if 'BF_mean' not in track.columns:
+        track['BF_mean'] = 0
+    if 'BF_std' not in track.columns:
+        track['BF_std'] = 0
     track.loc[track[gt_name] == 'E', 'emerging'] = 1
-    ann = {'track':[], 'mitosis_parent':[], 'm_entry':[], 'm_exit':[]}
+    ann = {'track': [], 'mitosis_parent': [], 'm_entry': [], 'm_exit': []}
     mt_dic = {}
     imprecise_m = []
     for i in np.unique(track['trackId']):
@@ -63,9 +59,9 @@ def resolve_from_gt(track, gt_name='predicted_class'):
             else:
                 m_exit = sub['frame'].iloc[m_exit]
             if par not in mt_dic.keys():
-                mt_dic[par] = {'daug':{i:{'dist':0, 'm_exit':m_exit}}, 'div':-1}
+                mt_dic[par] = {'daug': {i: {'dist': 0, 'm_exit': m_exit}}, 'div': -1}
             else:
-                mt_dic[par]['daug'][i] = {'dist':0, 'm_exit':m_exit}
+                mt_dic[par]['daug'][i] = {'dist': 0, 'm_exit': m_exit}
             ann['mitosis_parent'].append(int(par))
             ann['m_entry'].append(None)
             ann['m_exit'].append(int(m_exit))
@@ -97,13 +93,28 @@ def resolve_from_gt(track, gt_name='predicted_class'):
     # Resolver classifies G1 or G2 based on intensity, so first mask intensity and background intensity,
     # then recover from table joining
     track_masked = track.copy()
-    track_masked['mean_intensity'] = 0
-    track_masked['background_mean'] = 0
+    if 'mean_intensity' not in track_masked.columns:
+        track_masked['mean_intensity'] = 0
+    if 'background_mean' not in track_masked.columns:
+        track_masked['background_mean'] = 0
     track_masked.loc[track_masked[gt_name] == 'G2', 'mean_intensity'] = 200
     track_masked.loc[track_masked[gt_name].str.contains('G'), gt_name] = 'G1/G2'
     #  track_masked.to_csv('../../test/test_files/mock/masked.csv')
     logger.debug(pprint.pformat(mt_dic))
 
+    return track_masked, ann, mt_dic, imprecise_m
+
+
+def resolve_from_gt(track, gt_name='predicted_class'):
+    """Resolve cell cycle phase from the ground truth. Wrapper of get_rsv_input_gt
+
+    Args:
+        track (pandas.DataFrame): data frame of each object each row, must have following columns:
+            - trackId, frame, parentTrackId, <ground truth classification column>
+        gt_name (str): refers to the column in track that corresponds to ground truth classification.
+    """
+
+    track_masked, ann, mt_dic, imprecise_m = get_rsv_input_gt(track, gt_name)
     r = Resolver(track_masked, ann, mt_dic, minG=1, minS=1, minM=1, minTrack=0, impreciseExit=imprecise_m, G2_trh=100)
     rsTrack, phase = r.doResolve()
     rsTrack = rsTrack[['trackId', 'frame', 'resolved_class']]

@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import math
 import logging
-import os
 import warnings
 import re
 import pandas as pd
@@ -12,7 +11,8 @@ import skimage.morphology as morph
 from scipy.optimize import linear_sum_assignment
 from sklearn.preprocessing import RobustScaler
 from sklearn.preprocessing import MinMaxScaler
-from pcnaDeep.data.utils import get_outlier
+from pcnaDeep.data.utils import get_outlier, deduce_transition
+from pcnaDeep.resolver import get_rsv_input_gt
 from imblearn.over_sampling import BorderlineSMOTE
 
 
@@ -20,63 +20,6 @@ def dist(x1, y1, x2, y2):
     """Calculate distance of a set of coordinates
     """
     return math.sqrt((float(x1) - float(x2)) ** 2 + (float(y1) - float(y2)) ** 2)
-
-
-def deduce_transition(l, tar, confidence, min_tar, max_res, escape=0, casual_end=True):
-    """ Deduce mitosis exit and entry based on adaptive searching
-        
-        Args:
-            l (list): list of the target cell cycle phase
-            tar (str): target cell cycle phase
-            min_tar (int): minimum duration of an entire target phase
-            confidence (numpy.ndarray): matrix of confidence
-            max_res (int): maximum accumulative duration of unwanted phase
-            escape (int): do not consider the first n instances
-            casual_end (bool): at the end of the track, whether loosen criteria of a match
-            
-        Returns:
-            tuple: two indices of the classification list corresponding to entry and exit
-    """
-    mp = {'G1/G2': 0, 'S': 1, 'M': 2}
-    confid_cls = list(map(lambda x: confidence[x, mp[l[x]]], range(confidence.shape[0])))
-    idx = np.where(np.array(l) == tar)[0]
-    idx = idx[idx >= escape].tolist()
-    if len(idx) == 0:
-        return None
-    if len(idx) == 1:
-        return idx[0], idx[0]
-    found = False
-    i = 0
-    g_panelty = 0
-    acc_m = confid_cls[idx[0]]
-    cur_m_entry = idx[i]
-    m_exit = None
-    while i < len(idx) - 1:
-        acc_m += confid_cls[idx[i + 1]]
-        g_panelty += np.sum(confid_cls[idx[i] + 1:idx[i + 1]])
-        if acc_m >= min_tar:
-            found = True
-        if g_panelty >= max_res:
-            if found:
-                m_exit = idx[i]
-                break
-            else:
-                g_panelty = 0
-                acc_m = 0
-                cur_m_entry = idx[i + 1]
-        i += 1
-    if i == (len(idx) - 1) and found:
-        m_exit = idx[-1]
-    elif casual_end and i == (len(idx) - 1) and g_panelty < max_res and not found and cur_m_entry != idx[-1]:
-        found = True
-        m_exit = idx[-1]
-        if m_exit - cur_m_entry + 1 < min_tar:
-            return None
-
-    if found and m_exit is not None:
-        return cur_m_entry, m_exit
-    else:
-        return None
 
 
 class Refiner:
@@ -120,7 +63,7 @@ class Refiner:
         self.logger.info(self.metaData)
         self.SEARCH_RANGE = search_range
         self.mt_score_begin, self.mt_score_end = self.getMTscore(self.SEARCH_RANGE, self.MT_DISCOUNT)
-        if mode == 'SVM' or mode == 'TRAIN':
+        if mode == 'SVM' or mode == 'TRAIN' or mode == 'TRAIN_GT':
             self.SVM_PATH = model_train
         elif mode == 'TRH':
             self.FRAME_MT_TOLERANCE = threshold_mt_T
@@ -485,7 +428,7 @@ class Refiner:
             sample (numpy.ndarray): Training mode only, supply positive sample information, will add y as 2nd output.
         """
 
-        if sample is not None and self.MODE != 'TRAIN':
+        if sample is not None and self.MODE != 'TRAIN' and self.MODE != 'TRAIN_GT':
             raise NotImplementedError('Only allowed to input sample in TRAIN mode.')
 
         self.logger.info('Extracting features...')
@@ -847,8 +790,8 @@ class Refiner:
                 np.multiply(x_end,
                             sub['Probability of M'].loc[idx2] - sub['Probability of S'].loc[idx2]))
 
-            mt_score_begin[trackId] = score_start / search_range + PSEUDOCOUNT
-            mt_score_end[trackId] = score_end / search_range + PSEUDOCOUNT
+            mt_score_begin[trackId] = score_start / len(idx) + PSEUDOCOUNT
+            mt_score_end[trackId] = score_end / len(idx2) + PSEUDOCOUNT
         return mt_score_begin, mt_score_end
 
     def getSVMinput(self, parent, daughter):
@@ -926,11 +869,12 @@ class Refiner:
 
         return out
 
-    def get_SVM_train(self, sample):
+    def get_SVM_train(self, sample=None):
         """Save training data for SVM classifier of this particular dataset.
 
         Args:
-            sample (numpy.ndarray): matrix of shape (sample, (parent ID, daughter ID, y)).
+            sample (numpy.ndarray): Optional matrix of shape (sample, (parent ID, daughter ID, ...)). If not supplied,
+                will generate directly from mitosis-broken tracked object table. (GT with mitosis relationship)
 
         Returns:
             (numpy.ndarray): Input feature map.
@@ -940,6 +884,28 @@ class Refiner:
 
         if not self.flag:
             raise NotImplementedError('Before extracting SVM training data, call doTrackRefine() first.')
+
+        if sample is None:
+            self.logger.info('Generating SVM samples from mitosis-broken tracked object table.')
+            dic = {}
+            ct = 0
+            for i in np.unique(self.track['trackId']):
+                par = self.track[self.track['trackId'] == i]['parentTrackId'].iloc[0]
+                if par != 0:
+                    ct += 1
+                    if par in dic.keys():
+                        dic[par].append(i)
+                    else:
+                        dic[par] = [i]
+            self.logger.info(str(ct) + ' samples drawn from tracked object table.')
+            sp = {'par':[], 'daug':[]}
+            for i in dic.keys():
+                for j in dic[i]:
+                    sp['daug'].append(j)
+                    sp['par'].append(i)
+            sample = pd.DataFrame(sp).to_numpy()
+        else:
+            self.logger.info('Generating SVM samples from mitosis lookup table.')
 
         parent_pool, pool = self.extract_pools(extra_par=list(sample[:,0]), extra_daug=list(sample[:,1]))
         ipts, y, sample_id = self.extract_features(parent_pool, pool, sample=sample)
@@ -963,19 +929,25 @@ class Refiner:
             raise NotImplementedError('Do not call track refine object twice!')
 
         self.flag = True
-        self.track = self.smooth_track()
-        count = 0
-        while True:
-            count += 1
-            self.logger.info('Level ' + str(count) + ' mitosis:')
-            out = self.break_mitosis()
-            self.track = out[0]
-            if out[1] == 0:
-                break
+        if self.MODE != 'TRAIN_GT':
+            self.track = self.smooth_track()
+            count = 0
+            while True:
+                count += 1
+                self.logger.info('Level ' + str(count) + ' mitosis:')
+                out = self.break_mitosis()
+                self.track = out[0]
+                if out[1] == 0:
+                    break
+        else:
+            self.track, _, self.mt_dic, self.imprecise = get_rsv_input_gt(self.track, 'predicted_class')
 
         self.track, self.short_tracks, self.ann = self.register_track()
         self.mt_score_begin, self.mt_score_end = self.getMTscore(self.SEARCH_RANGE, self.MT_DISCOUNT)
-        if self.MODE == 'TRH':
+
+        if self.MODE == 'TRAIN_GT':
+            return self.get_SVM_train()
+        elif self.MODE == 'TRH':
             self.track, self.ann, self.mt_dic = self.associate(mode='TRH')
         elif self.MODE == 'SVM':
             if self.SVM_PATH == '':
