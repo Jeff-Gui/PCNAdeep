@@ -233,7 +233,7 @@ if __name__ == "__main__":
                     else:
                         os.mkdir(md)
                     imgs = getDetectInput(io.imread(os.path.join(args.pcna, si[1])), 
-                                          io.imread(os.path.join(args.dic, si[2])))
+                                          io.imread(os.path.join(args.dic, si[2])), sat=float(config['PIX_SATURATE']))
 
                     inspect = imgs[range(0, imgs.shape[0], 100),:,:,:].copy()
                     io.imsave(os.path.join(args.output, si[0], si[0] + '_sample_intput.tif'), inspect)
@@ -287,6 +287,6 @@ if __name__ == "__main__":
             gc.collect()
         
         inspect = imgs[range(0, imgs.shape[0], 100),:,:,:].copy()
-        io.imsave(args.output + prefix + '_sample_intput.tif', inspect)
+        io.imsave(os.path.join(args.output, prefix + '_sample_intput.tif'), inspect)
 
         main(stack=imgs, config=pcna_cfg_dict, output=args.output, prefix=prefix, logger=logger)
