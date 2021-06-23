@@ -53,6 +53,7 @@ class Trk_obj:
         self.parser.add_argument("-l", help="Correct classification to assign.")
         self.parser.add_argument("-s", help="Correct classification on single slice.", action='store_true')
         self.parser.add_argument("-e", help="Correct classification until the specified frame.")
+        self.parser.add_argument("-ds", help="Daughter list, comma separated.")
 
         return
 
@@ -129,13 +130,15 @@ class Trk_obj:
         """
         if daug not in self.track['trackId']:
             raise ValueError('Selected daughter is not in the table.')
+        if self.track[self.track['trackId'] == daug]['parentTrackId'].iloc[0] == 0:
+            raise ValueError('Selected daughter does not have a parent.')
 
         self.track.loc[self.track['trackId'] == daug, 'lineageId'] = daug
         self.track.loc[self.track['trackId'] == daug, 'parentTrackId'] = 0
         daugs = find_daugs(self.track, daug)
         for d in daugs:
             self.track.loc[self.track['trackId'] == d, 'lineageId'] = daug
-            print('Daughter ' + str(d) + ' disassociated its original parent.')
+            print('Daughter ' + str(d) + ' lineage changed to .')
 
         return
 
@@ -206,7 +209,7 @@ class Trk_obj:
             self.del_parent(dd)
 
         # Delete entire track
-        self.track.drop(index=self.track[self.track['trackId'] == trk_id].index)
+        self.track = self.track.drop(index=self.track[self.track['trackId'] == trk_id].index)
         return
 
     def save(self):
@@ -215,6 +218,7 @@ class Trk_obj:
         self.getAnn()
         self.track.to_csv(self.track_path, index=None)
         self.saved = self.track.copy()
+        print('Saved.')
         return
 
     def revert(self):
@@ -243,6 +247,67 @@ class Trk_obj:
                 del inform[1]
             ann.append('-'.join(inform))
         self.track['name'] = ann
+        return
+
+    def edit_div(self, par, daugs, new_frame):
+        """Change division time of parent and daughter to a new time location
+
+        Args:
+            par (int): parent track ID
+            daugs (list): daughter tracks IDs
+            new_frame (int):
+        """
+        if par not in self.track['trackId']:
+            raise ValueError('Selected parent track is not in the table.')
+        for d in daugs:
+            if d not in self.track['trackId']:
+                raise ValueError('Selected daughter track is not in the table.')
+            if self.track[self.track['trackId'] == d]['parentTrackId'].iloc[0] != par:
+                raise ValueError('Selected daughter track does not corresponding to the input parent.')
+
+        new_frame -= 1
+        sub_par = self.track[self.track['trackId'] == par]
+        time_daugs = []
+        sub_daugs = pd.DataFrame()
+        for i in daugs:
+            sub_daugs = sub_daugs.append(self.track[self.track['trackId'] == i])
+        time_daugs.extend(list(sub_daugs['frame']))
+        if new_frame not in list(sub_par['frame']) and new_frame not in time_daugs:
+            raise ValueError('Selected new time frame not in either parent or daughter track.')
+
+        if new_frame not in list(sub_par['frame']):
+            # push division later
+            edit = sub_daugs[sub_daugs['frame'] <= new_frame]
+            if len(np.unique(edit['trackId'])) > 1:
+                raise ValueError('Multiple daughters at selected new division, should only have one')
+
+            # get and assign edit index
+            par_id = sub_par['trackId'].iloc[0]
+            par_lin = sub_par['lineageId'].iloc[0]
+            par_par = sub_par['parentTrackId'].iloc[0]
+            self.track.loc[edit.index, 'trackId'] = par_id
+            self.track.loc[edit.index, 'lineageId'] = par_lin
+            self.track.loc[edit.index, 'parentTrackId'] = par_par
+        else:
+            new_frame += 1
+            # draw division earlier
+            edit = sub_par[sub_par['frame'] >= new_frame]
+            # pick a daughter that appears earlier and assign tracks to that daughter
+            f_min = np.argmin(sub_daugs['frame'])
+            if len(np.unique(sub_daugs[sub_daugs['frame'] == f_min]['trackId'])) > 1:
+                raise ValueError('Multiple daughters exist at frame of mitosis, should only be one. '
+                                 'Or break mitotic track first.')
+            trk = list(sub_daugs['trackId'])[int(f_min)]
+            sel_daugs = sub_daugs[sub_daugs['trackId'] == trk]
+
+            # get and assign edit index
+            daug_id = sel_daugs['trackId'].iloc[0]
+            daug_par = sel_daugs['parentTrackId'].iloc[0]
+            daug_lin = sel_daugs['lineageId'].iloc[0]
+            self.track.loc[edit.index, 'trackId'] = daug_id
+            self.track.loc[edit.index, 'parentTrackId'] = daug_par
+            self.track.loc[edit.index, 'lineageId'] = daug_lin
+
         return
 
     def doCorrect(self):
@@ -277,6 +342,11 @@ class Trk_obj:
                     self.del_parent(int(args.d))
                 elif cmd == 'del':
                     self.delete_track(int(args.t))
+                elif cmd == 'div':
+                    ds = args.ds
+                    if ds is None:
+                        raise ValueError('Specify daughters in comma-separated format.')
+                    self.edit_div(int(args.p), list(map(lambda x: int(x), args.ds.split(','))), int(args.f))
                 elif cmd == 's':
                     self.save()
                 elif cmd == 'q':
@@ -292,12 +362,16 @@ class Trk_obj:
                     print("Wrong command argument!")
                     print("=================== Available Commands ===================\n")
                     pprint.pprint({'cls -t  -f  -l (-s/-e)':'Correct cell cycle classification for track (t) from frame'
-                                                            ' (f) with class label (l).',
+                                                            ' (f) with class label (l). Default correct until next '
+                                                            'phase transition; specify end frame with (e) or '
+                                                            'only correct single slice (s)',
                                    'r   -t1 -t2 -f        ':'Replace track ID (t1) with a new one (t2) from frame (f).',
                                    'c   -t  -f            ':'Create new track ID for track (t) from frame (f)',
                                    'cp  -p  -d            ':'Create parent (p) - daughter (d) relationship',
                                    'dp  -d                ':'Delete parent - daughter (d) relationship',
                                    'del -t                ':'Delete entire track',
+                                   'div -p -ds -f         ':'Set division time of one mitosis event involving '
+                                                            'parent (p) and daughters (ds, comma) at frame (f)',
                                    'q                     ':'Quit the interface',
                                    's                     ':'Save the current table',
                                    'wq                    ':'Save and quit the interface',
