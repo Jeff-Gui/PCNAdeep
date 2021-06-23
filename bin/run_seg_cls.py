@@ -109,9 +109,7 @@ if __name__ == "__main__":
             logger.info(
                 "{}: {} in {:.2f}s".format(
                     'frame'+str(i),
-                    "detected {} instances".format(len(predictions["instances"]))
-                    if "instances" in predictions
-                    else "finished",
+                    "detected {} instances".format(len(dic_frame['regions'])),
                     time.time() - start_time,
                 )
             )

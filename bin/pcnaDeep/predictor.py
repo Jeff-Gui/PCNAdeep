@@ -5,6 +5,7 @@ import multiprocessing as mp
 import torch
 import numpy as np
 import skimage.measure as measure
+import skimage.morphology as morphology
 import copy
 import pandas as pd
 
@@ -188,6 +189,7 @@ def pred2json(mask, label_table, fp):
         return {}
 
     tmp = {"filename": fp, "size": mask.astype('bool').size, "regions": [], "file_attributes": {}}
+    # print(np.unique(mask), np.unique(label_table['continuous_label']))
     for region in measure.regionprops(label_image=mask, intensity_image=None):
         if region.image.shape[0] < 2 or region.image.shape[1] < 2:
             continue
@@ -238,7 +240,9 @@ def pred2json(mask, label_table, fp):
         cur_tmp['shape_attributes']['all_points_x'] = edge[::2]
         cur_tmp['shape_attributes']['all_points_y'] = edge[1::2]
         sub_label = label_table[label_table['continuous_label'] == region.label]
-        cur_tmp['region_attributes']['phase'] = sub_label['predicted_class'].iloc[0]
+        if sub_label.shape[0] == 0:
+            print(region.label)
+        cur_tmp['region_attributes']['phase'] = sub_label['phase'].iloc[0]
         if sub_label['emerging'].iloc[0] == 1:
             cur_tmp['region_attributes']['phase'] = 'E'
         tmp['regions'].append(cur_tmp)
@@ -291,19 +295,25 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000, edge
             mask_slice[mask[s, :, :] != 0] = s + 1
     #  print('Overlapping rate: ' + str(ovl_count / mask.shape[0]))
 
-    props = measure.regionprops_table(mask_slice, intensity_image=img[:, :, 0], properties=(
-            'label', 'bbox', 'centroid', 'mean_intensity', 'major_axis_length', 'minor_axis_length'))
-    props = pd.DataFrame(props)
-    props.columns = ['label', 'bbox-0', 'bbox-1', 'bbox-2', 'bbox-3', 'Center_of_the_object_0',
-                     'Center_of_the_object_1', 'mean_intensity', 'major_axis', 'minor_axis']
-
-    img_relabel = measure.label(mask_slice, connectivity=1)
-    props_relabel = measure.regionprops_table(img_relabel, properties=('label', 'centroid'))
+    img_relabel = measure.label(mask_slice, connectivity=1) 
+    # original segmentation may have separated region, flood and re-label it
+    img_relabel = morphology.remove_small_objects(img_relabel, min_size=size_flt)
+    img_relabel = measure.label(img_relabel, connectivity=1)
+    props_relabel = measure.regionprops_table(img_relabel,intensity_image=img[:,:,0],  properties=(
+                    'label', 'bbox', 'centroid', 'mean_intensity', 'major_axis_length', 'minor_axis_length'))
     props_relabel = pd.DataFrame(props_relabel)
-    props_relabel.columns = ['continuous_label', 'Center_of_the_object_0', 'Center_of_the_object_1']
+    props_relabel.columns = ['continuous_label','bbox-0', 'bbox-1', 'bbox-2', 'bbox-3',
+                             'Center_of_the_object_0', 'Center_of_the_object_1', 'mean_intensity', 
+                             'major_axis', 'minor_axis']
 
-    out_props = pd.merge(props, props_relabel, on=['Center_of_the_object_0', 'Center_of_the_object_1'])
+    original_labels = []
+    for i in range(props_relabel.shape[0]):
+        original_labels.append(int(mask_slice[int(props_relabel['Center_of_the_object_0'].iloc[i]), 
+                                              int(props_relabel['Center_of_the_object_1'].iloc[i])]))
+    out_props = props_relabel.copy()
+    out_props['label'] = original_labels
     out_props['frame'] = frame_id
+
     phase = []
     g_confid = []
     s_confid = []
@@ -313,26 +323,27 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000, edge
     dic_mean = []
     dic_std = []
     for row in range(out_props.shape[0]):
-        lb = int(out_props.iloc[row][0])
+        lb_image = int(out_props.iloc[row]['continuous_label'])
+        lb_ori = int(out_props.iloc[row]['label'])
 
         # get background intensity
-        b1,b2,b3,b4 = int(out_props.iloc[row][1]), int(out_props.iloc[row][3]),\
-                      int(out_props.iloc[row][2]), int(out_props.iloc[row][4])
+        b1,b2,b3,b4 = int(out_props.iloc[row]['bbox-0']), int(out_props.iloc[row]['bbox-2']),\
+                      int(out_props.iloc[row]['bbox-1']), int(out_props.iloc[row]['bbox-3'])
         obj_region = img_relabel[b1:b2, b3:b4].copy()
         its_region = img[b1:b2, b3:b4, 0].copy()
         dic_region = img[b1:b2, b3:b4, 2].copy()
         background.append(np.mean(its_region[obj_region == 0]))
-        dic_mean.append(np.mean(dic_region[obj_region == lb]))
-        dic_std.append(np.mean(dic_region[obj_region == lb]))
+        dic_mean.append(np.mean(dic_region[obj_region == lb_image]))
+        dic_std.append(np.mean(dic_region[obj_region == lb_image]))
         
         # get confidence score and emerging status
-        p = factor[cls[lb - 1].item()]
+        p = factor[cls[lb_ori - 1].item()]
         if p == 'E':
             p = 'G1/G2'
             e.append(1)
         else:
             e.append(0)
-        confid = conf[lb - 1]
+        confid = conf[lb_ori - 1]
         phase.append(p)
         s_confid.append(confid[1])
         g_confid.append(confid[0] + confid[3])
@@ -346,20 +357,18 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000, edge
     out_props['background_mean'] = background
     out_props['BF_mean'] = dic_mean
     out_props['BF_std'] = dic_std
-
+    
     del out_props['label']
-
     return filter_edge(img_relabel.astype('uint8'), out_props, edge_flt)
 
 
 def filter_edge(img, props, edge_flt):
     """Filter objects at the edge
     """
-    ebd = np.zeros((img.shape[0]-edge_flt, img.shape[1]-edge_flt))
+    ebd = np.zeros((img.shape[0]-2*edge_flt, img.shape[1]-2*edge_flt))
     ebd = np.pad(ebd, ((edge_flt, edge_flt), (edge_flt, edge_flt)), mode='constant', constant_values=(1,1))
-    assert ebd.shape == img.shape
     for i in props.index:
-        if ebd[props['Center_of_the_object_0'].loc[i], props['Center_of_the_object_1'].loc[i]] == 1:
+        if ebd[int(props['Center_of_the_object_0'].loc[i]), int(props['Center_of_the_object_1'].loc[i])] == 1:
             img[img == props['continuous_label'].loc[i]] = 0
             props = props.drop(index=i)
 
