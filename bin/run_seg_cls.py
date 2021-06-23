@@ -11,7 +11,7 @@ import skimage.io as io
 from detectron2.config import get_cfg
 from detectron2.utils.logger import setup_logger
 
-from pcnaDeep.predictor import VisualizationDemo, pred2json
+from pcnaDeep.predictor import VisualizationDemo, pred2json, predictFrame
 
 
 def setup_cfg(args):
@@ -98,12 +98,9 @@ if __name__ == "__main__":
             start_time = time.time()
             if args.json_out:
                 # Generate json output readable by VIA2
-                predictions = demo.run_on_image(img, vis=False)
-                ist = predictions['instances']
-                labels = list(ist.pred_classes.cpu().numpy())
-                masks = list(ist.pred_masks.cpu().numpy())
+                img_relabel, out_props = predictFrame(imgs[i, :], i, demo)
                 file_name = os.path.basename(args.input)[:-4] + '-' + "%04d" % i + '.png'
-                dic_frame = pred2json(masks, labels, file_name)
+                dic_frame = pred2json(img_relabel, out_props, file_name)
                 json_out[file_name] = dic_frame
             else:
                 # Generate visualized output

@@ -168,32 +168,27 @@ class AsyncPredictor:
         return len(self.procs) * 5
 
 
-def pred2json(masks, labels, fp):
+def pred2json(mask, label_table, fp):
     """Transform detectron2 prediction to VIA2 (VGG Image Annotator) json format.
 
     Args:
-        masks (numpy.ndarray): list of instance mask in the frame, each mask should contain only one object.
-        labels (list): list of instance label in the frame, should be corresponding to the mask in order.
+        mask (numpy.ndarray): binary mask with all instance labeled with unique label.
+        label_table (pandas.DataFrame): metadata of the mask; must contain `continuous_label`, `predicted_class` and
+            `emerging` columns.
         fp (str): file name for this frame.
 
     Returns:
         dict: json format readable by VIA2 annotator.
     """
 
-    cc_stage = {0: 'G1/G2', 1: 'S', 2: 'M', 3: "E"}
     region_tmp = {"shape_attributes": {"name": "polygon", "all_points_x": [], "all_points_y": []},
                   "region_attributes": {"phase": ''}}
 
-    if len(masks) < 1:
+    if np.sum(mask) == 0:
         return {}
 
-    tmp = {"filename": fp, "size": masks[0].astype('bool').size, "regions": [], "file_attributes": {}}
-    for i in range(len(masks)):
-        region = measure.regionprops(measure.label(masks[i], connectivity=1))
-        if region:
-            region = region[0]
-        else:
-            continue
+    tmp = {"filename": fp, "size": mask.astype('bool').size, "regions": [], "file_attributes": {}}
+    for region in measure.regionprops(label_image=mask, intensity_image=None):
         if region.image.shape[0] < 2 or region.image.shape[1] < 2:
             continue
         # register regions
@@ -242,7 +237,10 @@ def pred2json(masks, labels, fp):
             edge = list(edge.ravel())
         cur_tmp['shape_attributes']['all_points_x'] = edge[::2]
         cur_tmp['shape_attributes']['all_points_y'] = edge[1::2]
-        cur_tmp['region_attributes']['phase'] = cc_stage[int(labels[i])]
+        sub_label = label_table[label_table['continuous_label'] == region.label]
+        cur_tmp['region_attributes']['phase'] = sub_label['predicted_class'].iloc[0]
+        if sub_label['emerging'].iloc[0] == 1:
+            cur_tmp['region_attributes']['phase'] = 'E'
         tmp['regions'].append(cur_tmp)
 
     return tmp
