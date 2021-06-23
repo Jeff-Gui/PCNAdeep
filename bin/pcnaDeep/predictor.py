@@ -246,15 +246,16 @@ def pred2json(mask, label_table, fp):
     return tmp
 
 
-def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000):
+def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000, edge_flt=50):
     """Predict single frame and deduce meta information.
     
     Args:
         img (numpy.ndarray): must be `uint8` image slice.
         frame_id (int): index of the slice, start from 0.
         demonstrator (VisualizationDemo): an detectron2 demonstrator object.
-        size_flt (int): size filter.
+        size_flt (int): size filter, in pixel^2.
         is_gray (bool): whether the slice is gray. If true, will convert to 3 channels at first.
+        edge_flt (int): filter objects at the edge, whose classification may be imprecise, in pixel.
 
     Returns:
         tuple: labeled mask and corresponding table.
@@ -291,7 +292,7 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000):
     #  print('Overlapping rate: ' + str(ovl_count / mask.shape[0]))
 
     props = measure.regionprops_table(mask_slice, intensity_image=img[:, :, 0], properties=(
-        'label', 'bbox', 'centroid', 'mean_intensity', 'major_axis_length', 'minor_axis_length'))
+            'label', 'bbox', 'centroid', 'mean_intensity', 'major_axis_length', 'minor_axis_length'))
     props = pd.DataFrame(props)
     props.columns = ['label', 'bbox-0', 'bbox-1', 'bbox-2', 'bbox-3', 'Center_of_the_object_0',
                      'Center_of_the_object_1', 'mean_intensity', 'major_axis', 'minor_axis']
@@ -348,4 +349,18 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000):
 
     del out_props['label']
 
-    return img_relabel.astype('uint8'), out_props
+    return filter_edge(img_relabel.astype('uint8'), out_props, edge_flt)
+
+
+def filter_edge(img, props, edge_flt):
+    """Filter objects at the edge
+    """
+    ebd = np.zeros((img.shape[0]-edge_flt, img.shape[1]-edge_flt))
+    ebd = np.pad(ebd, ((edge_flt, edge_flt), (edge_flt, edge_flt)), mode='constant', constant_values=(1,1))
+    assert ebd.shape == img.shape
+    for i in props.index:
+        if ebd[props['Center_of_the_object_0'].loc[i], props['Center_of_the_object_1'].loc[i]] == 1:
+            img[img == props['continuous_label'].loc[i]] = 0
+            props = props.drop(index=i)
+
+    return img, props

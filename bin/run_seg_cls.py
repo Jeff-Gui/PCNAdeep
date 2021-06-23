@@ -98,7 +98,7 @@ if __name__ == "__main__":
             start_time = time.time()
             if args.json_out:
                 # Generate json output readable by VIA2
-                img_relabel, out_props = predictFrame(imgs[i, :], i, demo)
+                img_relabel, out_props = predictFrame(imgs[i, :], i, demo, size_flt=1000, edge_flt=50)
                 file_name = os.path.basename(args.input)[:-4] + '-' + "%04d" % i + '.png'
                 dic_frame = pred2json(img_relabel, out_props, file_name)
                 json_out[file_name] = dic_frame

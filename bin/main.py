@@ -97,9 +97,11 @@ def main(stack, config, output, prefix, logger):
         stack = np.stack(new_imgs, axis=0)
         del new_imgs
 
+    edge = config['EDGE_FLT']
+    size_flt = config['SIZE_FLT']
     for i in range(stack.shape[0]):
         start_time = time.time()
-        img_relabel, out_props = predictFrame(stack[i,:], i, demo)
+        img_relabel, out_props = predictFrame(stack[i,:], i, demo, edge_flt=edge, size_flt=size_flt)
         table_out = table_out.append(out_props)
         mask_out.append(img_relabel)
         
@@ -127,7 +129,7 @@ def main(stack, config, output, prefix, logger):
     logger.info('Tracking...')
     track_out = track(df=table_out, displace=int(config['TRACKER']['DISPLACE']),
                         gap_fill=int(config['TRACKER']['GAP_FILL']))
-    track_out.to_csv(os.path.join(output, prefix + '_tracks.csv'), index=0)
+    track_out.to_csv(os.path.join(output, prefix + '_tracks.csv'), index=False)
     io.imsave(os.path.join(output, prefix + '_mask.tif'), mask_out)
 
     logger.info('Refining and Resolving...')
