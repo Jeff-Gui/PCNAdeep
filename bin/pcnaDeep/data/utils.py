@@ -364,3 +364,20 @@ def deduce_transition(l, tar, confidence, min_tar, max_res, escape=0, casual_end
         return cur_m_entry, m_exit
     else:
         return None
+
+
+def find_daugs(track, track_id):
+    """Return list of daughters according to certain parent track ID.
+
+    Args:
+        track (pandas.DataFrame): tracked object table.
+        track_id (int): track ID.
+    """
+    rt = list(np.unique(track.loc[track['parentTrackId'] == track_id, 'trackId']))
+    if not rt:
+        return []
+    else:
+        to_rt = rt.copy()
+        for trk in rt:
+            to_rt.extend(find_daugs(track, trk))
+        return to_rt

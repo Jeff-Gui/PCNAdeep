@@ -4,22 +4,7 @@ import argparse
 import re
 import pprint
 import numpy as np
-
-
-def find_daugs(track, track_id):
-    """Return list of daughters according to certain parent track ID.
-
-    Args:
-        track (pandas.DataFrame): tracked object table.
-        track_id (int): track ID.
-    """
-    rt = list(np.unique(track.loc[track['parentTrackId'] == track_id, 'trackId']))
-    if not rt:
-        return []
-    else:
-        for trk in rt:
-            rt.extend(find_daugs(track, trk))
-        return rt
+from pcnaDeep.data.utils import find_daugs
 
 
 class Trk_obj:
@@ -95,6 +80,10 @@ class Trk_obj:
         self.track.loc[(self.track['trackId'] == old_id) & (self.track['frame'] >= frame), 'trackId'] = new
         self.track.loc[self.track['trackId'] == new, 'lineageId'] = new_lin
         self.track.loc[self.track['trackId'] == new, 'parentTrackId'] = new_par
+        # daughters of the new track, change lineage
+        daugs = find_daugs(self.track, new)
+        if daugs:
+            self.track.loc[self.track['trackId'].isin(daugs), 'lineageId'] = new_lin
         print('Replaced/Created track ' + str(old_id) + ' from ' + str(frame+self.frame_base) +
               ' with new ID ' + str(new) + '.')
 
@@ -121,10 +110,14 @@ class Trk_obj:
                              + str(daug) + ' first.')
 
         par_lin = self.track[self.track['trackId'] == par]['lineageId'].iloc[0]
+        # daughter itself
         self.track.loc[self.track['trackId'] == daug, 'lineageId'] = par_lin
         self.track.loc[self.track['trackId'] == daug, 'parentTrackId'] = par
-        self.track.loc[self.track['parentTrackId'] == daug, 'lineageId'] = par_lin
-        print('New parent ' + str(par) + ' associated with daughter ' + str(daug) + '.')
+        # daughter of the daughter
+        daugs_of_daug = find_daugs(self.track, daug)
+        if daugs_of_daug:
+            self.track.loc[self.track['trackId'].isin(daugs_of_daug), 'lineageId'] = par_lin
+        print('Parent ' + str(par) + ' associated with daughter ' + str(daug) + '.')
 
         return
 
@@ -139,12 +132,13 @@ class Trk_obj:
         if self.track[self.track['trackId'] == daug]['parentTrackId'].iloc[0] == 0:
             raise ValueError('Selected daughter does not have a parent.')
 
+        # daughter itself
         self.track.loc[self.track['trackId'] == daug, 'lineageId'] = daug
         self.track.loc[self.track['trackId'] == daug, 'parentTrackId'] = 0
+        # daughters of the daughter, change lineage
         daugs = find_daugs(self.track, daug)
-        for d in daugs:
-            self.track.loc[self.track['trackId'] == d, 'lineageId'] = daug
-            print('Daughter ' + str(d) + ' lineage changed to .')
+        if daugs:
+            self.track.loc[self.track['trackId'].isin(daugs), 'lineageId'] = daug
 
         return
 
@@ -265,8 +259,12 @@ class Trk_obj:
         The annotation format is track ID - (parentTrackId, optional) - resolved_class
         """
         ann = []
+        cls_col = 'resolved_class'
+        if cls_col not in self.track.columns:
+            print('Phase not resolved yet. Using predicted phase classifications.')
+            cls_col = 'predicted_class'
         for i in range(self.track.shape[0]):
-            inform = list(self.track.iloc[i][['trackId', 'parentTrackId', 'resolved_class']])
+            inform = list(self.track.iloc[i][['trackId', 'parentTrackId', cls_col]])
             inform = list(map(lambda x:str(x), inform))
             if inform[1] == '0':
                 del inform[1]

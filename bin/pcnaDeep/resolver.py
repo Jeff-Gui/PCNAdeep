@@ -3,7 +3,7 @@ import logging
 import pandas as pd
 import numpy as np
 import pprint
-from pcnaDeep.data.utils import deduce_transition
+from pcnaDeep.data.utils import deduce_transition, find_daugs
 from pcnaDeep.data.annotate import findM
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import MinMaxScaler
@@ -162,6 +162,7 @@ class Resolver:
             rt = rt.append(t)
         rt = rt.sort_values(by=['trackId', 'frame'])
         self.rsTrack = rt.copy()
+        self.mt_unresolved = list(np.unique(self.mt_unresolved))
         if self.mt_unresolved:
             self.logger.warning('Sequential mitosis without S phase; Ignore tracks: ' + str(self.mt_unresolved)[1:-1])
         if self.unresolved:
@@ -245,7 +246,7 @@ class Resolver:
             daugs = self.mt_dic[main]['daug']
             for i in list(daugs.keys()):
                 out = out.append(
-                    self.resolveLineage(lineage[(lineage['trackId'] == i) | (lineage['parentTrackId'] == i)].copy(), i))
+                    self.resolveLineage(lineage[lineage['trackId'].isin(find_daugs(lineage, i) + [i])].copy(), i))
             return out
 
     def resolveTrack(self, trk, m_entry=None, m_exit=None):
@@ -312,7 +313,7 @@ class Resolver:
 
         if not flag and m_exit is not None and m_entry is not None:
             resolved_class = cls.copy()
-            self.mt_unresolved.append(track_id)
+            self.mt_unresolved.extend([track_id] + find_daugs(self.track, track_id))
 
         if m_exit is None and m_entry is None:
             # some tracks begin/end with mitosis and not associated during refinement. In this case, override any
