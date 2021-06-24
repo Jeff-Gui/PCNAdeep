@@ -135,6 +135,8 @@ def main(stack, config, output, prefix, logger):
     logger.info('Refining and Resolving...')
     post_cfg = config['POST_PROCESS']
     refiner_cfg = post_cfg['REFINER']
+    if not bool(refiner_cfg['MASK_CONSTRAINT']):
+        mask_out = None
     myRefiner = Refiner(track_out, threshold_mt_F=int(refiner_cfg['MAX_DIST_TRH']),
                         threshold_mt_T=int(refiner_cfg['MAX_FRAME_TRH']), smooth=int(refiner_cfg['SMOOTH']),
                         minGS=np.max((int(post_cfg['MIN_G']), int(post_cfg['MIN_S']))),

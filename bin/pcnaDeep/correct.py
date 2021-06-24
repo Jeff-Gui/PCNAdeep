@@ -83,6 +83,12 @@ class Trk_obj:
         else:
             if new_id not in self.track['trackId']:
                 raise ValueError('Selected new ID not in the table.')
+            old_frame = list(self.track[self.track['trackId'] == new_id]['frame'])
+            new_frame = list(self.track.loc[(self.track['trackId'] == old_id) &
+                                            (self.track['frame'] >= frame), 'frame'])
+            if len(old_frame + new_frame) != len(set(old_frame + new_frame)):
+                raise ValueError('Selected new ID track overlaps with old one.')
+
             new = new_id
             new_lin = self.track[self.track['trackId'] == new_id]['lineageId'].values[0]
             new_par = self.track[self.track['trackId'] == new_id]['parentTrackId'].values[0]
@@ -154,8 +160,8 @@ class Trk_obj:
         """
         if trk_id not in self.track['trackId']:
             raise ValueError('Selected track is not in the table.')
-        if cls not in ['G1', 'G2', 'M', 'S', 'G1/G2']:
-            raise ValueError('cell cycle phase can only be G1, G2, G1/G2, S or M')
+        if cls not in ['G1', 'G2', 'M', 'S', 'G1/G2', 'E']:
+            raise ValueError('cell cycle phase can only be G1, G2, G1/G2, S, M or E.')
 
         clss = list(self.track[self.track['trackId'] == trk_id]['predicted_class'])
         frames = list(self.track[self.track['trackId'] == trk_id]['frame'])
@@ -166,7 +172,9 @@ class Trk_obj:
         if mode == 'single':
             rg = [fm_id]
         elif mode == 'range':
-            rg = [i for i in range(fm_id, frames.index(end_frame))]
+            if end_frame not in frames:
+                raise ValueError('Selected end frame is not in the original track.')
+            rg = [i for i in range(fm_id, frames.index(end_frame + 1))]
         elif mode == 'to_next':
             cur_cls = clss[fm_id]
             j = fm_id + 1
@@ -177,8 +185,18 @@ class Trk_obj:
             raise ValueError('Mode can only be single, to_next or range, not ' + mode)
 
         for r in rg:
-            self.track.loc[idx[r], 'resolved_class'] = cls
-            self.track.loc[idx[r], 'predicted_class'] = cls
+            if cls == 'E':
+                cls_resolved = 'G1'
+                cls_predicted = 'G1/G2'
+                self.track.loc[idx[r], 'emerging'] = 1
+            elif cls in ['G1','G2']:
+                cls_resolved = 'G1/G2'
+                cls_predicted = cls
+            else:
+                cls_resolved = cls
+                cls_predicted = cls
+            self.track.loc[idx[r], 'resolved_class'] = cls_resolved
+            self.track.loc[idx[r], 'predicted_class'] = cls_predicted
             if cls in ['G1', 'G2', 'G1/G2']:
                 self.track.loc[idx[r], 'Probability of G1/G2'] = 1
                 self.track.loc[idx[r], 'Probability of S'] = 0
@@ -196,20 +214,27 @@ class Trk_obj:
 
         return
 
-    def delete_track(self, trk_id):
-        """Delete entire track.
+    def delete_track(self, trk_id, frame=None):
+        """Delete entire track. If frame supplied, only delete object at specified frame.
 
         Args:
             trk_id (int): track ID.
+            frame (int): time frame.
         """
+        if trk_id not in self.track['trackId']:
+            raise ValueError('Selected track is not in the table.')
 
-        # For all direct daughter of the track to delete, first remove association
-        dir_daugs = list(np.unique(self.track.loc[self.track['parentTrackId'] == trk_id, 'trackId']))
-        for dd in dir_daugs:
-            self.del_parent(dd)
+        if frame is None:
+            # For all direct daughter of the track to delete, first remove association
+            dir_daugs = list(np.unique(self.track.loc[self.track['parentTrackId'] == trk_id, 'trackId']))
+            for dd in dir_daugs:
+                self.del_parent(dd)
 
-        # Delete entire track
-        self.track = self.track.drop(index=self.track[self.track['trackId'] == trk_id].index)
+            # Delete entire track
+            self.track = self.track.drop(index=self.track[self.track['trackId'] == trk_id].index)
+        else:
+            self.track = self.track.drop(index=self.track[(self.track['trackId'] == trk_id) &
+                                                          (self.track['frame'] == frame)].index)
         return
 
     def save(self):
@@ -322,6 +347,8 @@ class Trk_obj:
             args = self.parser.parse_args(ipt_list[1:])
             if args.f:
                 args.f = int(args.f) - self.frame_base
+            if args.e:
+                args.e = int(args.e) - self.frame_base
 
             try:
                 if cmd == 'cls':
@@ -341,7 +368,10 @@ class Trk_obj:
                 elif cmd == 'dp':
                     self.del_parent(int(args.d))
                 elif cmd == 'del':
-                    self.delete_track(int(args.t))
+                    if args.f is None:
+                        self.delete_track(int(args.t))
+                    else:
+                        self.delete_track(int(args.t), args.f)
                 elif cmd == 'div':
                     ds = args.ds
                     if ds is None:
@@ -370,6 +400,7 @@ class Trk_obj:
                                    'cp  -p  -d            ':'Create parent (p) - daughter (d) relationship',
                                    'dp  -d                ':'Delete parent - daughter (d) relationship',
                                    'del -t                ':'Delete entire track',
+                                   'del -t -f             ':'Delete object of track (t) at frame (f)',
                                    'div -p -ds -f         ':'Set division time of one mitosis event involving '
                                                             'parent (p) and daughters (ds, comma) at frame (f)',
                                    'q                     ':'Quit the interface',
