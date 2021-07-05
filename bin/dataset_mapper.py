@@ -1,13 +1,16 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
 # Adapted by Yifan Gui, 2021.6
+import os
 import copy
 import logging
 import numpy as np
+import skimage.io as io
+import skimage.exposure as exposure
+from skimage.util import img_as_ubyte
 from typing import List, Optional, Union
 import torch
 
 from detectron2.config import configurable
-from pcnaDeep.data.preparePCNA import read_PCNA_training
 
 from . import detection_utils as utils
 from . import transforms as T
@@ -114,6 +117,45 @@ class DatasetMapper:
             )
         return ret
 
+    def read_PCNA_training(self, filename, rescale_sat=0.2, gamma=0.5, base_pcna='mcy', base_dic='dic'):
+        """Read PCNA/DIC image, make composite and perform pre-processing
+
+        Args:
+            filename (str): File name conjugated with parent directory.
+            rescale_sat (float): pixel saturation for rescaling intensity (0~100).
+            gamma (float): gamma correction factor (>0) Adjust PCNA only.
+            base_pcna (str): folder name storing pcna channel.
+            base_dic (str): folder name storing bright field channel.
+        """
+        FORMAT='tif'
+        sat = rescale_sat
+        if sat < 0 or sat > 100:
+            raise ValueError('Saturated pixel should not be negative or exceeds 100.')
+        if gamma <= 0:
+            raise ValueError('Gamma factor should not be negative or zero.')
+
+        img_name = os.path.basename(filename)
+        img_name = img_name.split('.')[0] + '.' + FORMAT
+        pcna_name = os.path.join(os.path.dirname(filename), base_pcna, img_name)
+        dic_name = os.path.join(os.path.dirname(filename), base_dic, img_name)
+        pcna = io.imread(pcna_name)
+        dic = io.imread(dic_name)
+
+        if pcna.dtype != np.dtype('uint16') or dic.dtype != np.dtype('uint16'):
+            raise ValueError('Input image must be in uint16 format.')
+
+        pcna = exposure.adjust_gamma(pcna, gamma=gamma)
+        rg = (sat, 100-sat)
+        pcna = exposure.rescale_intensity(pcna, in_range=tuple(np.percentile(pcna, rg)))
+        dic = exposure.rescale_intensity(dic, in_range=tuple(np.percentile(dic, rg)))
+
+        pcna = img_as_ubyte(pcna)
+        dic = img_as_ubyte(dic)
+        slice_list = [pcna, pcna, dic]
+        image = np.stack(slice_list, axis=2)
+
+        return image
+
     def __call__(self, dataset_dict):
         """
         Args:
@@ -125,7 +167,7 @@ class DatasetMapper:
         dataset_dict = copy.deepcopy(dataset_dict)  # it will be modified by code below
         # USER: Write your own image loading if it's not from a file
         # Yifan Gui: replaced with pcnaDeep own reader
-        image = read_PCNA_training(dataset_dict["file_name"])
+        image = self.read_PCNA_training(dataset_dict["file_name"])
 
         '''
         image = utils.read_image(dataset_dict["file_name"], format=self.image_format)

@@ -44,11 +44,16 @@ import detectron2.data.transforms as T
 
 
 def build_sem_seg_train_aug(cfg):
+    '''
     augs = [
+        
         T.ResizeShortestEdge(
             cfg.INPUT.MIN_SIZE_TRAIN, cfg.INPUT.MAX_SIZE_TRAIN, cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING
         )
+        
     ]
+    '''
+    augs = []
     if cfg.INPUT.CROP.ENABLED:
         augs.append(
             T.RandomCrop_CategoryAreaConstraint(
@@ -56,10 +61,13 @@ def build_sem_seg_train_aug(cfg):
                 cfg.INPUT.CROP.SIZE,
             )
         )
-    augs.append(T.RandomBrightness(0.95, 1.05))
-    augs.append(T.RandomContrast(0.95, 1.05))
-    augs.append(T.RandomFlip())
+    #augs.append(T.RandomBrightness(0.95, 1.05))
+    augs.append(T.RandomSaturation(1, 1))
+    #augs.append(T.RandomContrast(0.95, 1.05)) #  low contrast: grey; high contrast: colorful, not appliable here. 
+    #augs.append(T.RandomFlip(vertical=True))
+    augs.append(T.RandomFlip(horizontal=True))
     augs.append(T.RandomRotation([0,90,180,270], sample_style='choice'))
+    #augs.append(T.Resize((cfg.INPUT.TRAIN_TARGET_W, cfg.INPUT.TRAIN_TARGET_H)))
     return augs
 
 
@@ -161,31 +169,37 @@ def setup(args):
     cfg.DATASETS.TEST = ("pcna_test",)
     cfg.DATALOADER.NUM_WORKERS = 4
     cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
-    cfg.SOLVER.IMS_PER_BATCH = 4
-    cfg.SOLVER.BASE_LR = 0.01
+    cfg.SOLVER.IMS_PER_BATCH = 16
+    cfg.SOLVER.BASE_LR = 0.1
+    cfg.SOLVER.WARMUP_ITERS = 400
+    cfg.SOLVER.WARMUP_FACTOR = 1/cfg.SOLVER.WARMUP_ITERS
     cfg.SOLVER.WEIGHT_DECAY = 0.0001
     cfg.SOLVER.WEIGHT_DECAY_NORM = 0.0
     cfg.SOLVER.GAMMA = 0.1
-    cfg.SOLVER.STEPS = (2000, 5000)
-    cfg.SOLVER.CHECKPOINT_PERIOD = 3000
-    cfg.TEST.EVAL_PERIOD = 3000
+    cfg.SOLVER.STEPS = (800, 1200, 1400)
+    cfg.SOLVER.CHECKPOINT_PERIOD = 600
+    cfg.TEST.EVAL_PERIOD = 600
 
-    cfg.SOLVER.MAX_ITER = 7000
+    cfg.SOLVER.MAX_ITER = 1600
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 256
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 4  # change according to class number
     # Avoid overlapping
     cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.5
-    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7
+    cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.5
     cfg.MODEL.PANOPTIC_FPN.COMBINE.OVERLAP_THRESH = 0.9
-    cfg.MODEL.RPN.NMS_THRESH = 0.7
+    cfg.MODEL.RPN.NMS_THRESH = 0.5
 
     # Augmentation
-    cfg.INPUT.MIN_SIZE_TRAIN = 640
+    cfg.INPUT.MIN_SIZE_TRAIN = 1200
     cfg.INPUT.MAX_SIZE_TRAIN = 1200
-    cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING = 'choice'
+    cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING = 'range'
     cfg.INPUT.CROP.ENABLED = True
     cfg.INPUT.CROP.TYPE = 'relative'
-    cfg.INPUT.CROP.SIZE = [0.9, 0.9]
+    cfg.INPUT.CROP.SIZE = [0.8, 0.8]
+    cfg.INPUT.MAX_SIZE_TEST = 1200
+    cfg.INPUT.MIN_SIZE_TEST = 1200
+    cfg.INPUT.TRAIN_TARGET_W = 1200
+    cfg.INPUT.TRAIN_TARGET_H = 1200
     cfg.TEST.AUG.ENABLED = False
 
     cfg.freeze()
@@ -222,7 +236,7 @@ def main(args):
         )
     return trainer.train()
 
-
+#CLASS_NAMES = ['G1/G2', 'S', 'M', 'E']
 if __name__ == "__main__":
     # Class metadata
     CLASS_NAMES = ["G1/G2", "S", "M", "E"]
@@ -230,7 +244,7 @@ if __name__ == "__main__":
     DATASET_ROOT = '/home/zje/dataset/pcna'
     
     TRAIN_PREFIX = ['20200902-MCF10A-dual', '20210103-MCF10A', '20210127-MCF10A-mRels2', '20200902-MCF10A-s1_cpd',
-                    '20201118-RPE_rand', '20201030-MBAMD231', 'MCF10A_rand', '20200902-MCF10A-s2_cpd', '20200729-RPE-s2_cpd']
+                    '20201118-RPE_rand', 'MCF10A_rand', '20200902-MCF10A-s2_cpd', '20200729-RPE-s2_cpd']
     TRAIN_PATH = []
     TRAIN_ANN_PATH = []
     for p in TRAIN_PREFIX:
