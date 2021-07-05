@@ -153,13 +153,14 @@ def mask2json(in_dir, out_dir, phase_labeled=False, phase_dic={10: "G1/G2", 50: 
     return
 
 
-def getDetectInput(pcna, dic, sat=2):
+def getDetectInput(pcna, dic, gamma=1, sat=2):
     """Generate pcna-mScarlet and DIC channel to RGB format for detectron2 model prediction
 
     Args:
-        pcna (numpy.ndarray): uint16 PCNA-mScarlet image stack (T*H*W)
-        dic (numpy.ndarray): uint16 DIC or phase contrast image stack
-        sat (int): percent saturation, 0~100, default 0.
+        pcna (numpy.ndarray): uint16 PCNA-mScarlet image stack (T*H*W).
+        dic (numpy.ndarray): uint16 DIC or phase contrast image stack.
+        gamma (float): gamma adjustment, >0, default 1.
+        sat (float): percent saturation, 0~100, default 0.
 
     Returns:
         (numpy.ndarray): uint8 composite image (T*H*W*C)
@@ -181,16 +182,14 @@ def getDetectInput(pcna, dic, sat=2):
     rg = (sat, 100-sat)
     for f in range(stack.shape[0]):
         # rescale mCherry intensity
-        fme = exposure.rescale_intensity(stack[f, :, :], in_range=tuple(np.percentile(stack[f, :, :], rg)))
+        fme = exposure.adjust_gamma(stack[f, :, :], gamma)
+        fme = exposure.rescale_intensity(fme, in_range=tuple(np.percentile(fme, rg)))
         dic_img[f, :, :] = exposure.rescale_intensity(dic_img[f, :, :],
                                                       in_range=tuple(np.percentile(dic_img[f, :, :], rg)))
 
         # save two-channel image for downstream
-        fme = fme / 65535 * 255
-        dic_slice = dic_img[f, :, :] / 65535 * 255
-        fme = fme.astype('uint8')
-        dic_slice = dic_slice.astype('uint8')
-
+        fme = img_as_ubyte(fme)
+        dic_slice = img_as_ubyte(dic_img[f, :, :])
         slice_list = [fme, fme, dic_slice]
 
         s = np.stack(slice_list, axis=2)
@@ -381,3 +380,21 @@ def find_daugs(track, track_id):
         for trk in rt:
             to_rt.extend(find_daugs(track, trk))
         return to_rt
+
+
+def filter_edge(img, props, edge_flt):
+    """Filter objects at the edge
+
+    Args:
+        img (numpy.ndarray): mask image with object labels.
+        props (pandas.DataFrame): part of the object table.
+        edge_flt (int): pixel width of the edge area.
+    """
+    ebd = np.zeros((img.shape[0] - 2 * edge_flt, img.shape[1] - 2 * edge_flt))
+    ebd = np.pad(ebd, ((edge_flt, edge_flt), (edge_flt, edge_flt)), mode='constant', constant_values=(1, 1))
+    for i in props.index:
+        if ebd[int(props['Center_of_the_object_0'].loc[i]), int(props['Center_of_the_object_1'].loc[i])] == 1:
+            img[img == props['continuous_label'].loc[i]] = 0
+            props = props.drop(index=i)
+
+    return img, props

@@ -7,6 +7,9 @@ import json
 import numpy as np
 import detectron2.structures as st
 import math
+import skimage.io as io
+import skimage.exposure as exposure
+from skimage.util import img_as_ubyte
 
 
 def load_PCNA_from_json(json_path, image_path, width=1200, height=1200):
@@ -66,6 +69,43 @@ def load_PCNAs_json(json_paths, image_paths):
         out += dic
     random.shuffle(out)
     return out
+
+
+def read_PCNA_training(filename, rescale_sat=0.2, gamma=0.5, base_pcna='mcy', base_dic='dic'):
+    """Read PCNA/DIC image, make composite and perform pre-processing
+
+    Args:
+        filename (str): File name conjugated with parent directory.
+        rescale_sat (float): pixel saturation for rescaling intensity (0~100).
+        gamma (float): gamma correction factor (>0) Adjust PCNA only.
+        base_pcna (str): folder name storing pcna channel.
+        base_dic (str): folder name storing bright field channel.
+    """
+    if sat < 0 or sat > 100:
+        raise ValueError('Saturated pixel should not be negative or exceeds 100.')
+    if gamma <= 0:
+        raise ValueError('Gamma factor should not be negative or zero.')
+
+    img_name = os.path.basename(filename)
+    pcna_name = os.path.join(os.path.dirname(filename), base_pcna, img_name)
+    dic_name = os.path.join(os.path.dirname(filename), base_dic, img_name)
+    pcna = io.imread(pcna_name)
+    dic = io.imread(dic_name)
+
+    if pcna.dtype != np.dtype('uint16') or dic.dtype != np.dtype('uint16'):
+        raise ValueError('Input image must be in uint16 format.')
+
+    pcna = exposure.adjust_gamma(pcna, gamma=gamma)
+    rg = (sat, 100-sat)
+    pcna = exposure.rescale_intensity(pcna, in_range=tuple(np.percentile(pcna, rg)))
+    dic = exposure.rescale_intensity(dic, in_range=tuple(np.percentile(dic, rg)))
+
+    pcna = img_as_ubyte(pcna)
+    dic = img_as_ubyte(dic)
+    slice_list = [pcna, pcna, dic]
+    image = np.stack(slice_list, axis=2)
+
+    return image
 
 
 def inspect_PCNA_data(json_path, image_path, out_dir='../../../inspect/test'):

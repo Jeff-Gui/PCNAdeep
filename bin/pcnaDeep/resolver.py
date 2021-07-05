@@ -28,13 +28,14 @@ def list_dist(a, b):
     return count
 
 
-def get_rsv_input_gt(track, gt_name='predicted_class'):
+def get_rsv_input_gt(track, gt_name='predicted_class', G2_trh=200, no_cls_GT=False):
     """Deduce essential input of resolver from a ground truth.
     """
 
     logger = logging.getLogger('pcna.Resolver.resolveGroundTruth')
     track['lineageId'] = track['trackId']
-    track['emerging'] = 0
+    if 'emerging' not in track.columns:
+        track['emerging'] = 0
     if 'BF_mean' not in track.columns:
         track['BF_mean'] = 0
     if 'BF_std' not in track.columns:
@@ -74,14 +75,14 @@ def get_rsv_input_gt(track, gt_name='predicted_class'):
         par_sub = track[track['trackId'] == i]
         m_entry = findM(par_sub[gt_name].tolist(), 'end')
         if m_entry is None:
-            logger.warning('Mitosis entry not found for parent: ' + str(i))
+            logger.warning('Mitosis entry not found for parent: ' + str(i) + '. Will not resolve this M phase.')
         else:
             m_entry = par_sub['frame'].iloc[m_entry]
             mt_dic[i]['div'] = m_entry
             ann.loc[ann['track'] == i, 'm_entry'] = m_entry
 
     # resolve probability
-    if 'Probability of G1/G2' not in track.columns:
+    if not no_cls_GT:
         track['Probability of G1/G2'] = 0
         track['Probability of S'] = 0
         track['Probability of M'] = 0
@@ -95,9 +96,9 @@ def get_rsv_input_gt(track, gt_name='predicted_class'):
     track_masked = track.copy()
     if 'mean_intensity' not in track_masked.columns:
         track_masked['mean_intensity'] = 0
+        track_masked.loc[track_masked[gt_name] == 'G2', 'mean_intensity'] = G2_trh + 1
     if 'background_mean' not in track_masked.columns:
         track_masked['background_mean'] = 0
-    track_masked.loc[track_masked[gt_name] == 'G2', 'mean_intensity'] = 200
     track_masked.loc[track_masked[gt_name].str.contains('G'), gt_name] = 'G1/G2'
     #  track_masked.to_csv('../../test/test_files/mock/masked.csv')
     logger.debug(pprint.pformat(mt_dic))
@@ -105,19 +106,36 @@ def get_rsv_input_gt(track, gt_name='predicted_class'):
     return track_masked, ann, mt_dic, imprecise_m
 
 
-def resolve_from_gt(track, gt_name='predicted_class'):
-    """Resolve cell cycle phase from the ground truth. Wrapper of get_rsv_input_gt
+def resolve_from_gt(track, gt_name='predicted_class', G2_trh=None, no_cls_GT=False,
+                    minG=1, minS=1, minM=1, minTrack=0):
+    """Resolve cell cycle phase from the ground truth. Wrapper of `get_rsv_input_gt()`.
 
     Args:
         track (pandas.DataFrame): data frame of each object each row, must have following columns:
             - trackId, frame, parentTrackId, <ground truth classification column>
         gt_name (str): refers to the column in track that corresponds to ground truth classification.
+        G2_trh (int): intensity threshold for classifying G2 phase (for arrest tracks only).
+        no_cls_GT (bool): Set to `true` if no classification ground truth is provided.
+            Will resolve based on current classifications.
+        minG (int): minimum G phase frame length (default 1).
+        minS (int): minimum S phase frame length (default 1).
+        minM (int): minimum M phase frame length (default 1).
+        minTrack (int): minimum track frame length to resolve (default 0, resolve all tracks).
     """
-
-    track_masked, ann, mt_dic, imprecise_m = get_rsv_input_gt(track, gt_name)
-    r = Resolver(track_masked, ann, mt_dic, minG=1, minS=1, minM=1, minTrack=0, impreciseExit=imprecise_m, G2_trh=100)
+    if G2_trh is None:
+        if 'mean_intensity' in track.columns and 'G2' in list(track[gt_name]):
+            G2_trh = int(np.min((track['mean_intensity'] - track['background_mean']).loc[track[gt_name] == 'G2']) - 2)
+        elif 'mean_intensity' not in track.columns or 'background_mean' not in track.columns:
+            G2_trh = 200  # dummy threshold
+        else:
+            raise ValueError('Must provide a G2 intensity threshold or provide G2 ground truth classification.')
+    track_masked, ann, mt_dic, imprecise_m = get_rsv_input_gt(track, gt_name, G2_trh=G2_trh, no_cls_GT=no_cls_GT)
+    r = Resolver(track_masked, ann, mt_dic, minG=minG, minS=minS, minM=minM, minTrack=minTrack,
+                 impreciseExit=imprecise_m, G2_trh=G2_trh)
     rsTrack, phase = r.doResolve()
     rsTrack = rsTrack[['trackId', 'frame', 'resolved_class']]
+    if 'resolved_class' in track.columns:
+        del track['resolved_class']
     rsTrack = track.merge(rsTrack, on=['trackId','frame'])
 
     return rsTrack, phase
@@ -188,11 +206,11 @@ class Resolver:
         return
 
     def resolveArrest(self, G2_trh=None):
-        """Determine G1/G2 arrest tracks;
-        Assign G1 or G2 classification according to 2-center K-mean.
+        """Determine G1/G2 arrest tracks.
+            Assign G1 or G2 classification according to 2-center K-mean.
 
         Args:
-            G2_trh (int): int between 1-255, above the threshold will be classified as G2
+            G2_trh (int): int between 1-255, above the threshold will be classified as G2.
         """
 
         trk = self.rsTrack[self.rsTrack['trackId'].isin(list(self.arrest.keys()))].copy()
@@ -200,6 +218,8 @@ class Resolver:
         ids = []
         for i in self.arrest.keys():
             sub = trk[trk['trackId'] == i]
+            if self.arrest[i] == 'S':
+                continue
             corrected_mean = np.mean(sub['mean_intensity'] - sub['background_mean'])
             intensity.append(corrected_mean)
             ids.append(i)
@@ -271,6 +291,11 @@ class Resolver:
 
         track_id = trk['trackId'].tolist()[0]
         cls = list(trk['predicted_class'])
+        if list(np.unique(cls)) == ['S']:
+            trk['resolved_class'] = 'S'
+            self.arrest[track_id] = 'S'
+            return trk
+
         confid = np.array(trk[['Probability of G1/G2', 'Probability of S', 'Probability of M']])
         out = deduce_transition(l=cls, tar='S', confidence=confid, min_tar=self.minS,
                                 max_res=np.max((self.minM, self.minG)), casual_end=False)

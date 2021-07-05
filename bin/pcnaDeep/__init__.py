@@ -1,6 +1,8 @@
-from pcnaDeep import evaluate
-from pcnaDeep import predictor
-from pcnaDeep import resolver
-from pcnaDeep import tracker
-from pcnaDeep import split
-from pcnaDeep import correct
+from . import evaluate
+from . import predictor
+from . import resolver
+from . import tracker
+from . import split
+from . import correct
+
+__version__ = "0.1"

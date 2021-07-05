@@ -400,7 +400,8 @@ class Trk_obj:
                                    'del -t                ':'Delete entire track',
                                    'del -t -f             ':'Delete object of track (t) at frame (f)',
                                    'div -p -ds -f         ':'Set division time of one mitosis event involving '
-                                                            'parent (p) and daughters (ds, comma) at frame (f)',
+                                                            'parent (p) and daughters (ds, comma separated) '
+                                                            'at frame (f)',
                                    'q                     ':'Quit the interface',
                                    's                     ':'Save the current table',
                                    'wq                    ':'Save and quit the interface',

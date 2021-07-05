@@ -557,24 +557,37 @@ class Refiner:
         
         ipts, sample_id = self.extract_features(parent_pool, pool, remove_outlier=None, normalize=False)
 
-        if mode is None or mode == 'SVM':
+        if ipts.shape[0] == 0:
+            self.logger.warning('No potential daughters found.')
+            return track, ann, mt_dic
 
-            # Train model further with already broken tracks
-            ipts_brk = self.extract_train_from_break(sample_id, ipts, mt_dic)
-            y = [1 for _ in range(ipts_brk.shape[0])]
+        if mode is None or mode == 'SVM':
             # Read in baseline training data
             baseline = np.array(pd.read_csv(self.SVM_PATH, header=None))
-            # Merge baseline and broken data
-            X = np.concatenate((ipts_brk, baseline[:, :baseline.shape[1] - 1]), axis=0)
-            y.extend(list(baseline[:, baseline.shape[1] - 1]))
-            y = np.array(y)
+            baseline_x = baseline[:, :ipts.shape[1]]
+            baseline_y = baseline[:, ipts.shape[1]]
+
+            if len(mt_dic.keys())>0:
+                # Train model further with already broken tracks
+                ipts_brk = self.extract_train_from_break(sample_id, ipts, mt_dic)
+                y = [1 for _ in range(ipts_brk.shape[0])]
+                # Merge baseline and broken data
+                X = np.concatenate((ipts_brk, baseline_x), axis=0)
+                y.extend(list(baseline_y))
+                y = np.array(y)
+            else:
+                X = baseline_x
+                y = baseline_y
 
             # Oversample positive instances
+            '''
             smote = BorderlineSMOTE(random_state=1, kind='borderline-1')
             X, y = smote.fit_resample(X, y)
             '''
+            '''
             # Render training set to inspect
-            save_train = np.concatenate((X, np.expand_dims(y, axis=1)), axis=1)
+            from_new = [1 for _ in range(ipts_brk.shape[0])] + [0 for _ in range(baseline.shape[0])]
+            save_train = np.concatenate((X, np.expand_dims(y, axis=1), np.expand_dims(from_new, axis=1)), axis=1)
             pd.DataFrame(save_train).to_csv('../../test/test_train.csv', index=False, header=False)
             '''
 
@@ -582,7 +595,8 @@ class Refiner:
             s = RobustScaler()
             X = s.fit_transform(X)
 
-            model = SVC(kernel='rbf', C=100, gamma=1, probability=True, class_weight='balanced')
+            #  model = SVC(kernel='rbf', C=100, gamma=1, probability=True, class_weight='balanced')
+            model = SVC(kernel='linear', C=10, probability=True, class_weight='balanced')
             model.fit(X, y)
 
             s2 = RobustScaler()
@@ -639,7 +653,6 @@ class Refiner:
 
         self.logger.debug('Parent-Daughter relation to register')
         self.logger.debug(to_register)
-        #print(mt_dic)
         ips_count = 0
         for par in to_register.keys():
             daugs, csts = to_register[par]
@@ -680,7 +693,6 @@ class Refiner:
         self.logger.info("Parent-Daughter-Daughter mitosis relations found: " + str(count))
         self.logger.info("Parent-Daughter mitosis relations found: " + str(len(list(mt_dic.keys())) - count))
         self.logger.info("Imprecise tracks involved in prediction: " + str(ips_count))
-        #print(mt_dic)
         track = track.sort_values(by=['lineageId', 'trackId', 'frame'])
         return track, ann, mt_dic
 

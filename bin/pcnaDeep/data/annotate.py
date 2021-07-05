@@ -4,12 +4,12 @@ import json
 import os
 import tarfile
 import tempfile
-import warnings
 from io import BytesIO
 
 import numpy as np
 import pandas as pd
 import skimage.io as io
+import warnings
 from skimage.util import img_as_uint
 from skimage.util import img_as_ubyte
 import skimage.measure as measure
@@ -77,7 +77,8 @@ def label_by_track(mask, label_table):
 
 
 def get_lineage_dict(label_table):
-    """Generate lineage dictionary in Deepcell tracking format.
+    """Deprecated
+    Generate lineage dictionary in Deepcell tracking format.
     
     Args:
         label_table (pandas.DataFrame): table processed.
@@ -124,7 +125,8 @@ def get_lineage_txt(label_table):
 
 
 def save_trks(filename, lineages, raw, tracked):
-    """Copied from deepcell_tracking.utils, version 0.3.1. Author Van Valen Lab.
+    """Deprecated
+    Copied from deepcell_tracking.utils, version 0.3.1. Author Van Valen Lab.
     Modification: changed trks to trk to fit caliban labeler.
 
     Saves raw, tracked, and lineage data into one trk_file.
@@ -165,7 +167,8 @@ def save_trks(filename, lineages, raw, tracked):
 
 
 def load_trks(filename):
-    """Copied from deepcell_tracking.utils, version 0.3.1. Author Van Valen Lab
+    """Deprecated
+    Copied from deepcell_tracking.utils, version 0.3.1. Author Van Valen Lab
 
     Load a trk/trks file.
 
@@ -265,12 +268,13 @@ def break_track(label_table):
         pandas.DataFrame: processed tracked object table.
     """
 
-    # For parent track that have one daughter extrude into the parent frame, 
+    # For parent track that has one daughter extrude into the parent frame,
     #       e.g. parent: t1-10; daughter1: t8-20; daughter2: t11-20.
-    # re-organize the track by triming parent and add to daughter,
+    # re-organize the track by trimming parent and add to daughter,
     #       i.e. parent: t1-7; daughter1: t8-20; daughter2: t8-10, t11-20
     # If both daughter extrude, e.g. daughter2: t9-20, then trim parent directly
-    # to t1-8. Since this indicages faulty track, warning shown
+    # to t1-8. Since this indicates faulty track, warning shown
+    # *** this should NOT usually happen
 
     for l in np.unique(label_table['trackId']):
         daugs = np.unique(label_table[label_table['parentTrackId'] == l]['trackId'])
@@ -280,9 +284,9 @@ def break_track(label_table):
             par = label_table[label_table['trackId'] == l]
             par_frame = par['frame'].iloc[-1]
             if par_frame >= daug1 and par_frame >= daug2:
+                label_table.drop(par[(par['frame'] >= daug1) | (par['frame'] >= daug2)].index, inplace=True)
                 raise UserWarning('Faluty mitosis, check parent: ' + str(l) +
                                   ', daughters: ' + str(daugs[0]) + '/' + str(daugs[1]))
-                label_table.drop(par[(par['frame'] >= daug1) | (par['frame'] >= daug2)].index, inplace=True)
             elif par_frame >= daug1:
                 # migrate par to daug2
                 label_table.loc[par[par['frame'] >= daug1].index, 'trackId'] = daugs[1]
@@ -390,7 +394,8 @@ def save_seq(stack, out_dir, prefix, dig_num=3, dtype='uint16', base=0, img_form
 
 def generate_calibanTrk(raw, mask, out_dir, dt_id, digit_num=3, displace=100, gap_fill=3, track=None,
                         render_phase=False):
-    """Generate caliban .trk format for annotation from raw and ground truth mask.
+    """Deprecated
+    Generate caliban .trk format for annotation from raw and ground truth mask.
 
     Args:
         raw (numpy.ndarray): raw image stack.
@@ -461,7 +466,7 @@ def check_continuous_track(table):
     """Check if every track is continuous (no gap). Returns trackID list that is gaped.
     """
     out = []
-    for i in np.unique(table['trackId']).tolist():
+    for i in list(np.unique(table['trackId'])):
         f = table[table['trackId'] == i]['frame'].tolist()
         if f[-1] - f[0] != len(f) - 1:
             out.append(i)
@@ -469,7 +474,8 @@ def check_continuous_track(table):
 
 
 def mergeTrkAndTrack(trk_path, table_path, return_mask=False):
-    """Merge ground truth .trk and tracked table. Used to generate ground truth tracked table.
+    """Deprecated
+    Merge ground truth .trk and tracked table. Used to generate ground truth tracked table.
     
     Args:
         trk_path (str): path to deepcell-label Caliban .trk file.

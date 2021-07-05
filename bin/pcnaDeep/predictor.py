@@ -12,6 +12,7 @@ import pandas as pd
 from detectron2.data import MetadataCatalog
 from detectron2.engine.defaults import DefaultPredictor
 from detectron2.utils.visualizer import ColorMode, Visualizer
+from pcnaDeep.data.utils import filter_edge
 
 
 class VisualizationDemo(object):
@@ -360,16 +361,3 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000, edge
     
     del out_props['label']
     return filter_edge(img_relabel.astype('uint8'), out_props, edge_flt)
-
-
-def filter_edge(img, props, edge_flt):
-    """Filter objects at the edge
-    """
-    ebd = np.zeros((img.shape[0]-2*edge_flt, img.shape[1]-2*edge_flt))
-    ebd = np.pad(ebd, ((edge_flt, edge_flt), (edge_flt, edge_flt)), mode='constant', constant_values=(1,1))
-    for i in props.index:
-        if ebd[int(props['Center_of_the_object_0'].loc[i]), int(props['Center_of_the_object_1'].loc[i])] == 1:
-            img[img == props['continuous_label'].loc[i]] = 0
-            props = props.drop(index=i)
-
-    return img, props

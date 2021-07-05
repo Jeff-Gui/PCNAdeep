@@ -22,7 +22,7 @@ from pcnaDeep.data.utils import getDetectInput
 
 
 def setup_cfg(args):
-    # load config from file and command-line arguments
+    # load Detectron2 config from file and command-line arguments
     cfg = get_cfg()
     cfg.merge_from_file(args.dtrn_config)
     cfg.merge_from_list(args.opts)
@@ -32,6 +32,38 @@ def setup_cfg(args):
     cfg.MODEL.PANOPTIC_FPN.COMBINE.INSTANCES_CONFIDENCE_THRESH = args.confidence_threshold
     cfg.freeze()
     return cfg
+
+
+def check_PCNA_cfg(config, img_shape):
+    """Check the integrity of PCNAdeep configs.
+    """
+    try:
+        if float(config['PIX_SATURATE']) < 0 or float(config['PIX_SATURATE']) > 100:
+            raise ValueError('Pixel saturation should be within range 0~100.')
+        if float(config['EDGE_FLT']) < 0 or float(config['EDGE_FLT']) > np.min([img_shape[1], img_shape[2]])/2:
+            raise ValueError('Edge region should not be larger than image size or negative.')
+        if float(config['SIZE_FLT']) > img_shape[1] * img_shape[2]:
+            raise ValueError('Object size filter should not be larger than image size.')
+        if float(config['TRACKER']['DISPLACE']) >= np.min([img_shape[1], img_shape[2]]):
+            raise ValueError('Tracker displacement should be smaller than image size.')
+        if float(config['TRACKER']['GAP_FILL']) >= img_shape[0]:
+            raise ValueError('Tracker memory should be smaller than time frame length.')
+        for i in ['MIN_G', 'MIN_S', 'MIN_M']:
+            if float(config['POST_PROCESS'][i]) >= img_shape[0] or float(config['POST_PROCESS'][i]) < img_shape[0]:
+                raise ValueError('Cell cycle phase length should be positive and smaller than frame length.')
+        for i in ['SMOOTH', 'MITOSIS_LEN', 'MAX_FRAME_TRH', 'SEARCH_RANGE']:
+            to_check = float(config['POST_PROCESS']['REFINER'][i])
+            if to_check >= img_shape[0] or to_check <= 0:
+                raise ValueError(i + ' should be smaller than frame length and positive.')
+        to_check = float(config['POST_PROCESS']['RESOLVER']['MIN_TRACK'])
+        if to_check < 0 or to_check > img_shape[0]:
+            raise ValueError('Minimum track length should not be negative or longer then frame length.')
+        to_check = float(config['POST_PROCESS']['RESOLVER']['G2_TRH'])
+        if to_check <= 0:
+            raise ValueError('G2 intensity threshold should be positive.')
+    except KeyError as e:
+        raise KeyError('Field not found in config file: ' + str(e))
+    return
 
 
 def get_parser():
@@ -84,11 +116,15 @@ def get_parser():
 
 
 def main(stack, config, output, prefix, logger):
+    check_PCNA_cfg(config, stack.shape)
+
     logger.info("Run on image shape: " + str(stack.shape))
     table_out = pd.DataFrame()
     mask_out = []
     spl = int(config['SPLIT']['GRID'])
+    edge_raw = config['EDGE_FLT']  # not filter edge objects when resolving separate tiles.
     if spl:
+        config['EDGE_FLT'] = 0
         new_imgs = []
         for i in range(stack.shape[0]):
             splited = split_frame(stack[i,:].copy(), n=spl)
@@ -123,8 +159,9 @@ def main(stack, config, output, prefix, logger):
         mask_out = join_frame(mask_out.copy(), n=spl)
         table_out = join_table(table_out.copy(), n=spl, tile_width=tw)
         mask_out, table_out = resolve_joined_stack(mask_out, table_out, n=spl, 
-                                                    boundary_width=config['SPLIT']['EDGE_SPLIT'],
-                                                    dilate_time=config['SPLIT']['DILATE_ROUND'])
+                                                   boundary_width=config['SPLIT']['EDGE_SPLIT'],
+                                                   dilate_time=config['SPLIT']['DILATE_ROUND'],
+                                                   filter_edge_width=edge_raw)
     
     logger.info('Tracking...')
     track_out = track(df=table_out, displace=int(config['TRACKER']['DISPLACE']),
@@ -235,7 +272,8 @@ if __name__ == "__main__":
                     else:
                         os.mkdir(md)
                     imgs = getDetectInput(io.imread(os.path.join(args.pcna, si[1])), 
-                                          io.imread(os.path.join(args.dic, si[2])), sat=float(config['PIX_SATURATE']))
+                                          io.imread(os.path.join(args.dic, si[2])),
+                                          sat=float(pcna_cfg_dict['PIX_SATURATE']))
 
                     inspect = imgs[range(0, imgs.shape[0], 100),:,:,:].copy()
                     io.imsave(os.path.join(args.output, si[0], si[0] + '_sample_intput.tif'), inspect)
