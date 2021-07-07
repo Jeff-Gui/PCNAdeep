@@ -294,7 +294,8 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000, edge
                 mask_slice[mask[s, :, :] != 0] = s + 1
         else:
             mask_slice[mask[s, :, :] != 0] = s + 1
-    #  print('Overlapping rate: ' + str(ovl_count / mask.shape[0]))
+    #print('Overlapping rate: ' + str(ovl_count / mask.shape[0]))
+    #print(mask.shape[0])
 
     img_relabel = measure.label(mask_slice, connectivity=1) 
     # original segmentation may have separated region, flood and re-label it

@@ -153,13 +153,13 @@ def mask2json(in_dir, out_dir, phase_labeled=False, phase_dic={10: "G1/G2", 50: 
     return
 
 
-def getDetectInput(pcna, dic, gamma=1, sat=2):
+def getDetectInput(pcna, dic, gamma=0.8, sat=2):
     """Generate pcna-mScarlet and DIC channel to RGB format for detectron2 model prediction
 
     Args:
         pcna (numpy.ndarray): uint16 PCNA-mScarlet image stack (T*H*W).
         dic (numpy.ndarray): uint16 DIC or phase contrast image stack.
-        gamma (float): gamma adjustment, >0, default 1.
+        gamma (float): gamma adjustment, >0, default 0.8.
         sat (float): percent saturation, 0~100, default 0.
 
     Returns:
@@ -172,13 +172,12 @@ def getDetectInput(pcna, dic, gamma=1, sat=2):
     if sat < 0 or sat > 100:
         raise ValueError('Saturated pixel should not be negative or exceeds 100')
 
-    print("Input shape: " + str(stack.shape))
+    print("Input shape: " + str(stack.shape) + " saturation: " + str(sat) + ", gamma " + str(gamma))
     if len(stack.shape) < 3:
         stack = np.expand_dims(stack, axis=0)
         dic_img = np.expand_dims(dic_img, axis=0)
 
     outs = []
-    sat = sat/2
     rg = (sat, 100-sat)
     for f in range(stack.shape[0]):
         # rescale mCherry intensity

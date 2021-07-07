@@ -13,24 +13,38 @@ from detectron2.modeling import build_model
 
 class pcna_detectronEvaluator:
 
-    def __init__(self, model_path, cfg_path, class_name=["G1/G2", "S", "M", "E"]):
+    def __init__(self, cfg_path, dataset_ann_path, dataset_path, out_dir, class_name=["G1/G2", "S", "M", "E"]):
+        """Evaluate Detectron2 performance using COCO matrix
+
+        Args:
+            cfg_path (str): path to config file.
+            dataset_ann_path (str): path to the testing dataset annotation `json` file.
+            dataset_path (str): path to testing dataset, must in format of pcnaDeep: separate dic and mcy folders.
+            out_dir (str): output directory.
+            class_name (list): classification name, should be the same as training config.
+        """
         self.CLASS_NAMES = class_name
         self.cfg = get_cfg()
         self.cfg.merge_from_file(cfg_path)
+        self.out = out_dir
+        DatasetCatalog.register("pcna_test", lambda: load_PCNAs_json(list(dataset_ann_path), list(dataset_path)))
+        MetadataCatalog.get("pcna_test").set(thing_classes=self.CLASS_NAMES, evaluator_type='coco')
+
+
+    def run_evaluate(self, model_path):
+        """Run evaluation
+
+        Args:
+            model_path (str): path to pre-trained model.
+        """
+        #DatasetCatalog.register("pcna_test", lambda: load_PCNAs_json(list(dataset_ann_path), list(dataset_path)))
+        #MetadataCatalog.get("pcna_test").set(thing_classes=self.CLASS_NAMES, evaluator_type='coco')
+        evaluator = COCOEvaluator("pcna_test", self.cfg, False, output_dir=self.out)
+        
         self.cfg.MODEL.WEIGHTS = model_path
-        self.model = build_model(self.cfg)
-
-    def run_evaluate(self, dataset_ann_path, dataset_path, out_dir=None):
-        DatasetCatalog.register("pcna", lambda: load_PCNAs_json(dataset_ann_path, dataset_path))
-        MetadataCatalog.get("pcna").set(thing_classes=self.CLASS_NAMES, evaluator_type='coco')
-
-        if out_dir is not None:
-            evaluator = COCOEvaluator("pcna", self.cfg, False, output_dir=out_dir)
-        else:
-            evaluator = COCOEvaluator("pcna", self.cfg, False)
-
-        val_loader = build_detection_test_loader(self.cfg, "pcna")
-        inference_on_dataset(self.model, val_loader, evaluator)
+        val_loader = build_detection_test_loader(self.cfg, "pcna_test")
+        model = build_model(self.cfg)
+        inference_on_dataset(model, val_loader, evaluator)
 
 
 class pcna_ctcEvaluator:

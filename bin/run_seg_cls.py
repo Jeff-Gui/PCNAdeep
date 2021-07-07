@@ -4,6 +4,7 @@ import multiprocessing as mp
 import os
 import re
 import time
+import gc
 
 import numpy as np
 import pandas as pd
@@ -12,6 +13,7 @@ from detectron2.config import get_cfg
 from detectron2.utils.logger import setup_logger
 
 from pcnaDeep.predictor import VisualizationDemo, pred2json, predictFrame
+from pcnaDeep.data.utils import getDetectInput
 
 
 def setup_cfg(args):
@@ -36,13 +38,24 @@ def get_parser():
         help="path to config file",
     )
     parser.add_argument(
-        "--input",
+        "--stack_input",
         help="Path to image stack file.",
     )
     parser.add_argument(
+        "--bf",
+        help="Path to bight field image file.",
+    )
+    parser.add_argument(
+        "--pcna",
+        help="Path to PCNA image file file.",
+    )
+    parser.add_argument(
         "--output",
-        help="A file or directory to save output visualizations. "
-        "If not given, will show output in an OpenCV window.",
+        help="A file or directory to save outputs.",
+    )
+    parser.add_argument(
+        "--prefix",
+        help="Output file name. If not given, will deduce from inputs.",
     )
     parser.add_argument(
         "--confidence-threshold",
@@ -51,16 +64,18 @@ def get_parser():
         help="Minimum score for instance predictions to be shown",
     )
     parser.add_argument(
-        "--is_gray",
-        action="store_true"
-    )
-    parser.add_argument(
         "--is_slice",
-        action="store_true"
+        action="store_true",
     )
     parser.add_argument(
         "--json_out",
-        action="store_true"
+        action="store_true",
+    )
+    parser.add_argument(
+        "--sat",
+        type=float,
+        help="Saturated pixel when enhancing contrast. Only applies to separate channels.",
+        default=1,
     )
     parser.add_argument(
         "--opts",
@@ -81,25 +96,38 @@ if __name__ == "__main__":
 
     demo = VisualizationDemo(cfg)
 
-    if args.input:
-        gray = args.is_gray # gray: THW; non-gray: THWC
+    if args.stack_input is not None or args.bf is not None:
         # Input image must be uint8
-        imgs = io.imread(args.input)
+        if args.stack_input is not None:
+            imgs = io.imread(args.stack_input)
+            if args.is_slice:
+                imgs = np.expand_dims(imgs, axis=0)
+            if args.prefix is None:
+                args.prefix = os.path.basename(args.stack_input).split('.')[0]
+        else:
+            dic = io.imread(args.bf)
+            mcy = io.imread(args.pcna)
+            if args.prefix is None:
+                args.prefix = os.path.basename(args.bf).split('.')[0].split('_')[0]
+            if args.is_slice:
+                dic = np.expand_dims(dic, axis=0)
+                mcy = np.expand_dims(mcy, axis=0)
+            imgs = getDetectInput(mcy, dic, sat=args.sat, gamma=1)
+            del dic, mcy
+            gc.collect()
+
         print("Run on image shape: "+str(imgs.shape))
-        if args.is_slice:
-            imgs = np.expand_dims(imgs, axis=0)
         imgs_out = []
         table_out = pd.DataFrame()
         json_out = {}
+        
         for i in range(imgs.shape[0]):
             img = imgs[i,:]
-            if gray:
-                img = np.stack([img, img, img], axis=2)  # convert gray to 3 channels
             start_time = time.time()
             if args.json_out:
                 # Generate json output readable by VIA2
                 img_relabel, out_props = predictFrame(imgs[i, :], i, demo, size_flt=1000, edge_flt=0)
-                file_name = os.path.basename(args.input)[:-4] + '-' + "%04d" % i + '.png'
+                file_name = args.prefix + '-' + "%04d" % i + '.png'
                 dic_frame = pred2json(img_relabel, out_props, file_name)
                 json_out[file_name] = dic_frame
             else:
@@ -113,7 +141,7 @@ if __name__ == "__main__":
                     time.time() - start_time,
                 )
             )
-        prefix = re.search('(.*)\..*', os.path.basename(args.input)).group(1)
+        prefix = args.prefix
         if args.json_out:
             with(open(os.path.join(args.output, prefix+'.json'), 'w', encoding='utf8')) as file:
                 json.dump(json_out, file)

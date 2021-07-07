@@ -174,7 +174,7 @@ def track_mask(mask, displace=40, gap_fill=5, render_phase=False, size_min=100, 
 
 
 def track_GT_json(fp_json, height=1200, width=1200, displace=40, gap_fill=5, size_min=100, fp_intensity_image=None,
-                  sat=None):
+                  sat=None, gamma=None):
     """Track ground truth VIA json file. Wrapper of `track_mask()`
 
     Args:
@@ -188,6 +188,7 @@ def track_GT_json(fp_json, height=1200, width=1200, displace=40, gap_fill=5, siz
             bright field intensity/std for tracking.
             Must has the same shape as mask, so will override height and width.
         sat (float): saturated pixel percentage when rescaling intensity image. If `None`, no rescaling will be done.
+        gamma (float): gamma-correction factor. If `None`, will not perform.
 
     Returns:
         (pandas.DataFrame): tracked object table.
@@ -202,10 +203,13 @@ def track_GT_json(fp_json, height=1200, width=1200, displace=40, gap_fill=5, siz
         PCNA_intensity = intensity_image[:,:,:,0]
         BF_intensity = intensity_image[:,:,:,-1]
         if sat:
-            rg = (sat/2, 100-sat/2)
+            rg = (sat, 100-sat)
             for i in range(PCNA_intensity.shape[0]):
-                PCNA_intensity[i,:,:] = exposure.rescale_intensity(PCNA_intensity[i, :, :], in_range=
-                                                                   tuple(np.percentile(PCNA_intensity[i, :, :], rg)))
+                if gamma:
+                    fme = exposure.adjust_gamma(PCNA_intensity[i, :, :], gamma)
+                else:
+                    fme = PCNA_intensity[i,:,:]
+                PCNA_intensity[i,:,:] = exposure.rescale_intensity(fme, in_range=tuple(np.percentile(fme, rg)))
             for i in range(BF_intensity.shape[0]):
                 BF_intensity[i,:,:] = exposure.rescale_intensity(BF_intensity[i, :, :], in_range=
                                                                  tuple(np.percentile(BF_intensity[i, :, :], rg)))

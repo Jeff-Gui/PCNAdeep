@@ -49,7 +49,7 @@ def check_PCNA_cfg(config, img_shape):
         if float(config['TRACKER']['GAP_FILL']) >= img_shape[0]:
             raise ValueError('Tracker memory should be smaller than time frame length.')
         for i in ['MIN_G', 'MIN_S', 'MIN_M']:
-            if float(config['POST_PROCESS'][i]) >= img_shape[0] or float(config['POST_PROCESS'][i]) < img_shape[0]:
+            if float(config['POST_PROCESS'][i]) >= img_shape[0] or float(config['POST_PROCESS'][i]) <=0:
                 raise ValueError('Cell cycle phase length should be positive and smaller than frame length.')
         for i in ['SMOOTH', 'MITOSIS_LEN', 'MAX_FRAME_TRH', 'SEARCH_RANGE']:
             to_check = float(config['POST_PROCESS']['REFINER'][i])
@@ -273,7 +273,8 @@ if __name__ == "__main__":
                         os.mkdir(md)
                     imgs = getDetectInput(io.imread(os.path.join(args.pcna, si[1])), 
                                           io.imread(os.path.join(args.dic, si[2])),
-                                          sat=float(pcna_cfg_dict['PIX_SATURATE']))
+                                          sat=float(pcna_cfg_dict['PIX_SATURATE']),
+                                          gamma=float(pcna_cfg_dic['GAMMA']))
 
                     inspect = imgs[range(0, imgs.shape[0], 100),:,:,:].copy()
                     io.imsave(os.path.join(args.output, si[0], si[0] + '_sample_intput.tif'), inspect)
@@ -321,7 +322,8 @@ if __name__ == "__main__":
             pcna = io.imread(args.pcna)
             dic = io.imread(args.dic)
             logger.info("Generating composite...")
-            imgs = getDetectInput(pcna, dic)
+            imgs = getDetectInput(pcna, dic, sat=float(pcna_cfg_dict['PIX_SATURATE']),
+                                  gamma=float(pcna_cfg_dict['GAMMA']))
             del pcna
             del dic
             gc.collect()

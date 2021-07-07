@@ -26,7 +26,6 @@ def load_PCNA_from_json(json_path, image_path, width=1200, height=1200):
 
     with open(json_path, 'r', encoding='utf8') as fp:
         ann = json.load(fp)
-    count = 1
     outs = []
     for key in list(ann.keys()):
         ann_img = ann[key]
@@ -51,9 +50,6 @@ def load_PCNA_from_json(json_path, image_path, width=1200, height=1200):
                  'segmentation': [edge.copy()]})
 
         outs.append(out)
-        if count % 100 == 0:
-            print("Loaded " + str(count) + " images.")
-        count += 1
     return outs
 
 
