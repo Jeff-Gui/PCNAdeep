@@ -8,7 +8,7 @@ from skimage.util import img_as_uint
 from skimage.morphology import remove_small_objects
 import pandas as pd
 import numpy as np
-from pcnaDeep.data.utils import json2mask
+from pcnaDeep.data.utils import json2mask, expand_bbox
 
 
 def track(df, displace=40, gap_fill=5):
@@ -78,6 +78,8 @@ def track_mask(mask, displace=40, gap_fill=5, render_phase=False, size_min=100, 
     PHASE_DIC = {10: 'G1/G2', 50: 'S', 100: 'M', 200: 'G1/G2'}
     p = pd.DataFrame()
     mask_lbd = np.zeros(mask.shape)
+    h = mask.shape[1]
+    w = mask.shape[2]
     
     for i in range(mask.shape[0]):
         # remove small objects
@@ -141,8 +143,8 @@ def track_mask(mask, displace=40, gap_fill=5, render_phase=False, size_min=100, 
                 e.append(0)
                 phase.append(0)
             # extract intensity
-            b1, b2, b3, b4 = int(props.iloc[k][0]), int(props.iloc[k][2]), \
-                             int(props.iloc[k][1]), int(props.iloc[k][3])
+            b1, b3, b2, b4 = expand_bbox((props.iloc[k][0], props.iloc[k][1],
+                                          props.iloc[k][2], props.iloc[k][3]), 1, (h,w))
             lbd = int(props.iloc[k][6])
             obj_region = mask_lbd[i, b1:b2, b3:b4].copy()
             its_region = PCNA_intensity[i, b1:b2, b3:b4].copy()

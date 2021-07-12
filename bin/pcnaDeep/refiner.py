@@ -26,7 +26,7 @@ class Refiner:
 
     def __init__(self, track, smooth=5, minGS=6, minM=3, mode='SVM',
                  threshold_mt_F=150, threshold_mt_T=5,
-                 search_range=5, mt_len=5, sample_freq=1/20, model_train='', mask=None):
+                 search_range=5, mt_len=5, sample_freq=1/20, model_train='', mask=None, dilate_factor=0.5):
         """Refinement of the tracked objects.
 
         Algorithms:
@@ -35,19 +35,20 @@ class Refiner:
                be used as feature for recognizing parent-daughter relationship.
 
         Args:
-            track (pandas.DataFrame): tracked object table
-            smooth (int): smoothing window on classification confidence
-            minGS (int): minimum duration of G1/G2/S phase, choose maximum if differs among three
-            mode (str): how to resolve parent-daughter relationship, either 'SVM', 'TRAIN' or 'TRH'
+            track (pandas.DataFrame): tracked object table.
+            smooth (int): smoothing window on classification confidence.
+            minGS (int): minimum duration of G1/G2/S phase, choose maximum if differs among three.
+            mode (str): how to resolve parent-daughter relationship, either 'SVM', 'TRAIN' or 'TRH'.
             - Essential for TRH mode:
             threshold_mt_F (int): mitosis displace maximum, can be evaluated as maximum cytokinesis distance.
             threshold_mt_T (int): mitosis frame difference maximum, can be evaluated as maximum mitosis frame length.
             - Essential for SVM/TRAIN mode (for normalizing different imaging conditions):
-            search_range (int): when calculating mitosis score, how many time points to consider
-            mt_len (int): mitosis length of the cells, evaluated manually
-            sample_freq (float): sampling frequency: x frame per minute
-            model_train (str): path to SVM model training data
-            mask (numpy.ndarray): object masks, same shape as input, must labeled with object ID
+            search_range (int): when calculating mitosis score, how many time points to consider.
+            mt_len (int): mitosis length of the cells, evaluated manually.
+            sample_freq (float): sampling frequency: x frame per minute.
+            model_train (str): path to SVM model training data.
+            mask (numpy.ndarray): object masks, same shape as input, must labeled with object ID.
+            dilate_factor (float): dilate the mask with `n * mean object radius`, default 0.5.
         """
 
         self.logger = logging.getLogger('pcna.Refiner')
@@ -73,6 +74,7 @@ class Refiner:
                              'training of the resolver or threshold based resolver.')
 
         self.SMOOTH = smooth
+        self.dilate_factor = dilate_factor
         self.MIN_GS = minGS
         self.MIN_M = minM
         self.short_tracks = []
@@ -385,7 +387,8 @@ class Refiner:
                 sls.append(sl)
             out = np.sum(np.stack(sls, axis=0), axis=0)
             out = out.astype('bool')
-            dilate_range = int(np.floor(self.mean_size/4))  # dilate the mask by 50% mean radius
+            # dilate the mask by 50% mean radius, adjustable
+            dilate_range = 2 * self.dilate_factor * int(np.floor(self.mean_size/4))
             out = morph.binary_dilation(out, selem=np.ones((dilate_range, dilate_range)))
             if np.sum(out) == 0:
                 warnings.warn('Object not found in mask for parent: ' + str(p) + ' in frames: ' + str(frame)[1:-1])

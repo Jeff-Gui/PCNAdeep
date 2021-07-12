@@ -172,8 +172,11 @@ class Trk_obj:
         elif mode == 'to_next':
             cur_cls = clss[fm_id]
             j = fm_id + 1
-            while clss[j] == cur_cls and j < len(clss):
-                j += 1
+            while j < len(clss):
+                if clss[j] == cur_cls:
+                    j += 1
+                else:
+                    break
             rg = [i for i in range(fm_id, j)]
         else:
             raise ValueError('Mode can only be single, to_next or range, not ' + mode)
@@ -184,8 +187,8 @@ class Trk_obj:
                 cls_predicted = 'G1/G2'
                 self.track.loc[idx[r], 'emerging'] = 1
             elif cls in ['G1','G2']:
-                cls_resolved = 'G1/G2'
-                cls_predicted = cls
+                cls_resolved = cls
+                cls_predicted = 'G1/G2'
             else:
                 cls_resolved = cls
                 cls_predicted = cls
@@ -356,22 +359,35 @@ class Trk_obj:
                     elif args.e:
                         md = 'range'
                         args.e = int(args.e)
+                    assert args.t is not None
+                    assert args.f is not None
                     self.correct_cls(int(args.t), args.f, str(args.l), md, end_frame=args.e)
                 elif cmd == 'r':
+                    assert args.t1 is not None
+                    assert args.t2 is not None
+                    assert args.f is not None
                     self.create_or_replace(int(args.t1), args.f, int(args.t2))
                 elif cmd == 'c':
+                    assert args.f is not None
+                    assert args.t is not None
                     self.create_or_replace(int(args.t), args.f)
                 elif cmd == 'cp':
+                    assert args.p is not None
+                    assert args.d is not None
                     self.create_parent(int(args.p), int(args.d))
                 elif cmd == 'dp':
+                    assert args.d is not None
                     self.del_parent(int(args.d))
                 elif cmd == 'del':
+                    assert args.t is not None
                     if args.f is None:
                         self.delete_track(int(args.t))
                     else:
                         self.delete_track(int(args.t), args.f)
                 elif cmd == 'div':
                     ds = args.ds
+                    assert args.f is not None
+                    assert args.p is not None
                     if ds is None:
                         raise ValueError('Specify daughters in comma-separated format.')
                     self.edit_div(int(args.p), list(map(lambda x: int(x), args.ds.split(','))), int(args.f))
@@ -412,6 +428,9 @@ class Trk_obj:
                     self.parser.print_help()
             except ValueError as v:
                 print(repr(v))
+                continue
+            except AssertionError:
+                print('Essential parameter not supplied!')
                 continue
 
         return

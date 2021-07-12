@@ -397,3 +397,42 @@ def filter_edge(img, props, edge_flt):
             props = props.drop(index=i)
 
     return img, props
+
+
+def expand_bbox(bbox, factor, limit):
+    """Expand bounding box by factor times.
+
+    Args:
+        bbox (tuple): (x1, y1, x2, y2).
+        factor (float): positive value, expand height and width by multiplying the factor.
+            Round if result is not integer.
+        limit (tuple): (x_max, y_max), limit values to avoid boundary crush.
+
+    Returns:
+        (tuple): new bounding box (x1, y1, x2, y2).
+    """
+    if factor < 0:
+        raise ValueError('Must expand bounding box with a positive factor.')
+
+    h = bbox[2] - bbox[0]
+    w = bbox[3] - bbox[1]
+    factor = factor / 2
+    x1, y1, x2, y2 = bbox
+    x1 -= factor * h
+    y1 -= factor * w
+    x2 += factor * h
+    y2 += factor * w
+
+    new_bbox = [x1,y1,x2,y2]
+    for i in range(len(new_bbox)):
+        new_bbox[i] = int(np.round(new_bbox[i]))
+    if new_bbox[0] < 0:
+        new_bbox[0] = 0
+    if new_bbox[1] < 0:
+        new_bbox[1] = 0
+    if new_bbox[2] >= limit[0]:
+        new_bbox[2] = limit[0] - 1
+    if new_bbox[3] >= limit[1]:
+        new_bbox[3] = limit[1] - 1
+
+    return tuple(new_bbox)

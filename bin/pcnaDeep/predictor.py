@@ -12,7 +12,7 @@ import pandas as pd
 from detectron2.data import MetadataCatalog
 from detectron2.engine.defaults import DefaultPredictor
 from detectron2.utils.visualizer import ColorMode, Visualizer
-from pcnaDeep.data.utils import filter_edge
+from pcnaDeep.data.utils import filter_edge, expand_bbox
 
 
 class VisualizationDemo(object):
@@ -241,8 +241,6 @@ def pred2json(mask, label_table, fp):
         cur_tmp['shape_attributes']['all_points_x'] = edge[::2]
         cur_tmp['shape_attributes']['all_points_y'] = edge[1::2]
         sub_label = label_table[label_table['continuous_label'] == region.label]
-        if sub_label.shape[0] == 0:
-            print(region.label)
         cur_tmp['region_attributes']['phase'] = sub_label['phase'].iloc[0]
         if sub_label['emerging'].iloc[0] == 1:
             cur_tmp['region_attributes']['phase'] = 'E'
@@ -329,8 +327,9 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000, edge
         lb_ori = int(out_props.iloc[row]['label'])
 
         # get background intensity
-        b1,b2,b3,b4 = int(out_props.iloc[row]['bbox-0']), int(out_props.iloc[row]['bbox-2']),\
-                      int(out_props.iloc[row]['bbox-1']), int(out_props.iloc[row]['bbox-3'])
+        b1,b3,b2,b4 = expand_bbox((out_props.iloc[row]['bbox-0'], out_props.iloc[row]['bbox-1'],
+                                   out_props.iloc[row]['bbox-2'], out_props.iloc[row]['bbox-3']),
+                                  1, img_relabel.shape)
         obj_region = img_relabel[b1:b2, b3:b4].copy()
         its_region = img[b1:b2, b3:b4, 0].copy()
         dic_region = img[b1:b2, b3:b4, 2].copy()
