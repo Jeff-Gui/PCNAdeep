@@ -144,11 +144,14 @@ class Trainer(DefaultTrainer):
         return build_detection_train_loader(cfg, mapper=mapper)
 
 
-def plain_register_dataset():
-    DatasetCatalog.register("pcna", lambda: load_PCNAs_json(TRAIN_ANN_PATH, TRAIN_PATH))
-    MetadataCatalog.get("pcna").set(thing_classes=CLASS_NAMES, evaluator_type='coco')
-    DatasetCatalog.register("pcna_test", lambda: load_PCNAs_json(TEST_ANN_PATH, TEST_PATH))
-    MetadataCatalog.get("pcna_test").set(thing_classes=CLASS_NAMES, evaluator_type='coco')
+def register_train(cfg):
+    DatasetCatalog.register("pcna", lambda: load_PCNAs_json(cfg.TRAIN_ANN_PATH, cfg.TRAIN_PATH))
+    MetadataCatalog.get("pcna").set(thing_classes=cfg.CLASS_NAMES, evaluator_type='coco')
+
+
+def register_test(cfg):
+    DatasetCatalog.register("pcna_test", lambda: load_PCNAs_json(cfg.TEST_ANN_PATH, cfg.TEST_PATH))
+    MetadataCatalog.get("pcna_test").set(thing_classes=cfg.CLASS_NAMES, evaluator_type='coco')
 
 
 def setup(args):
@@ -170,7 +173,7 @@ def setup(args):
     cfg.SOLVER.WEIGHT_DECAY_NORM = 0.0
     cfg.SOLVER.GAMMA = 0.1
     cfg.SOLVER.STEPS = (600, 1200, 1600, 2000)
-    cfg.SOLVER.CHECKPOINT_PERIOD = 1000
+    cfg.SOLVER.CHECKPOINT_PERIOD = 2000
     cfg.TEST.EVAL_PERIOD = 600
 
     cfg.SOLVER.MAX_ITER = 2400
@@ -191,6 +194,26 @@ def setup(args):
     cfg.INPUT.CROP.SIZE = [0.9, 0.9]
     cfg.TEST.AUG.ENABLED = False
 
+    ### Data
+    # Class metadata
+    cfg.CLASS_NAMES = ["G1/G2", "S", "M", "E"]
+    # Dataset metadata
+    DATASET_ROOT = '/home/zje/dataset/pcna'
+    
+    TRAIN_PREFIX = ['20200902-MCF10A-dual', '20210103-MCF10A', '20210127-MCF10A-mRels2', '20200902-MCF10A-s1_cpd',
+                    '20201118-RPE_rand', 'MCF10A_rand', '20201111-RPE_rand', '20210205-10A_rand',
+                    '20200729-RPE-s2_cpd', '20200902-MCF10A-s2_cpd', '20201122-RPE_rand', '20210127-10A_mRel3_rand']
+    TRAIN_PATH = []
+    TRAIN_ANN_PATH = []
+    for p in TRAIN_PREFIX:
+        TRAIN_PATH.append(os.path.join(DATASET_ROOT, p))
+        TRAIN_ANN_PATH.append(os.path.join(DATASET_ROOT, p+'.json'))
+
+    cfg.TRAIN_PATH = TRAIN_PATH
+    cfg.TRAIN_ANN_PATH = TRAIN_ANN_PATH
+    cfg.TEST_PATH = [os.path.join(DATASET_ROOT, 'testing')]
+    cfg.TEST_ANN_PATH = [os.path.join(DATASET_ROOT, 'testing.json')]
+
     cfg.freeze()
     default_setup(cfg, args)
     return cfg
@@ -198,7 +221,8 @@ def setup(args):
 
 def main(args):
     cfg = setup(args)
-    plain_register_dataset()
+    register_train(cfg)
+    register_test(cfg)
 
     if args.eval_only:
         model = Trainer.build_model(cfg)
@@ -227,25 +251,12 @@ def main(args):
 
 
 if __name__ == "__main__":
-    # Class metadata
-    CLASS_NAMES = ["G1/G2", "S", "M", "E"]
-    # Dataset metadata
-    DATASET_ROOT = '/home/zje/dataset/pcna'
-    
-    TRAIN_PREFIX = ['20200902-MCF10A-dual', '20210103-MCF10A', '20210127-MCF10A-mRels2', '20200902-MCF10A-s1_cpd',
-                    '20201118-RPE_rand', 'MCF10A_rand', '20201111-RPE_rand', '20210205-10A_rand',
-                    '20200729-RPE-s2_cpd', '20200902-MCF10A-s2_cpd']
-    TRAIN_PATH = []
-    TRAIN_ANN_PATH = []
-    for p in TRAIN_PREFIX:
-        TRAIN_PATH.append(os.path.join(DATASET_ROOT, p))
-        TRAIN_ANN_PATH.append(os.path.join(DATASET_ROOT, p+'.json'))
-
-    TEST_PATH = [os.path.join(DATASET_ROOT, 'testing')]
-    TEST_ANN_PATH = [os.path.join(DATASET_ROOT, 'testing.json')]
-
     args = default_argument_parser().parse_args()
     print("Command Line Args:", args)
+
+    #cfg = setup(args)
+    #register_test(cfg)
+
     launch(
         main,
         args.num_gpus,

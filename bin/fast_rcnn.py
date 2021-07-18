@@ -360,8 +360,8 @@ class FastRCNNOutputLayers(nn.Module):
         smooth_l1_beta: float = 0.0,
         box_reg_loss_type: str = "smooth_l1",
         loss_weight: Union[float, Dict[str, float]] = 1.0,
-        focal_alpha=0.75,
-        focal_gamma=2,
+        focal_alpha=1,
+        focal_gamma=0,
         cls_loss='ce',
     ):
         """
@@ -504,7 +504,6 @@ class FastRCNNOutputLayers(nn.Module):
             proposal_boxes = gt_boxes = torch.empty((0, 4), device=proposal_deltas.device)
 
         losses = {
-            #"loss_cls": cross_entropy(scores, gt_classes, reduction="mean"),
             "loss_cls": self.softmax_focal_loss(scores, gt_classes, reduction="mean") if self.cls_loss=='focal' else
               cross_entropy(scores, gt_classes, reduction="mean"),
             "loss_box_reg": self.box_reg_loss(

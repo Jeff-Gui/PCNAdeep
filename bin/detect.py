@@ -30,7 +30,7 @@ def setup_cfg(args):
 
 
 def get_parser():
-    parser = argparse.ArgumentParser(description="Detectron2 demo for builtin configs")
+    parser = argparse.ArgumentParser(description="pcnaDeep script for detection stage only.")
     parser.add_argument(
         "--config-file",
         default="../config/dtrnCfg.yaml",
@@ -68,13 +68,19 @@ def get_parser():
         action="store_true",
     )
     parser.add_argument(
-        "--json_out",
+        "--vis_out",
         action="store_true",
     )
     parser.add_argument(
         "--sat",
         type=float,
-        help="Saturated pixel when enhancing contrast. Only applies to separate channels.",
+        help="Saturated pixel when enhancing contrast. Only applies to separate channels. Default 1",
+        default=1,
+    )
+    parser.add_argument(
+        "--gamma",
+        type=float,
+        help="Gamma correction factor, enhance (<1) or suppress (>1) intensity non-linearly. Default 1",
         default=1,
     )
     parser.add_argument(
@@ -112,7 +118,7 @@ if __name__ == "__main__":
             if args.is_slice:
                 dic = np.expand_dims(dic, axis=0)
                 mcy = np.expand_dims(mcy, axis=0)
-            imgs = getDetectInput(mcy, dic, sat=args.sat, gamma=1)
+            imgs = getDetectInput(mcy, dic, sat=args.sat, gamma=args.gamma)
             del dic, mcy
             gc.collect()
 
@@ -124,7 +130,7 @@ if __name__ == "__main__":
         for i in range(imgs.shape[0]):
             img = imgs[i,:]
             start_time = time.time()
-            if args.json_out:
+            if not args.vis_out:
                 # Generate json output readable by VIA2
                 img_relabel, out_props = predictFrame(imgs[i, :], i, demo, size_flt=1000, edge_flt=0)
                 file_name = args.prefix + '-' + "%04d" % i + '.png'
@@ -142,7 +148,7 @@ if __name__ == "__main__":
                 )
             )
         prefix = args.prefix
-        if args.json_out:
+        if not args.vis_out:
             with(open(os.path.join(args.output, prefix+'.json'), 'w', encoding='utf8')) as file:
                 json.dump(json_out, file)
         else:

@@ -69,6 +69,10 @@ class DatasetMapper:
                 proposals from dataset_dict and keep the top k proposals for each image.
             recompute_boxes: whether to overwrite bounding box annotations
                 by computing tight bounding boxes from instance mask annotations.
+
+            ***Below are argumants for pcnaDeep
+            rescale_sat (float): pixel saturation for rescaling intensity (0~100).
+            gamma (float): gamma correction factor (>0) Adjust PCNA only.
         """
         if recompute_boxes:
             assert use_instance_mask, "recompute_boxes requires instance masks"
@@ -86,6 +90,11 @@ class DatasetMapper:
         logger = logging.getLogger(__name__)
         mode = "training" if is_train else "inference"
         logger.info(f"[DatasetMapper] Augmentations used in {mode}: {augmentations}")
+
+        self.rescale_sat = 0.6
+        self.gamma = 1
+        print('Rescale saturation: ' + str(self.rescale_sat) + ', gamma correction: ' + str(self.gamma))
+        self.saved = 20
 
     @classmethod
     def from_config(cls, cfg, is_train: bool = True):
@@ -117,20 +126,19 @@ class DatasetMapper:
             )
         return ret
 
-    def read_PCNA_training(self, filename, rescale_sat=0.2, gamma=0.5, base_pcna='mcy', base_dic='dic'):
+    def read_PCNA_training(self, filename, base_pcna='mcy', base_dic='dic'):
         """Read PCNA/DIC image, make composite and perform pre-processing
 
         Args:
             filename (str): File name conjugated with parent directory.
-            rescale_sat (float): pixel saturation for rescaling intensity (0~100).
-            gamma (float): gamma correction factor (>0) Adjust PCNA only.
             base_pcna (str): folder name storing pcna channel.
             base_dic (str): folder name storing bright field channel.
         """
         FORMAT='tif'
-        sat = rescale_sat
+        sat = self.rescale_sat
+        gamma = self.gamma
         if sat < 0 or sat > 100:
-            raise ValueError('Saturated pixel should not be negative or exceeds 100.')
+            raise ValueError('Saturated pixel should not be negative or exceed 100.')
         if gamma <= 0:
             raise ValueError('Gamma factor should not be negative or zero.')
 
@@ -143,14 +151,17 @@ class DatasetMapper:
 
         if pcna.dtype != np.dtype('uint16') or dic.dtype != np.dtype('uint16'):
             raise ValueError('Input image must be in uint16 format.')
-
+        
+        #pcna_raw = pcna.copy()
         pcna = exposure.adjust_gamma(pcna, gamma=gamma)
         rg = (sat, 100-sat)
         pcna = exposure.rescale_intensity(pcna, in_range=tuple(np.percentile(pcna, rg)))
         dic = exposure.rescale_intensity(dic, in_range=tuple(np.percentile(dic, rg)))
+        #pcna_raw = exposure.rescale_intensity(pcna_raw, in_range=tuple(np.percentile(pcna_raw, rg)))
 
         pcna = img_as_ubyte(pcna)
         dic = img_as_ubyte(dic)
+        #pcna_raw = img_as_ubyte(pcna_raw)
         slice_list = [pcna, pcna, dic]
         image = np.stack(slice_list, axis=2)
 
@@ -183,6 +194,10 @@ class DatasetMapper:
         aug_input = T.AugInput(image, sem_seg=sem_seg_gt)
         transforms = self.augmentations(aug_input)
         image, sem_seg_gt = aug_input.image, aug_input.sem_seg
+        
+        if self.saved<20:
+            self.saved += 1
+            io.imsave('/home/zje/dataset/test_train/'+os.path.basename(dataset_dict['file_name']), image)
 
         image_shape = image.shape[:2]  # h, w
         # Pytorch's dataloader is efficient on torch.Tensor due to shared-memory,

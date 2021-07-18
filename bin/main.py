@@ -86,9 +86,9 @@ def get_parser():
         help="Path to PCNA channel time series image.",
     )
     parser.add_argument(
-        "--dic",
+        "--bf",
         default=None,
-        help="Path to DIC channel time series image.",
+        help="Path to bright field channel time series image.",
     )
     parser.add_argument(
         "--stack-input",
@@ -239,10 +239,10 @@ if __name__ == "__main__":
     ipt = args.stack_input
 
     if bool(pcna_cfg_dict['BATCH']):
-        if args.pcna is not None and args.dic is not None:
-            if os.path.isdir(args.pcna) and os.path.isdir(args.dic) and os.path.isdir(args.output):
+        if args.pcna is not None and args.bf is not None:
+            if os.path.isdir(args.pcna) and os.path.isdir(args.bf) and os.path.isdir(args.output):
                 pcna_imgs = os.listdir(args.pcna)
-                dic_imgs = os.listdir(args.dic)
+                dic_imgs = os.listdir(args.bf)
                 pairs = []
                 for pi in pcna_imgs:
                     prefix = os.path.basename(pi)
@@ -256,12 +256,12 @@ if __name__ == "__main__":
                     else:
                         pcna_fp = prefix + 'pcna.tif'
 
-                    if prefix + 'dic.tif' in dic_imgs:
-                        dic_fp = prefix + 'dic.tif'
-                    elif prefix + 'DIC.tif' in dic_imgs:
-                        dic_fp = prefix + 'DIC.tif'
+                    if prefix + 'bf.tif' in dic_imgs:
+                        dic_fp = prefix + 'bf.tif'
+                    elif prefix + 'BF.tif' in dic_imgs:
+                        dic_fp = prefix + 'BF.tif'
                     else:
-                        raise ValueError('DIC file ' + prefix + 'dic.tif does not exit.')
+                        raise ValueError('Bright field file ' + prefix + 'bf.tif does not exit.')
                     prefix = prefix[:-1] if prefix[-1] in ['_','-'] else prefix
                     pairs.append((prefix, pcna_fp, dic_fp))
                 
@@ -272,9 +272,9 @@ if __name__ == "__main__":
                     else:
                         os.mkdir(md)
                     imgs = getDetectInput(io.imread(os.path.join(args.pcna, si[1])), 
-                                          io.imread(os.path.join(args.dic, si[2])),
+                                          io.imread(os.path.join(args.bf, si[2])),
                                           sat=float(pcna_cfg_dict['PIX_SATURATE']),
-                                          gamma=float(pcna_cfg_dic['GAMMA']))
+                                          gamma=float(pcna_cfg_dict['GAMMA']))
 
                     inspect = imgs[range(0, imgs.shape[0], 100),:,:,:].copy()
                     io.imsave(os.path.join(args.output, si[0], si[0] + '_sample_intput.tif'), inspect)
@@ -309,7 +309,7 @@ if __name__ == "__main__":
             else:
                 raise ValueError('Must input directory in batch mode, not single file.')
 
-    if (ipt is not None or (args.pcna is not None and args.dic is not None)) and not bool(pcna_cfg_dict['BATCH']):
+    if (ipt is not None or (args.pcna is not None and args.bf is not None)) and not bool(pcna_cfg_dict['BATCH']):
         flag = True
         if ipt is not None:
             prefix = os.path.basename(ipt)
@@ -320,7 +320,7 @@ if __name__ == "__main__":
             prefix = os.path.basename(args.pcna)
             prefix = re.match('(.+)\.\w+', prefix).group(1)
             pcna = io.imread(args.pcna)
-            dic = io.imread(args.dic)
+            dic = io.imread(args.bf)
             logger.info("Generating composite...")
             imgs = getDetectInput(pcna, dic, sat=float(pcna_cfg_dict['PIX_SATURATE']),
                                   gamma=float(pcna_cfg_dict['GAMMA']))
