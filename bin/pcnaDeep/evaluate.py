@@ -1,19 +1,22 @@
 # -*- coding: utf-8 -*-
 import os
+import logging
 import subprocess
 from pcnaDeep.data.preparePCNA import load_PCNAs_json
 from pcnaDeep.data.annotate import relabel_trackID, label_by_track, get_lineage_txt, load_trks, lineage_dic2txt, \
     break_track, save_seq, generate_calibanTrk
-from detectron2.evaluation import COCOEvaluator, inference_on_dataset
+from detectron2.evaluation import COCOEvaluator, inference_on_dataset, DatasetEvaluators, print_csv_format
 from detectron2.data import build_detection_test_loader
 from detectron2.data import MetadataCatalog, DatasetCatalog
 from detectron2.config import get_cfg
 from detectron2.modeling import build_model
+from detectron2 import model_zoo
 
 
 class pcna_detectronEvaluator:
 
-    def __init__(self, cfg_path, dataset_ann_path, dataset_path, out_dir, class_name=["G1/G2", "S", "M", "E"]):
+    def __init__(self, cfg_path, dataset_ann_path, dataset_path, out_dir, class_name=["G1/G2", "S", "M", "E"], 
+                 confidence_threshold=0.5):
         """Evaluate Detectron2 performance using COCO matrix
 
         Args:
@@ -22,14 +25,27 @@ class pcna_detectronEvaluator:
             dataset_path (str): path to testing dataset, must in format of pcnaDeep: separate dic and mcy folders.
             out_dir (str): output directory.
             class_name (list): classification name, should be the same as training config.
+            confidence_threshold (float): confidence threshold, default 0.5.
         """
         self.CLASS_NAMES = class_name
         self.cfg = get_cfg()
+        self.cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
         self.cfg.merge_from_file(cfg_path)
+        self.cfg.MODEL.RETINANET.SCORE_THRESH_TEST = confidence_threshold
+        self.cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = confidence_threshold
+        self.cfg.MODEL.PANOPTIC_FPN.COMBINE.INSTANCES_CONFIDENCE_THRESH = confidence_threshold
+
         self.out = out_dir
         DatasetCatalog.register("pcna_test", lambda: load_PCNAs_json(list(dataset_ann_path), list(dataset_path)))
         MetadataCatalog.get("pcna_test").set(thing_classes=self.CLASS_NAMES, evaluator_type='coco')
 
+        self.logger = logging.getLogger('detectron2')
+        self.logger.setLevel(logging.DEBUG)
+        handler1 = logging.StreamHandler()
+        handler1.setLevel(logging.INFO)
+        formatter = logging.Formatter("%(asctime)s %(name)s %(levelname)s %(message)s")
+        handler1.setFormatter(formatter)
+        self.logger.addHandler(handler1)
 
     def run_evaluate(self, model_path):
         """Run evaluation
@@ -37,14 +53,18 @@ class pcna_detectronEvaluator:
         Args:
             model_path (str): path to pre-trained model.
         """
-        #DatasetCatalog.register("pcna_test", lambda: load_PCNAs_json(list(dataset_ann_path), list(dataset_path)))
-        #MetadataCatalog.get("pcna_test").set(thing_classes=self.CLASS_NAMES, evaluator_type='coco')
-        evaluator = COCOEvaluator("pcna_test", self.cfg, False, output_dir=self.out)
+        evaluator = COCOEvaluator(dataset_name="pcna_test", output_dir=self.out, 
+                                  tasks=('segm',), distributed=True)
         
         self.cfg.MODEL.WEIGHTS = model_path
         val_loader = build_detection_test_loader(self.cfg, "pcna_test")
         model = build_model(self.cfg)
-        inference_on_dataset(model, val_loader, evaluator)
+        result = inference_on_dataset(model, val_loader, evaluator)
+        #print(model)
+        #print(val_loader)
+        #print(evaluator)
+        print(result)
+        print_csv_format(result)
 
 
 class pcna_ctcEvaluator:

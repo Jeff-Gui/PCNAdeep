@@ -161,10 +161,11 @@ def setup(args):
 
     cfg = get_cfg()
     cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
+    cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
+    #cfg.MODEL.WEIGHTS = "../models/dtrn_20210328.pth"
     cfg.DATASETS.TRAIN = ("pcna",)
     cfg.DATASETS.TEST = ("pcna_test",)
     cfg.DATALOADER.NUM_WORKERS = 4
-    cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
     cfg.SOLVER.IMS_PER_BATCH = 16
     cfg.SOLVER.BASE_LR = 0.1
     cfg.SOLVER.WARMUP_ITERS = 400
@@ -174,9 +175,9 @@ def setup(args):
     cfg.SOLVER.GAMMA = 0.1
     cfg.SOLVER.STEPS = (600, 1200, 1600, 2000)
     cfg.SOLVER.CHECKPOINT_PERIOD = 2000
-    cfg.TEST.EVAL_PERIOD = 600
+    cfg.TEST.EVAL_PERIOD = 600  # 600
 
-    cfg.SOLVER.MAX_ITER = 2400
+    cfg.SOLVER.MAX_ITER = 2400  #  2400
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 256
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 4  # change according to class number
     # Avoid overlapping
