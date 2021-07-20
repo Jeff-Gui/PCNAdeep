@@ -13,44 +13,60 @@ from PIL import Image, ImageDraw
 from skimage.util import img_as_ubyte
 
 
-def json2mask(ip, out, height, width, label_phase=False, mask_only=False):
-    """Draw mask according to VIA2 annotation and summarize information
+def draw_obj_mask(objs, height, width):
+    """Draw mask according to VIA2 annotations. Label phase information by different intensity levels in `PHASE_DIS`
 
     Args:
-        ip (str): input directory of the json file
-        out (str): output directory of the image and summary table
-        height (int): image height
-        width (int): image width
+        objs (list): list of object dictionaries converted from `json` file.
+        height (int): image height.
+        width (int): image width.
+    """
+    PHASE_DIS = {"G1/G2": 10, "S": 50, "M": 100, "E": 200}
+    img = Image.new('L', (height, width))
+    draw = ImageDraw.Draw(img)
+    for o in objs:
+        x = o['shape_attributes']['all_points_x']
+        y = o['shape_attributes']['all_points_y']
+        xys = [0 for _ in range(len(x) + len(y))]
+        xys[::2] = x
+        xys[1::2] = y
+        phase = o['region_attributes']['phase']
+        draw.polygon(xys, fill=PHASE_DIS[phase], outline=0)
+    img = np.array(img)
+
+    return img
+
+
+def json2mask(ip, out, height, width, label_phase=False, mask_only=False, save_fore_pct=False):
+    """Draw mask according to VIA2 annotation and summarize information.
+
+    Args:
+        ip (str): input directory of the json file.
+        out (str): output directory of the image and summary table.
+        height (int): image height.
+        width (int): image width.
         label_phase (bool): whether to label the mask with values corresponding to cell cycle classification or not. 
             If true, will label as the following values: 'G1/G2':10, 'S':50, 'M':100;
-            If false, will output binary masks
-        mask_only (bool): whether to suppress file output and return mask only
+            If false, will output binary masks.
+        mask_only (bool): whether to suppress file output and return mask only.
+        save_fore_pct (bool): whether to append foreground percentage as an file attribute to the json file and
+            save it (CAUTION: overwrite the original file).
 
     Outputs:
-        .png files of object masks
+        `png` files of object masks.
     """
 
     OUT_PHASE = label_phase
-    PHASE_DIS = {"G1/G2": 10, "S": 50, "M": 100, "E": 200}
     stack = []
     with open(ip, 'r', encoding='utf8')as fp:
         j = json.load(fp)
         if '_via_img_metadata' in list(j.keys()):
             j = j['_via_img_metadata']
+
         for key in list(j.keys()):
-            img = Image.new('L', (height, width))
             dic = j[key]
             objs = dic['regions']  # containing all object areas
-            draw = ImageDraw.Draw(img)
-            for o in objs:
-                x = o['shape_attributes']['all_points_x']
-                y = o['shape_attributes']['all_points_y']
-                xys = [0 for i in range(len(x) + len(y))]
-                xys[::2] = x
-                xys[1::2] = y
-                phase = o['region_attributes']['phase']
-                draw.polygon(xys, fill=PHASE_DIS[phase], outline=0)
-            img = np.array(img)
+            img = draw_obj_mask(objs, height, width)
 
             if not OUT_PHASE:
                 img = img_as_ubyte(img.astype('bool'))
@@ -58,8 +74,15 @@ def json2mask(ip, out, height, width, label_phase=False, mask_only=False):
                 stack.append(img)
             else:
                 io.imsave(os.path.join(out, dic['filename']), img)
-        if mask_only:
-            return np.stack(stack, axis=0)
+            if save_fore_pct:
+                j[key]['file_attributes']['fore_pct'] = np.sum(img > 0) / (height * width)
+
+    if save_fore_pct:
+        with(open(ip, 'w', encoding='utf8')) as fp:
+            json.dump(j, fp)
+
+    if mask_only:
+        return np.stack(stack, axis=0)
 
     return
 
@@ -153,14 +176,18 @@ def mask2json(in_dir, out_dir, phase_labeled=False, phase_dic={10: "G1/G2", 50: 
     return
 
 
-def getDetectInput(pcna, dic, gamma=0.8, sat=2):
+def getDetectInput(pcna, dic, fore_pct=-1, gamma=1, sat=1):
     """Generate pcna-mScarlet and DIC channel to RGB format for detectron2 model prediction
 
     Args:
         pcna (numpy.ndarray): uint16 PCNA-mScarlet image stack (T*H*W).
         dic (numpy.ndarray): uint16 DIC or phase contrast image stack.
-        gamma (float): gamma adjustment, >0, default 0.8.
-        sat (float): percent saturation, 0~100, default 0.
+        fore_pct (float or list): 
+            If `float`: foreground percentage (0~1), scale saturation (`sat`) accordingly. 
+            If `list`: foreground percentage (0~1) of each frame, must be the same length as the stack dimension one.
+            If set to `-1`, then no scaling will be performed.
+        gamma (float): gamma adjustment, >0, default 1.
+        sat (float): percent saturation, 0~100, default 1.
 
     Returns:
         (numpy.ndarray): uint8 composite image (T*H*W*C)
@@ -178,13 +205,23 @@ def getDetectInput(pcna, dic, gamma=0.8, sat=2):
         dic_img = np.expand_dims(dic_img, axis=0)
 
     outs = []
-    rg = (sat, 100-sat)
+    if not isinstance(fore_pct, list):
+        if fore_pct < 0:
+            rg = [(sat, 100 - sat) for _ in range(stack.shape[0])]
+        else:
+            rg = [(sat * (1-fore_pct), 100 - (sat * fore_pct)) for _ in range(stack.shape[0])]
+    else:
+        assert len(fore_pct) == stack.shape[0]
+        rg = [0 for _ in range(stack.shape[0])]
+        for j in range(len(fore_pct)):
+            rg[j] = (sat * (1-fore_pct[j]), 100 - (sat * fore_pct[j]))
+
     for f in range(stack.shape[0]):
         # rescale mCherry intensity
         fme = exposure.adjust_gamma(stack[f, :, :], gamma)
-        fme = exposure.rescale_intensity(fme, in_range=tuple(np.percentile(fme, rg)))
+        fme = exposure.rescale_intensity(fme, in_range=tuple(np.percentile(fme, rg[f])))
         dic_img[f, :, :] = exposure.rescale_intensity(dic_img[f, :, :],
-                                                      in_range=tuple(np.percentile(dic_img[f, :, :], rg)))
+                                                      in_range=tuple(np.percentile(dic_img[f, :, :], rg[f])))
 
         # save two-channel image for downstream
         fme = img_as_ubyte(fme)

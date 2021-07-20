@@ -126,11 +126,12 @@ class DatasetMapper:
             )
         return ret
 
-    def read_PCNA_training(self, filename, base_pcna='mcy', base_dic='dic'):
+    def read_PCNA_training(self, fore_pct, filename, base_pcna='mcy', base_dic='dic'):
         """Read PCNA/DIC image, make composite and perform pre-processing
 
         Args:
             filename (str): File name conjugated with parent directory.
+            fore_pct (float): Foreground pixel percentage, will adjust intensity accordingly.
             base_pcna (str): folder name storing pcna channel.
             base_dic (str): folder name storing bright field channel.
         """
@@ -154,7 +155,7 @@ class DatasetMapper:
         
         #pcna_raw = pcna.copy()
         pcna = exposure.adjust_gamma(pcna, gamma=gamma)
-        rg = (sat, 100-sat)
+        rg = (sat * (1-fore_pct), 100 - (sat * fore_pct))
         pcna = exposure.rescale_intensity(pcna, in_range=tuple(np.percentile(pcna, rg)))
         dic = exposure.rescale_intensity(dic, in_range=tuple(np.percentile(dic, rg)))
         #pcna_raw = exposure.rescale_intensity(pcna_raw, in_range=tuple(np.percentile(pcna_raw, rg)))
@@ -178,7 +179,8 @@ class DatasetMapper:
         dataset_dict = copy.deepcopy(dataset_dict)  # it will be modified by code below
         # USER: Write your own image loading if it's not from a file
         # Yifan Gui: replaced with pcnaDeep own reader
-        image = self.read_PCNA_training(dataset_dict["file_name"])
+        image = self.read_PCNA_training(dataset_dict["file_name"], dataset_dict["fore_pct"])
+        dataset_dict.pop("fore_pct", None)
 
         '''
         image = utils.read_image(dataset_dict["file_name"], format=self.image_format)

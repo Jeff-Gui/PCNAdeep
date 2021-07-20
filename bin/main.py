@@ -273,6 +273,7 @@ if __name__ == "__main__":
                         os.mkdir(md)
                     imgs = getDetectInput(io.imread(os.path.join(args.pcna, si[1])), 
                                           io.imread(os.path.join(args.bf, si[2])),
+                                          fore_pct=pcna_cfg_dict['FORE_PCT'],
                                           sat=float(pcna_cfg_dict['PIX_SATURATE']),
                                           gamma=float(pcna_cfg_dict['GAMMA']))
 
@@ -322,7 +323,9 @@ if __name__ == "__main__":
             pcna = io.imread(args.pcna)
             dic = io.imread(args.bf)
             logger.info("Generating composite...")
-            imgs = getDetectInput(pcna, dic, sat=float(pcna_cfg_dict['PIX_SATURATE']),
+            imgs = getDetectInput(pcna, dic,
+                                  fore_pct=pcna_cfg_dict['FORE_PCT'],
+                                  sat=float(pcna_cfg_dict['PIX_SATURATE']),
                                   gamma=float(pcna_cfg_dict['GAMMA']))
             del pcna
             del dic

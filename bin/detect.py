@@ -72,6 +72,12 @@ def get_parser():
         action="store_true",
     )
     parser.add_argument(
+        "--fore_pct",
+        type=float,
+        help="Estimated percentage of foreground pixels. Adjust saturation accordingly. Default 0.8",
+        default=0.8,
+    )
+    parser.add_argument(
         "--sat",
         type=float,
         help="Saturated pixel when enhancing contrast. Only applies to separate channels. Default 1",
@@ -118,7 +124,9 @@ if __name__ == "__main__":
             if args.is_slice:
                 dic = np.expand_dims(dic, axis=0)
                 mcy = np.expand_dims(mcy, axis=0)
-            imgs = getDetectInput(mcy, dic, sat=args.sat, gamma=args.gamma)
+            imgs = getDetectInput(mcy, dic,
+                                  fore_pct=args.fore_pct,
+                                  sat=args.sat, gamma=args.gamma)
             del dic, mcy
             gc.collect()
 

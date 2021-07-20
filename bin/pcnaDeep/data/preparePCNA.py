@@ -33,7 +33,7 @@ def load_PCNA_from_json(json_path, image_path, width=1200, height=1200):
         regions = ann_img['regions']
         id = re.search('(.+)\.\w*', fn).group(1)
         out = {'file_name': os.path.join(image_path, fn), 'height': height, 'width': width, 'image_id': id,
-               'annotations': []}
+               'annotations': [], 'fore_pct':ann_img['file_attributes']['fore_pct']}
 
         for r in regions:
             phase = r['region_attributes']['phase']
