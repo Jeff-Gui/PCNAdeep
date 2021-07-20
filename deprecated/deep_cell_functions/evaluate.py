@@ -3,8 +3,9 @@ import os
 import logging
 import subprocess
 from pcnaDeep.data.preparePCNA import load_PCNAs_json
-from pcnaDeep.data.annotate import relabel_trackID, label_by_track, get_lineage_txt, break_track, save_seq
-from detectron2.evaluation import COCOEvaluator, inference_on_dataset, print_csv_format
+from pcnaDeep.data.annotate import relabel_trackID, label_by_track, get_lineage_txt, load_trks, lineage_dic2txt, \
+    break_track, save_seq, generate_calibanTrk
+from detectron2.evaluation import COCOEvaluator, inference_on_dataset, DatasetEvaluators, print_csv_format
 from detectron2.data import build_detection_test_loader
 from detectron2.data import MetadataCatalog, DatasetCatalog
 from detectron2.config import get_cfg
@@ -131,6 +132,23 @@ class pcna_ctcEvaluator:
         save_seq(mask, os.path.join(fm, 'TRA'), 'man_track', dig_num=self.digit_num, base=self.t_base, sep='')
         return
 
+    def caliban2ctcGT(self, trk_path):
+        """Convert caliban ground truth to Cell Tracking Challenge ground truth.
+
+        Args:
+            trk_path (str): path to deepcell-label .trk file.
+        """
+        t = load_trks(trk_path)
+        self.trk_path = trk_path
+        lin = t['lineages']
+        mask = t['y']
+        txt = lineage_dic2txt(lin)
+
+        fm = ("%0" + str(self.digit_num) + "d") % self.dt_id
+        fm = os.path.join(self.root, fm + '_GT')
+        self.__saveGT(fm, txt, mask)
+        return
+
     def init_ctc_dir(self):
         """Initialize Cell Tracking Challenge directory
 
@@ -139,9 +157,9 @@ class pcna_ctcEvaluator:
                >-----0001_RES---  
                >-----0001_GT----  
                    >----SEG------  
-                   >----TRA------
-        """
+                   >----TRA------ 
         
+        """
         root = self.root
         fm = ("%0" + str(self.digit_num) + "d") % self.dt_id
         if not os.path.isdir(os.path.join(root, fm)) and not os.path.isdir(os.path.join(root, fm + '_RES')) and \
@@ -154,6 +172,25 @@ class pcna_ctcEvaluator:
         else:
             raise IOError('Directory already existed.')
         return
+
+    def generate_Trk(self, raw, mask, displace=100, gap_fill=5, out_dir=None, track=None, render_phase=False):
+        """Generate deepcell caliban readable trk file
+
+        Args:
+            out_dir (str): output directory of the file (optional, default root)
+            raw (numpy.ndarray): raw image
+            mask (numpy.ndarray): image mask
+            displace (int): for tracking, maximum displace of two linked objects between frame (default: 100)
+            gap_fill (int): for tracking, memory track for some frames is disappeared (default: 5)
+            track (pandas.DataFrame): tracked object table (optional to suppress tracking on mask)
+            render_phase (bool): if true, will resolve labels on mask into cell cycle phase, the label should
+            follow {10: 'G1/G2', 50: 'S', 100: 'M', 200: 'G1/G2'}
+        """
+        if out_dir is None:
+            out_dir = self.root
+        tracked = generate_calibanTrk(raw=raw, mask=mask, out_dir=out_dir, dt_id=self.dt_id, digit_num=self.digit_num,
+                            track=track, displace=displace, gap_fill=gap_fill, render_phase=render_phase)
+        return tracked
 
     def evaluate(self):
         """Call CTC evaluation software to run ((Unix) Linux/Mac only)

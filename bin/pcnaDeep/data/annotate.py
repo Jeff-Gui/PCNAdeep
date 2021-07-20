@@ -1,19 +1,11 @@
 # -*- coding: utf-8 -*-
 
-import json
 import os
-import tarfile
-import tempfile
-from io import BytesIO
-
 import numpy as np
 import pandas as pd
 import skimage.io as io
-import warnings
 from skimage.util import img_as_uint
 from skimage.util import img_as_ubyte
-import skimage.measure as measure
-from pcnaDeep.tracker import track_mask
 
 
 def relabel_trackID(label_table):
@@ -76,29 +68,6 @@ def label_by_track(mask, label_table):
     return mask
 
 
-def get_lineage_dict(label_table):
-    """Deprecated
-    Generate lineage dictionary in Deepcell tracking format.
-    
-    Args:
-        label_table (pandas.DataFrame): table processed.
-
-    Returns:
-        dict: lineage dictionary that fits Deepcell.
-    """
-
-    out = {}
-    for i in list(np.unique(label_table['trackId'])):
-        i = int(i)
-        sub_table = label_table[label_table['trackId'] == i]
-        out[i] = {'capped': False, 'daughters': [], 'frame_div': None, 'frames': list(sub_table['frame']), 'label': i,
-                  'parent': None}
-        if list(sub_table['parentTrackId'])[0] != 0:
-            out[i]['parent'] = list(sub_table['parentTrackId'])[0]
-
-    return out
-
-
 def get_lineage_txt(label_table):
     """Generate txt table in Cell Tracking Challenge (CTC) format.
 
@@ -122,129 +91,6 @@ def get_lineage_txt(label_table):
         dic['parent'].append(int(parent))
 
     return pd.DataFrame(dic)
-
-
-def save_trks(filename, lineages, raw, tracked):
-    """Deprecated
-    Copied from deepcell_tracking.utils, version 0.3.1. Author Van Valen Lab.
-    Modification: changed trks to trk to fit caliban labeler.
-
-    Saves raw, tracked, and lineage data into one trk_file.
-
-    Args:
-        filename (str): full path to the final trk files.
-        lineages (dict): a list of dictionaries saved as a json.
-        raw (numpy.ndarray): 4D raw images data. THWC
-        tracked (numpy.ndarray): 4D annotated image data. THWC
-
-    Raises:
-        ValueError: filename does not end in ".trk".
-    """
-    if not str(filename).lower().endswith('.trk'):
-        raise ValueError('filename must end with `.trk`. Found %s' % filename)
-
-    with tarfile.open(filename, 'w') as trks:
-        with tempfile.NamedTemporaryFile('w', delete=False) as lineages_file:
-            json.dump(lineages, lineages_file, indent=4)
-            lineages_file.flush()
-            lineages_file.close()
-            trks.add(lineages_file.name, 'lineage.json')
-            os.remove(lineages_file.name)
-
-        with tempfile.NamedTemporaryFile(delete=False) as raw_file:
-            np.save(raw_file, raw)
-            raw_file.flush()
-            raw_file.close()
-            trks.add(raw_file.name, 'raw.npy')
-            os.remove(raw_file.name)
-
-        with tempfile.NamedTemporaryFile(delete=False) as tracked_file:
-            np.save(tracked_file, tracked)
-            tracked_file.flush()
-            tracked_file.close()
-            trks.add(tracked_file.name, 'tracked.npy')
-            os.remove(tracked_file.name)
-
-
-def load_trks(filename):
-    """Deprecated
-    Copied from deepcell_tracking.utils, version 0.3.1. Author Van Valen Lab
-
-    Load a trk/trks file.
-
-    Args:
-        filename (str): full path to the file including .trk/.trks.
-
-    Returns:
-        dict: A dictionary with raw, tracked, and lineage data.
-    """
-    with tarfile.open(filename, 'r') as trks:
-
-        # numpy can't read these from disk...
-        array_file = BytesIO()
-        array_file.write(trks.extractfile('raw.npy').read())
-        array_file.seek(0)
-        raw = np.load(array_file)
-        array_file.close()
-
-        array_file = BytesIO()
-        array_file.write(trks.extractfile('tracked.npy').read())
-        array_file.seek(0)
-        tracked = np.load(array_file)
-        array_file.close()
-
-        # trks.extractfile opens a file in bytes mode, json can't use bytes.
-        _, file_extension = os.path.splitext(filename)
-
-        if file_extension == '.trks':
-            trk_data = trks.getmember('lineages.json')
-            lineages = json.loads(trks.extractfile(trk_data).read().decode())
-            # JSON only allows strings as keys, so convert them back to ints
-            for i, tracks in enumerate(lineages):
-                lineages[i] = {int(k): v for k, v in tracks.items()}
-
-        elif file_extension == '.trk':
-            trk_data = trks.getmember('lineage.json')
-            lineage = json.loads(trks.extractfile(trk_data).read().decode())
-            # JSON only allows strings as keys, so convert them back to ints
-            lineages = [{int(k): v for k, v in lineage.items()}]
-
-    return {'lineages': lineages, 'X': raw, 'y': tracked}
-
-
-def lineage_dic2txt(lineage_dic):
-    """Convert deepcell .trk lineage format to CTC txt format.
-
-    Args:
-        lineage_dic (list[dict]): Dictionary in Deepcell format extracted from .trk file.
-
-    Returns:
-        pandas.DataFrame: dictionary with three columns: track ID, appear frame, disappear frame.
-    """
-
-    lineage_dic = lineage_dic[0]
-    dic = {'id': [], 'appear': [], 'disappear': []}
-    pars = {}
-    for d in lineage_dic.values():
-        i = d['label']
-        begin = np.min(d['frames'])
-        end = np.max(d['frames'])
-
-        dic['id'].append(i)
-        dic['appear'].append(int(begin))
-        dic['disappear'].append(int(end))
-        if d['daughters']:
-            for dg in d['daughters']:
-                pars[dg] = i
-
-    dic = pd.DataFrame(dic)
-    dic['parents'] = 0
-
-    # resolve parents
-    for dg in list(pars.keys()):
-        dic.loc[dic.index[dic['id'] == dg], 'parents'] = pars[dg]
-
-    return dic
 
 
 def break_track(label_table):
@@ -392,41 +238,6 @@ def save_seq(stack, out_dir, prefix, dig_num=3, dtype='uint16', base=0, img_form
     return
 
 
-def generate_calibanTrk(raw, mask, out_dir, dt_id, digit_num=3, displace=100, gap_fill=3, track=None,
-                        render_phase=False):
-    """Deprecated
-    Generate caliban .trk format for annotation from raw and ground truth mask.
-
-    Args:
-        raw (numpy.ndarray): raw image stack.
-        mask (numpy.ndarray): mask of the image, can be either.
-        out_dir (str): output directory.
-        digit_num (int): digit of ID in the output image prefix.
-        displace (int): maximum movement for tracking ground truth mask.
-        gap_fill (int): gap filling for tracking ground truth mask.
-        track (pandas.DataFrame): tracked object table, if None, will track the mask first.
-        render_phase (bool): whether to render cell cycle phase from the mask, will pass to `pcnaDeep.tracker.track_mask`.
-
-    Outputs:
-        File of deepcell caliban .trk format.
-
-    Returns:
-        pandas.DataFrame: processed tracked object table, no gaped tracks in the table (as required by .trk).
-    """
-
-    fm = ("%0" + str(digit_num) + "d") % dt_id
-    if track is None:
-        track, mask = track_mask(mask, displace=displace, gap_fill=gap_fill, render_phase=render_phase)
-    track_new = relabel_trackID(track.copy())
-    track_new = break_track(track_new.copy())
-    tracked_mask = label_by_track(mask.copy(), track_new.copy())
-    dic = get_lineage_dict(track_new.copy())
-    if len(raw.shape) < 4:
-        raw = np.expand_dims(raw, axis=3)
-    save_trks(os.path.join(out_dir, fm + '.trk'), dic, raw, np.expand_dims(tracked_mask, axis=3))
-    return track_new
-
-
 def findM(gt_cls, direction='begin'):
     """Find M exit/entry from ground truth classification.
 
@@ -471,118 +282,3 @@ def check_continuous_track(table):
         if f[-1] - f[0] != len(f) - 1:
             out.append(i)
     return out
-
-
-def mergeTrkAndTrack(trk_path, table_path, return_mask=False):
-    """Deprecated
-    Merge ground truth .trk and tracked table. Used to generate ground truth tracked table.
-    
-    Args:
-        trk_path (str): path to deepcell-label Caliban .trk file.
-        table_path (str): path to tracked object table.
-        return_mask (bool): whether to return mask.
-    
-    Returns:
-        pandas.DataFrame: tracked object table, trackId, parentTrackId, mtParTrk
-        corrected by ground truth.
-
-        numpy.ndarray: tracked mask. If parameter return_mask=True, will not return mask.
-
-        dict: standard table for initializing `pcnaDeep.resolver.Resolver`.
-        
-        list: Mitosis daughter that does not has mitosis classification. This should not happen if
-        the annotation is correct.
-    """
-    trk = load_trks(trk_path)
-    lin = trk['lineages'][0]
-    mask = trk['y'][:, :, :, 0]
-    del trk
-    table = pd.read_csv(table_path)
-    new_table = pd.DataFrame()
-    for i in range(mask.shape[0]):
-        props = measure.regionprops_table(label_image=mask[i, :, :],
-                                          intensity_image=mask[i, :, :],
-                                          properties=('centroid', 'label'))
-        props = pd.DataFrame(props)
-        props['frame'] = i
-        new_table = new_table.append(props)
-
-    new_table['centroid-1'] = np.floor(new_table['centroid-1'])
-    new_table['centroid-0'] = np.floor(new_table['centroid-0'])
-    new_table['uid'] = range(new_table.shape[0])
-
-    table['Center_of_the_object_0'] = np.floor(table['Center_of_the_object_0'])
-    table['Center_of_the_object_1'] = np.floor(table['Center_of_the_object_1'])
-    out = table.merge(new_table,
-                      left_on=['frame', 'Center_of_the_object_0', 'Center_of_the_object_1'],
-                      right_on=['frame', 'centroid-1', 'centroid-0'])
-
-    ret = [i for i in new_table['uid'].tolist() if i not in out['uid'].tolist()]
-    for j in ret:
-        lb = new_table[new_table['uid'] == j]['label'].values[0]
-        frame = new_table[new_table['uid'] == j]['frame'].values[0]
-        mask[frame, mask[frame, :, :] == lb] = 0
-
-    out['trackId'] = out['label']
-    out['lineageId'] = out['lineageId']
-    out['parentTrackId'] = 0
-    out['mtParTrk'] = 0
-
-    out = out.drop(columns=['centroid-0', 'centroid-1', 'uid', 'label'])
-    out.sort_values(by=['trackId', 'frame'], inplace=True)
-    e = check_continuous_track(out)
-    if e:
-        raise ValueError('Gapped tracks found: ' + str(e))
-
-    # resolve lineage and mt_dic
-    # deepcell-label does not automatically assign parent ID to daughter if 
-    # the parent ID has been changed. However, it does assign original daughter 
-    # ID to a changed parent. Therefore, we deduce relationship from daughter 
-    # field under parent information, and ignore all daughters that do not exist.
-    mt_dic = {}
-    # if a daughter appears as 'G1/G2' then m_exit is not accurate
-    imprecise_m = []
-    all_tracks = out['trackId'].tolist()
-    for i in list(lin.keys()):
-        if lin[i]['daughters']:
-            daugs = lin[i]['daughters']
-            for k in daugs:
-                if k not in all_tracks:
-                    daugs.remove(k)
-            if len(daugs) == 1:
-                out.loc[out['trackId'] == daugs[0], 'parentTrackId'] = i
-                out.loc[out['lineageId'] == daugs[0], 'lineageId'] = i
-            elif len(daugs) == 2:
-                sub_par = out.loc[out['trackId'] == i]
-                m_entry = findM(sub_par['predicted_class'].tolist(), 'end')
-                if m_entry is None:
-                    warnings.warn('Mitosis parent no M class, check ' + str(i))
-                    continue
-                sub_daug1 = out.loc[out['trackId'] == daugs[0]]
-                sub_daug2 = out.loc[out['trackId'] == daugs[1]]
-
-                out.loc[out['trackId'] == daugs[0], 'parentTrackId'] = i
-                out.loc[out['trackId'] == daugs[0], 'mtParTrk'] = i
-                out.loc[out['lineageId'] == daugs[0], 'lineageId'] = i
-                out.loc[out['trackId'] == daugs[1], 'parentTrackId'] = i
-                out.loc[out['trackId'] == daugs[1], 'mtParTrk'] = i
-                out.loc[out['lineageId'] == daugs[1], 'lineageId'] = i
-
-                m_exit1 = findM(sub_daug1['predicted_class'].tolist(), 'begin')
-                m_exit2 = findM(sub_daug2['predicted_class'].tolist(), 'begin')
-
-                if m_exit1 is None:
-                    m_exit1 = 0
-                    imprecise_m.append(daugs[0])
-                if m_exit2 is None:
-                    m_exit2 = 0
-                    imprecise_m.append(daugs[1])
-
-                mt_dic[i] = {'div': sub_par['frame'].iloc[m_entry],
-                             'daug': {daugs[0]: {'m_exit': sub_daug1['frame'].iloc[m_exit1], 'dist': 0},
-                                      daugs[1]: {'m_exit': sub_daug2['frame'].iloc[m_exit2], 'dist': 0}}}
-
-    if return_mask:
-        return out, mask, mt_dic, imprecise_m
-    else:
-        return out, mt_dic, imprecise_m
