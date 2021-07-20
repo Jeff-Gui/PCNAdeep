@@ -29,7 +29,7 @@ def track(df, displace=40, gap_fill=5):
     Return:
         (pandas.DataFrame): tracked object table.
     """
-    TRACK_WITH_DIC = False
+    TRACK_WITH_DIC = True
 
     f = df[['Center_of_the_object_0', 'Center_of_the_object_1', 'BF_mean', 'BF_std', 'frame']]
     f.columns = ['x', 'y', 'BF_mean', 'BF_std', 'frame']

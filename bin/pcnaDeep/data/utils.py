@@ -436,3 +436,29 @@ def expand_bbox(bbox, factor, limit):
         new_bbox[3] = limit[1] - 1
 
     return tuple(new_bbox)
+
+
+def align_table_and_mask(table, mask):
+    """For every object in the mask, check if is consistent with the table. If no, remove the object in the mask.
+
+    Args:
+        table (pandas.DataFrame): (tracked) object table.
+        mask (numpy.ndarray): labeled object mask, object label should be corresponding to `continuous_label` column in the table.
+    """
+    count = 0
+    for i in range(mask.shape[0]):
+        sub = table[table['frame']==i]
+        sls = mask[i,:,:].copy()
+        lbs = sorted(list(np.unique(sls)))
+        if lbs[0] == 0:
+            del lbs[0]
+        registered = list(sub['continuous_label'])
+        rmd = list(set(lbs) - set(registered))
+        if rmd:
+            for j in rmd:
+                sls[sls==j] = 0
+                count += 1
+            mask[i,:,:] = sls
+
+    print('Removed ' + str(count) + ' objects.')
+    return mask
