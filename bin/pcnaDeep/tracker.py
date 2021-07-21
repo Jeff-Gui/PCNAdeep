@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 
+import gc
 import trackpy as tp
 import skimage.measure as measure
-import skimage.exposure as exposure
 import skimage.io as io
 from skimage.util import img_as_uint
 from skimage.morphology import remove_small_objects
 import pandas as pd
 import numpy as np
-from pcnaDeep.data.utils import json2mask, expand_bbox
+from pcnaDeep.data.utils import json2mask, expand_bbox, getDetectInput
 
 
 def track(df, displace=40, gap_fill=5):
@@ -69,7 +69,7 @@ def track_mask(mask, displace=40, gap_fill=5, render_phase=False, size_min=100, 
         size_min (int): remove object smaller then some size, in case the mask labeling is not precise.
         PCNA_intensity (numpy.ndarray): optional, if supplied, will extract fore/backgound PCNA intensity,
         BF_intensity (numpy.ndarray): optional, if supplied, will extract bright field intensity & std for tracking.
-            First three channels must has same shape as mask.
+            First three channels must have same length as the mask.
 
     Returns:
         (pandas.DataFrame): tracked object table.
@@ -175,7 +175,8 @@ def track_mask(mask, displace=40, gap_fill=5, render_phase=False, size_min=100, 
     return track_out, mask_lbd
 
 
-def track_GT_json(fp_json, height=1200, width=1200, displace=40, gap_fill=5, size_min=100, fp_intensity_image=None,
+def track_GT_json(fp_json, height=1200, width=1200, displace=40, gap_fill=5, size_min=100,
+                  fp_intensity_image=None, fp_pcna=None, fp_bf=None,
                   sat=None, gamma=None):
     """Track ground truth VIA json file. Wrapper of `track_mask()`
 
@@ -189,12 +190,18 @@ def track_GT_json(fp_json, height=1200, width=1200, displace=40, gap_fill=5, siz
         fp_intensity_image (str): optional image file path, if supplied, will extract fore/backgound PCNA intensity, and
             bright field intensity/std for tracking.
             Must has the same shape as mask, so will override height and width.
+        fp_pcna (str): optional file path to PCNA channel image stack.
+        fp_bf (str): optional file path to bright field image stack.
         sat (float): saturated pixel percentage when rescaling intensity image. If `None`, no rescaling will be done.
         gamma (float): gamma-correction factor. If `None`, will not perform.
 
     Returns:
         (pandas.DataFrame): tracked object table.
         (mask_lbd): mask with each frame labeled with object IDs.
+
+    Note:
+        - If supplied with `fp_intensity_image` (composite image stack), will omit `fp_pcna` or `fp_bf`.
+        - `fp_pcna` and `fp_bf` must be supplied at the same time.
     """
     if fp_intensity_image:
         intensity_image = io.imread(fp_intensity_image)
@@ -204,20 +211,24 @@ def track_GT_json(fp_json, height=1200, width=1200, displace=40, gap_fill=5, siz
         width = intensity_image.shape[2]
         PCNA_intensity = intensity_image[:,:,:,0]
         BF_intensity = intensity_image[:,:,:,-1]
-        if sat:
-            rg = (sat, 100-sat)
-            for i in range(PCNA_intensity.shape[0]):
-                if gamma:
-                    fme = exposure.adjust_gamma(PCNA_intensity[i, :, :], gamma)
-                else:
-                    fme = PCNA_intensity[i,:,:]
-                PCNA_intensity[i,:,:] = exposure.rescale_intensity(fme, in_range=tuple(np.percentile(fme, rg)))
-            for i in range(BF_intensity.shape[0]):
-                BF_intensity[i,:,:] = exposure.rescale_intensity(BF_intensity[i, :, :], in_range=
-                                                                 tuple(np.percentile(BF_intensity[i, :, :], rg)))
+    elif fp_pcna is not None and fp_bf is not None:
+        PCNA_intensity = io.imread(fp_pcna)
+        BF_intensity = io.imread(fp_bf)
+    elif fp_pcna is None or fp_bf is None:
+        raise ValueError('PCNA channel image stack must be supplied with bright field together.')
     else:
         PCNA_intensity = None
         BF_intensity = None
+
+    if sat and PCNA_intensity is not None:
+        if gamma is None:
+            gamma = 1
+        comp = getDetectInput(PCNA_intensity, BF_intensity, sat, gamma)
+        PCNA_intensity = comp[:, :, :, 0].copy()
+        BF_intensity = comp[:, :, :, -1].copy()
+        del comp
+        gc.collect()
+
     mask = json2mask(fp_json, out='', height=height, width=width, label_phase=True, mask_only=True)
     return track_mask(mask, displace=displace, gap_fill=gap_fill, size_min=size_min, PCNA_intensity=PCNA_intensity,
                       BF_intensity=BF_intensity, render_phase=True)

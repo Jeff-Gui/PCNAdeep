@@ -238,7 +238,8 @@ class Trk_obj:
         """Save current table.
         """
         self.getAnn()
-        self.track.to_csv(self.track_path, index=None)
+        self.track.sort_values(by=['trackId', 'frame'], inplace=True)
+        self.track.to_csv(self.track_path, index=False)
         self.saved = self.track.copy()
         print('Saved.')
         return

@@ -7,9 +7,6 @@ import json
 import numpy as np
 import detectron2.structures as st
 import math
-import skimage.io as io
-import skimage.exposure as exposure
-from skimage.util import img_as_ubyte
 
 
 def load_PCNA_from_json(json_path, image_path, width=1200, height=1200):

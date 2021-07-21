@@ -106,7 +106,7 @@ def get_rsv_input_gt(track, gt_name='predicted_class', G2_trh=200, no_cls_GT=Fal
     return track_masked, ann, mt_dic, imprecise_m
 
 
-def resolve_from_gt(track, gt_name='predicted_class', G2_trh=None, no_cls_GT=False,
+def resolve_from_gt(track, gt_name='predicted_class', extra_gt=None, G2_trh=None, no_cls_GT=False,
                     minG=1, minS=1, minM=1, minTrack=0):
     """Resolve cell cycle phase from the ground truth. Wrapper of `get_rsv_input_gt()`.
 
@@ -114,6 +114,7 @@ def resolve_from_gt(track, gt_name='predicted_class', G2_trh=None, no_cls_GT=Fal
         track (pandas.DataFrame): data frame of each object each row, must have following columns:
             - trackId, frame, parentTrackId, <ground truth classification column>
         gt_name (str): refers to the column in track that corresponds to ground truth classification.
+        extra_gt (str): refers to the column in track that has G2 ground truth if `gt_name` does not. See notes below.
         G2_trh (int): intensity threshold for classifying G2 phase (for arrest tracks only).
         no_cls_GT (bool): Set to `true` if no classification ground truth is provided.
             Will resolve based on current classifications.
@@ -121,21 +122,49 @@ def resolve_from_gt(track, gt_name='predicted_class', G2_trh=None, no_cls_GT=Fal
         minS (int): minimum S phase frame length (default 1).
         minM (int): minimum M phase frame length (default 1).
         minTrack (int): minimum track frame length to resolve (default 0, resolve all tracks).
+
+    Note:
+        - If do not want G2 to be classified based on thresholding, rather, based on ground truth classification.
+        Simply leave `G2_trh=None` and the threshold will be calculated as the smallest average intensity of G2 phase
+        in labeled tracks (outlier smaller than mena - 3*sd excluded).
+
+        - If the ground truth column does not contain `G2` instances, tell the program to look at
+        an extra partially G2 ground truth column like `resolved_class` to extract information. This may be useful when
+        `predicted_class` has been corrected from the Correction Interface which only contains G1/G2 but not G2. In this
+        case, you can also assign `resolved_class` as the ground truth classification column. Both will work.
+
+        - If `mean_intensity` or `background_mean` column is not in the table, will set the threshold to 100.
+
+        - Use at own risk if the input classification in not reliable.
     """
     if G2_trh is None:
-        if 'mean_intensity' in track.columns and 'G2' in list(track[gt_name]):
-            G2_trh = int(np.min((track['mean_intensity'] - track['background_mean']).loc[track[gt_name] == 'G2']) - 2)
+        if 'mean_intensity' in track.columns:
+            if 'G2' not in list(track[gt_name]):
+                assert 'G2' in list(track[extra_gt]), 'G2 not found in either gt_name or extra_gt columns.'
+                G2_tracks = track.loc[track[extra_gt] == 'G2']
+            else:
+                G2_tracks = track.loc[track[gt_name] == 'G2']
+            avgs = []
+            for i in np.unique(G2_tracks['trackId']):
+                sub = G2_tracks[G2_tracks['trackId'] == i]
+                avgs.append(np.mean(sub['mean_intensity'] - sub['background_mean']))
+            avgs = np.array(avgs)
+            avgs = avgs[avgs >= (np.mean(avgs) - np.std(avgs) * 3)]
+            G2_trh = int(np.floor(np.min(avgs))) - 1
         elif 'mean_intensity' not in track.columns or 'background_mean' not in track.columns:
-            G2_trh = 200  # dummy threshold
+            G2_trh = 100  # dummy threshold
         else:
             raise ValueError('Must provide a G2 intensity threshold or provide G2 ground truth classification.')
+    print('Using G2 intensity threshold: ' + str(G2_trh))
     track_masked, ann, mt_dic, imprecise_m = get_rsv_input_gt(track, gt_name, G2_trh=G2_trh, no_cls_GT=no_cls_GT)
     r = Resolver(track_masked, ann, mt_dic, minG=minG, minS=minS, minM=minM, minTrack=minTrack,
                  impreciseExit=imprecise_m, G2_trh=G2_trh)
     rsTrack, phase = r.doResolve()
-    rsTrack = rsTrack[['trackId', 'frame', 'resolved_class']]
+    rsTrack = rsTrack[['trackId', 'frame', 'resolved_class', 'name']]
     if 'resolved_class' in track.columns:
         del track['resolved_class']
+    if 'name' in track.columns:
+        del track['name']
     rsTrack = track.merge(rsTrack, on=['trackId','frame'])
 
     return rsTrack, phase
@@ -172,6 +201,7 @@ class Resolver:
             pandas.DataFrame: phase table with cell cycle durations.
         """
 
+        self.logger.info('Resolving cell cycle phase...')
         track = self.track.copy()
         rt = pd.DataFrame()
         for i in np.unique(track['lineageId']):
@@ -207,7 +237,9 @@ class Resolver:
 
     def resolveArrest(self, G2_trh=None):
         """Determine G1/G2 arrest tracks.
-            Assign G1 or G2 classification according to 2-center K-mean.
+            - If `G2_trh` is supplied, determine G2 based on background-subtracted mean of the track
+                (averaged across frames).
+            - If `G2_trh` is not supplied, assign G1 or G2 classification according to 2-center K-mean.
 
         Args:
             G2_trh (int): int between 1-255, above the threshold will be classified as G2.
