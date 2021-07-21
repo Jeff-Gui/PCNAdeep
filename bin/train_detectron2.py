@@ -54,7 +54,7 @@ def build_sem_seg_train_aug(cfg):
     
     if cfg.INPUT.CROP.ENABLED:
         augs.append(
-            T.RandomCrop_CategoryAreaConstraint(
+            T.RandomCrop(
                 cfg.INPUT.CROP.TYPE,
                 cfg.INPUT.CROP.SIZE,
             )
@@ -180,6 +180,8 @@ def setup(args):
     cfg.SOLVER.MAX_ITER = 2400  #  2400
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 256
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 4  # change according to class number
+    cfg.TEST.DETECTION_PER_IMAGE = 1024
+
     # Avoid overlapping
     cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.5  #  default 0.5
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.05  #  default 0.05
@@ -187,8 +189,8 @@ def setup(args):
     cfg.MODEL.RPN.NMS_THRESH = 0.7  #  default 0.7
 
     # Augmentation
-    cfg.INPUT.MIN_SIZE_TRAIN = 800
-    cfg.INPUT.MAX_SIZE_TRAIN = 1200
+    cfg.INPUT.MIN_SIZE_TRAIN = 1000, 800, 600, 400
+    cfg.INPUT.MAX_SIZE_TRAIN = 2048
     cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING = 'choice'
     cfg.INPUT.CROP.ENABLED = True
     cfg.INPUT.CROP.TYPE = 'relative'
@@ -201,7 +203,7 @@ def setup(args):
     # Dataset metadata
     DATASET_ROOT = '/home/zje/dataset/pcna'
     
-    TRAIN_PREFIX = ['20200902-MCF10A-dual', '20210103-MCF10A', '20210127-MCF10A-mRels2', '20200902-MCF10A-s1_cpd',
+    TRAIN_PREFIX = ['20210103-MCF10A', '20210127-MCF10A-mRels2', '20200902-MCF10A-s1_cpd',
                     '20201118-RPE_rand', 'MCF10A_rand', '20201111-RPE_rand', '20210205-10A_rand',
                     '20200729-RPE-s2_cpd', '20200902-MCF10A-s2_cpd', '20201122-RPE_rand', '20210127-10A_mRel3_rand']
     TRAIN_PATH = []
