@@ -168,7 +168,7 @@ class Trk_obj:
         elif mode == 'range':
             if end_frame not in frames:
                 raise ValueError('Selected end frame is not in the original track.')
-            rg = [i for i in range(fm_id, frames.index(end_frame + 1))]
+            rg = [i for i in range(fm_id, frames.index(end_frame) + 1)]
         elif mode == 'to_next':
             cur_cls = clss[fm_id]
             j = fm_id + 1

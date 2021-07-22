@@ -328,6 +328,11 @@ if __name__ == "__main__":
             del dic
             gc.collect()
         
+        if prefix.split('-')[-1] in ['DIC', 'dic', 'mCy', 'mcy', 'pcna', 'PCNA']:
+            prefix = '-'.join(prefix.split('-')[:-1])
+        elif prefix.split('_')[-1] in ['DIC', 'dic', 'mCy', 'mcy', 'pcna', 'PCNA']:
+            prefix = '_'.join(prefix.split('_')[:-1])
+
         inspect = imgs[range(0, imgs.shape[0], 100),:,:,:].copy()
         io.imsave(os.path.join(args.output, prefix + '_sample_intput.tif'), inspect)
 

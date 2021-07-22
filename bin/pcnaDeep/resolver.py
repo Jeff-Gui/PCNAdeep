@@ -100,7 +100,8 @@ def get_rsv_input_gt(track, gt_name='predicted_class', G2_trh=200, no_cls_GT=Fal
     if 'background_mean' not in track_masked.columns:
         track_masked['background_mean'] = 0
     track_masked.loc[track_masked[gt_name].str.contains('G'), gt_name] = 'G1/G2'
-    #  track_masked.to_csv('../../test/test_files/mock/masked.csv')
+    track_masked['predicted_class'] = track_masked[gt_name]
+
     logger.debug(pprint.pformat(mt_dic))
 
     return track_masked, ann, mt_dic, imprecise_m
