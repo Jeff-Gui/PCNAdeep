@@ -26,7 +26,8 @@ class Refiner:
 
     def __init__(self, track, smooth=5, minGS=25, minM=10, mode='SVM',
                  threshold_mt_F=100, threshold_mt_T=25,
-                 search_range=20, mt_len=25, sample_freq=1/5, model_train='', mask=None, dilate_factor=0.5):
+                 search_range=20, mt_len=25, sample_freq=1/5, model_train='', mask=None, 
+                 dilate_factor=0.5, aso_trh=0.5):
         """Refinement of the tracked objects.
 
         Algorithms:
@@ -74,7 +75,7 @@ class Refiner:
                              'training of the resolver or threshold based resolver.')
 
         self.SMOOTH = smooth
-        self.ASO_TRH = 0.5
+        self.ASO_TRH = aso_trh
         self.dilate_factor = dilate_factor
         self.MIN_GS = minGS
         self.MIN_M = minM

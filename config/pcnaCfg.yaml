@@ -26,6 +26,7 @@ POST_PROCESS:
     MAX_DIST_TRH: 100
     MAX_FRAME_TRH: 25
     # SVM mode only
+    ASO_TRH: 0.5
     SEARCH_RANGE: 20
     SVM_TRAIN_DATA: '../models/SVM_train.txt'
   RESOLVER:

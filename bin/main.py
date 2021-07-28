@@ -10,6 +10,7 @@ import gc
 import numpy as np
 import pandas as pd
 import skimage.io as io
+from skimage.util import img_as_ubyte
 from detectron2.config import get_cfg
 from detectron2.utils.logger import setup_logger
 
@@ -167,15 +168,20 @@ def main(stack, config, output, prefix, logger):
     track_out = track(df=table_out, displace=int(config['TRACKER']['DISPLACE']),
                         gap_fill=int(config['TRACKER']['GAP_FILL']))
     track_out.to_csv(os.path.join(output, prefix + '_tracks.csv'), index=False)
+
+    if np.max(mask_out) < 255:
+        mask_out = img_as_ubyte(mask_out)
     io.imsave(os.path.join(output, prefix + '_mask.tif'), mask_out)
 
     logger.info('Refining and Resolving...')
     post_cfg = config['POST_PROCESS']
     refiner_cfg = post_cfg['REFINER']
     if not bool(refiner_cfg['MASK_CONSTRAINT']['ENABLED']):
+        logger.info('Mask constraint disabled')
         mask_out = None
         df = None
     else:
+        logger.info('Mask constraint enabled.')
         df = float(refiner_cfg['MASK_CONSTRAINT']['DILATE_FACTOR'])
     myRefiner = Refiner(track_out, threshold_mt_F=int(refiner_cfg['MAX_DIST_TRH']),
                         threshold_mt_T=int(refiner_cfg['MAX_FRAME_TRH']), smooth=int(refiner_cfg['SMOOTH']),
@@ -183,7 +189,8 @@ def main(stack, config, output, prefix, logger):
                         minM=int(post_cfg['MIN_M']), search_range=int(refiner_cfg['SEARCH_RANGE']),
                         mt_len=int(refiner_cfg['MITOSIS_LEN']), sample_freq=float(refiner_cfg['SAMPLE_FREQ']),
                         model_train=refiner_cfg['SVM_TRAIN_DATA'],
-                        mode=refiner_cfg['MODE'], mask=mask_out, dilate_factor=df)
+                        mode=refiner_cfg['MODE'], mask=mask_out, dilate_factor=df, 
+                        aso_trh=float(refiner_cfg['ASO_TRH']))
     ann, track_rfd, mt_dic, imprecise = myRefiner.doTrackRefine()
     del mask_out
     gc.collect()

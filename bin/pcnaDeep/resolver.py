@@ -233,9 +233,9 @@ class Resolver:
     def check_trans_integrity(self):
         """Check track transition integrity. If transition other than G1->S; S->G2, G2->M, M->G1 found, do not resolve.
         """
-        for t in np.unique(self.track['trackId']):
+        for t in np.unique(self.rsTrack['trackId']):
             if t not in self.mt_unresolved and t not in self.unresolved:
-                sub = self.track[self.track['trackId'] == t]
+                sub = self.rsTrack[self.rsTrack['trackId'] == t]
                 rcls = list(sub['resolved_class'])
                 for i in range(1,sub.shape[0]):
                     if rcls[i-1] != rcls[i]:

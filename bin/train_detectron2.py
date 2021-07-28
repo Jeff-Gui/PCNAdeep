@@ -60,7 +60,7 @@ def build_sem_seg_train_aug(cfg):
             )
         )
     augs.append(T.RandomFlip())
-    #augs.append(T.RandomRotation([0,90,180,270], sample_style='choice'))
+    augs.append(T.RandomRotation([0,90,270], sample_style='choice'))
     return augs
 
 
