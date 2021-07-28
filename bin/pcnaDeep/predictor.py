@@ -272,7 +272,7 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000, edge
     # Generate mask
     mask = predictions['instances'].pred_masks
     mask = mask.char().cpu().numpy()
-    mask_slice = np.zeros((mask.shape[1], mask.shape[2])).astype('uint8')
+    mask_slice = np.zeros((mask.shape[1], mask.shape[2])).astype('uint16')  # uint16 locks object detection within 65536
 
     # For visualising class prediction
     # 0: G1/G2, 1: S, 2: M, 3: E-early G1
@@ -360,4 +360,4 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000, edge
     out_props['BF_std'] = dic_std
     
     del out_props['label']
-    return filter_edge(img_relabel.astype('uint8'), out_props, edge_flt)
+    return filter_edge(img_relabel, out_props, edge_flt)

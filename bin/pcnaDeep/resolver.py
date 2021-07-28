@@ -34,13 +34,29 @@ def get_rsv_input_gt(track, gt_name='predicted_class', G2_trh=200, no_cls_GT=Fal
 
     logger = logging.getLogger('pcna.Resolver.resolveGroundTruth')
     track['lineageId'] = track['trackId']
+
     if 'emerging' not in track.columns:
         track['emerging'] = 0
     if 'BF_mean' not in track.columns:
         track['BF_mean'] = 0
     if 'BF_std' not in track.columns:
         track['BF_std'] = 0
-    track.loc[track[gt_name] == 'E', 'emerging'] = 1
+
+    # resolve classification, if supplied
+    if not no_cls_GT:
+        track['Probability of G1/G2'] = 0
+        track['Probability of S'] = 0
+        track['Probability of M'] = 0
+        track.loc[track[gt_name].str.contains('G'), 'Probability of G1/G2'] = 1
+        track.loc[track[gt_name] == 'E', 'Probability of G1/G2'] = 1
+        track.loc[track[gt_name] == 'S', 'Probability of S'] = 1
+        track.loc[track[gt_name] == 'M', 'Probability of M'] = 1
+        track.loc[track[gt_name] == 'S', 'predicted_class'] = 'S'
+        track.loc[track[gt_name].str.contains('G'), 'predicted_class'] = 'G1/G2'
+        track.loc[track[gt_name] == 'E', 'predicted_class'] = 'E'
+        track.loc[track[gt_name] == 'M', 'predicted_class'] = 'M'
+        track.loc[track[gt_name] == 'E', 'emerging'] = 1
+
     ann = {'track': [], 'mitosis_parent': [], 'm_entry': [], 'm_exit': []}
     mt_dic = {}
     imprecise_m = []
@@ -80,15 +96,6 @@ def get_rsv_input_gt(track, gt_name='predicted_class', G2_trh=200, no_cls_GT=Fal
             m_entry = par_sub['frame'].iloc[m_entry]
             mt_dic[i]['div'] = m_entry
             ann.loc[ann['track'] == i, 'm_entry'] = m_entry
-
-    # resolve probability
-    if not no_cls_GT:
-        track['Probability of G1/G2'] = 0
-        track['Probability of S'] = 0
-        track['Probability of M'] = 0
-        track.loc[track[gt_name].str.contains('G'), 'Probability of G1/G2'] = 1
-        track.loc[track[gt_name] == 'S', 'Probability of S'] = 1
-        track.loc[track[gt_name] == 'M', 'Probability of M'] = 1
 
     # Note resolver only takes predicted class G1/G2, no G1 or G2;
     # Resolver classifies G1 or G2 based on intensity, so first mask intensity and background intensity,
@@ -173,7 +180,7 @@ def resolve_from_gt(track, gt_name='predicted_class', extra_gt=None, G2_trh=None
 
 class Resolver:
 
-    def __init__(self, track, ann, mt_dic, minG=6, minS=5, minM=3, minTrack=10, impreciseExit=None, G2_trh=100):
+    def __init__(self, track, ann, mt_dic, minG=25, minS=20, minM=10, minTrack=50, impreciseExit=None, G2_trh=100):
         if impreciseExit is None:
             impreciseExit = []
         self.logger = logging.getLogger('pcna.Resolver')
@@ -211,6 +218,7 @@ class Resolver:
             rt = rt.append(t)
         rt = rt.sort_values(by=['trackId', 'frame'])
         self.rsTrack = rt.copy()
+        self.check_trans_integrity()
         self.mt_unresolved = list(np.unique(self.mt_unresolved))
         if self.mt_unresolved:
             self.logger.warning('Sequential mitosis without S phase; Ignore tracks: ' + str(self.mt_unresolved)[1:-1])
@@ -221,7 +229,21 @@ class Resolver:
         phase = self.doResolvePhase()
         self.getAnn()
         return self.rsTrack, phase
-    
+
+    def check_trans_integrity(self):
+        """Check track transition integrity. If transition other than G1->S; S->G2, G2->M, M->G1 found, do not resolve.
+        """
+        for t in np.unique(self.track['trackId']):
+            if t not in self.mt_unresolved and t not in self.unresolved:
+                sub = self.track[self.track['trackId'] == t]
+                rcls = list(sub['resolved_class'])
+                for i in range(1,sub.shape[0]):
+                    if rcls[i-1] != rcls[i]:
+                        trs = '-'.join([rcls[i-1], rcls[i]])
+                        if trs not in ['G1-S','S-G2','G2-M','M-G1']:
+                            self.logger.warning('Wrong transition ' + trs + ' in track: ' + str(t))
+        return
+
     def getAnn(self):
         """Add an annotation column to tracked object table
         The annotation format is track ID - (parentTrackId, optional) - resolved_class
@@ -481,6 +503,7 @@ class Resolver:
         out = pd.DataFrame(out)
 
         # register mitosis, mitosis time only registered in daughter 'M' column
+        # **Only registered mitosis in mt_dic will be recorded
         for i in self.mt_dic.keys():
             if i in self.mt_unresolved:
                 continue

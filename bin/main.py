@@ -172,15 +172,18 @@ def main(stack, config, output, prefix, logger):
     logger.info('Refining and Resolving...')
     post_cfg = config['POST_PROCESS']
     refiner_cfg = post_cfg['REFINER']
-    if not bool(refiner_cfg['MASK_CONSTRAINT']):
+    if not bool(refiner_cfg['MASK_CONSTRAINT']['ENABLED']):
         mask_out = None
+        df = None
+    else:
+        df = float(refiner_cfg['MASK_CONSTRAINT']['DILATE_FACTOR'])
     myRefiner = Refiner(track_out, threshold_mt_F=int(refiner_cfg['MAX_DIST_TRH']),
                         threshold_mt_T=int(refiner_cfg['MAX_FRAME_TRH']), smooth=int(refiner_cfg['SMOOTH']),
                         minGS=np.max((int(post_cfg['MIN_G']), int(post_cfg['MIN_S']))),
                         minM=int(post_cfg['MIN_M']), search_range=int(refiner_cfg['SEARCH_RANGE']),
                         mt_len=int(refiner_cfg['MITOSIS_LEN']), sample_freq=float(refiner_cfg['SAMPLE_FREQ']),
                         model_train=refiner_cfg['SVM_TRAIN_DATA'],
-                        mode=refiner_cfg['MODE'], mask=mask_out)
+                        mode=refiner_cfg['MODE'], mask=mask_out, dilate_factor=df)
     ann, track_rfd, mt_dic, imprecise = myRefiner.doTrackRefine()
     del mask_out
     gc.collect()

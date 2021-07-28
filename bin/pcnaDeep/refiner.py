@@ -13,7 +13,7 @@ from sklearn.preprocessing import RobustScaler
 from sklearn.preprocessing import MinMaxScaler
 from pcnaDeep.data.utils import get_outlier, deduce_transition
 from pcnaDeep.resolver import get_rsv_input_gt
-from imblearn.over_sampling import BorderlineSMOTE
+#from imblearn.over_sampling import BorderlineSMOTE
 
 
 def dist(x1, y1, x2, y2):
@@ -24,9 +24,9 @@ def dist(x1, y1, x2, y2):
 
 class Refiner:
 
-    def __init__(self, track, smooth=5, minGS=6, minM=3, mode='SVM',
-                 threshold_mt_F=150, threshold_mt_T=5,
-                 search_range=5, mt_len=5, sample_freq=1/20, model_train='', mask=None, dilate_factor=0.5):
+    def __init__(self, track, smooth=5, minGS=25, minM=10, mode='SVM',
+                 threshold_mt_F=100, threshold_mt_T=25,
+                 search_range=20, mt_len=25, sample_freq=1/5, model_train='', mask=None, dilate_factor=0.5):
         """Refinement of the tracked objects.
 
         Algorithms:
@@ -74,6 +74,7 @@ class Refiner:
                              'training of the resolver or threshold based resolver.')
 
         self.SMOOTH = smooth
+        self.ASO_TRH = 0.5
         self.dilate_factor = dilate_factor
         self.MIN_GS = minGS
         self.MIN_M = minM
@@ -86,6 +87,7 @@ class Refiner:
         self.imprecise = []  # imprecise mitosis: daughter exit without M classification
         self.mean_size = np.mean(np.array(self.track[['major_axis', 'minor_axis']]))
         self.mean_intensity = np.mean(np.array(self.track[['mean_intensity']]))
+        self.logger.info('Mean size: ' + str(self.mean_size))
         self.ann = pd.DataFrame(
             columns=['track', 'app_frame', 'disapp_frame', 'app_x', 'app_y', 'disapp_x', 'disapp_y', 'app_stage',
                      'disapp_stage', 'predicted_parent'])
@@ -388,7 +390,7 @@ class Refiner:
             out = np.sum(np.stack(sls, axis=0), axis=0)
             out = out.astype('bool')
             # dilate the mask by 50% mean radius, adjustable
-            dilate_range = 2 * self.dilate_factor * int(np.floor(self.mean_size/4))
+            dilate_range = int(2 * self.dilate_factor * int(np.floor(self.mean_size/4)))
             out = morph.binary_dilation(out, selem=np.ones((dilate_range, dilate_range)))
             if np.sum(out) == 0:
                 warnings.warn('Object not found in mask for parent: ' + str(p) + ' in frames: ' + str(frame)[1:-1])
@@ -504,8 +506,8 @@ class Refiner:
     def plainPredict(self, ipts):
         """Generate cost of each potential daughter-parent pair (sample).
         """
-        WEIGHT_DIST = 0.25
-        WEIGHT_TIME = 0.25
+        WEIGHT_DIST = (1 - self.ASO_TRH) / 2
+        WEIGHT_TIME = 1 - self.ASO_TRH - WEIGHT_DIST
 
         out = np.zeros((ipts.shape[0],2))
         s = MinMaxScaler()
@@ -553,8 +555,7 @@ class Refiner:
 
         parent_pool, pool = self.extract_pools()
         
-        self.logger.debug('Short tracks excluded: ' + 
-                          str(self.short_tracks)[1:-1])
+        self.logger.debug('Short tracks excluded: ' + str(self.short_tracks)[1:-1])
         self.logger.debug('Candidate parents: ' + str(parent_pool)[1:-1])
         self.logger.debug('Candidate daughters: ' + str(pool)[1:-1])
         
@@ -645,7 +646,7 @@ class Refiner:
         to_register = {}
         for i in range(len(row_ind)):
             cst = cost[row_ind[i], col_ind[i]]
-            if cst < -0.5:
+            if cst < -self.ASO_TRH:
                 par = cost_r_idx[row_ind[i]]
                 daug = cost_c_idx[col_ind[i]]
                 if par not in to_register.keys():

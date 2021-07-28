@@ -326,7 +326,7 @@ def deduce_transition(l, tar, confidence, min_tar, max_res, escape=0, casual_end
     """
     mp = {'G1/G2': 0, 'S': 1, 'M': 2}
     confid_cls = list(map(lambda x: confidence[x, mp[l[x]]], range(confidence.shape[0])))
-    idx = np.where(np.array(l) == tar)[0]
+    idx = np.array([i for i in range(len(l)) if l[i] == tar])
     idx = idx[idx >= escape].tolist()
     if len(idx) == 0:
         return None
