@@ -60,7 +60,7 @@ def build_sem_seg_train_aug(cfg):
             )
         )
     augs.append(T.RandomFlip())
-    augs.append(T.RandomRotation([0,90,270], sample_style='choice'))
+    #augs.append(T.RandomRotation([0,90,270], sample_style='choice'))
     return augs
 
 
@@ -177,7 +177,7 @@ def setup(args):
     cfg.SOLVER.CHECKPOINT_PERIOD = 2000
     cfg.TEST.EVAL_PERIOD = 600  # 600
 
-    cfg.SOLVER.MAX_ITER = 2400  #  2400
+    cfg.SOLVER.MAX_ITER = 2800  #  2400
     cfg.MODEL.ROI_HEADS.BATCH_SIZE_PER_IMAGE = 256
     cfg.MODEL.ROI_HEADS.NUM_CLASSES = 4  # change according to class number
     cfg.TEST.DETECTION_PER_IMAGE = 1024
@@ -189,12 +189,14 @@ def setup(args):
     cfg.MODEL.RPN.NMS_THRESH = 0.7  #  default 0.7
 
     # Augmentation
-    cfg.INPUT.MIN_SIZE_TRAIN = 1000, 800, 600, 400
+    cfg.INPUT.MIN_SIZE_TRAIN = 1200, 1000, 700
     cfg.INPUT.MAX_SIZE_TRAIN = 2048
+    cfg.INPUT.MIN_SIZE_TEST = 0  # no resize when test
+    cfg.INPUT.MAX_SIZE_TEST = 2048
     cfg.INPUT.MIN_SIZE_TRAIN_SAMPLING = 'choice'
     cfg.INPUT.CROP.ENABLED = True
     cfg.INPUT.CROP.TYPE = 'relative'
-    cfg.INPUT.CROP.SIZE = [0.9, 0.9]
+    cfg.INPUT.CROP.SIZE = [0.8, 0.8]
     cfg.TEST.AUG.ENABLED = False
 
     ### Data

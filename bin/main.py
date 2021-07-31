@@ -20,6 +20,7 @@ from pcnaDeep.resolver import Resolver
 from pcnaDeep.tracker import track
 from pcnaDeep.split import split_frame, join_frame, join_table, resolve_joined_stack
 from pcnaDeep.data.utils import getDetectInput
+from tqdm import tqdm, trange
 
 
 def setup_cfg(args):
@@ -49,7 +50,7 @@ def check_PCNA_cfg(config, img_shape):
             raise ValueError('Tracker displacement should be smaller than image size.')
         if float(config['TRACKER']['GAP_FILL']) >= img_shape[0]:
             raise ValueError('Tracker memory should be smaller than time frame length.')
-        for i in ['MIN_G', 'MIN_S', 'MIN_M']:
+        for i in ['MIN_BG', 'MIN_S', 'MIN_M']:
             if float(config['POST_PROCESS'][i]) >= img_shape[0] or float(config['POST_PROCESS'][i]) <=0:
                 raise ValueError('Cell cycle phase length should be positive and smaller than frame length.')
         for i in ['SMOOTH', 'MITOSIS_LEN', 'MAX_FRAME_TRH', 'SEARCH_RANGE']:
@@ -136,19 +137,24 @@ def main(stack, config, output, prefix, logger):
 
     edge = config['EDGE_FLT']
     size_flt = config['SIZE_FLT']
-    for i in range(stack.shape[0]):
-        start_time = time.time()
-        img_relabel, out_props = predictFrame(stack[i,:], i, demo, edge_flt=edge, size_flt=size_flt)
-        table_out = table_out.append(out_props)
-        mask_out.append(img_relabel)
-        
-        logger.info(
-            "{}: {} in {:.2f}s".format(
-                'frame'+str(i),
-                "detected {} instances".format(out_props.shape[0]),
-                time.time() - start_time,
-            )
+    instances_frame = []
+    start_time = time.time()
+    with trange(stack.shape[0], unit='img') as trg:
+        for i in trg:
+            img_relabel, out_props = predictFrame(stack[i,:], i, demo, edge_flt=edge, size_flt=size_flt)
+            table_out = table_out.append(out_props)
+            mask_out.append(img_relabel)
+            trg.set_description('Frame %i' % i)
+            trg.set_postfix(instances=str(out_props.shape[0]))
+            instances_frame.append(out_props.shape[0])
+
+    logger.info(
+        "{}: {} in {:.2f}s".format(
+            'Total frame '+str(stack.shape[0]),
+            "Mean detected instances: {}".format(np.mean(instances_frame)),
+            time.time() - start_time,
         )
+    )
     
     tw = stack.shape[1]
     del stack
@@ -185,7 +191,7 @@ def main(stack, config, output, prefix, logger):
         df = float(refiner_cfg['MASK_CONSTRAINT']['DILATE_FACTOR'])
     myRefiner = Refiner(track_out, threshold_mt_F=int(refiner_cfg['MAX_DIST_TRH']),
                         threshold_mt_T=int(refiner_cfg['MAX_FRAME_TRH']), smooth=int(refiner_cfg['SMOOTH']),
-                        minGS=np.max((int(post_cfg['MIN_G']), int(post_cfg['MIN_S']))),
+                        minGS=np.min((int(post_cfg['MIN_BG']), int(post_cfg['MIN_S']))),
                         minM=int(post_cfg['MIN_M']), search_range=int(refiner_cfg['SEARCH_RANGE']),
                         mt_len=int(refiner_cfg['MITOSIS_LEN']), sample_freq=float(refiner_cfg['SAMPLE_FREQ']),
                         model_train=refiner_cfg['SVM_TRAIN_DATA'],
@@ -198,7 +204,7 @@ def main(stack, config, output, prefix, logger):
     ann.to_csv(os.path.join(output, prefix + '_tracks_ann.csv'), index=0)
     logger.debug(pprint.pformat(mt_dic, indent=4))
 
-    myResolver = Resolver(track_rfd, ann, mt_dic, minG=int(post_cfg['MIN_G']), minS=int(post_cfg['MIN_S']),
+    myResolver = Resolver(track_rfd, ann, mt_dic, minG=int(post_cfg['MIN_BG']), minS=int(post_cfg['MIN_S']),
                           minM=int(post_cfg['MIN_M']), 
                           minTrack=int(post_cfg['RESOLVER']['MIN_TRACK']), impreciseExit=imprecise,
                           G2_trh=int(post_cfg['RESOLVER']['G2_TRH']))

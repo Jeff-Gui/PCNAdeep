@@ -26,7 +26,7 @@ class Refiner:
 
     def __init__(self, track, smooth=5, minGS=25, minM=10, mode='SVM',
                  threshold_mt_F=100, threshold_mt_T=25,
-                 search_range=20, mt_len=25, sample_freq=1/5, model_train='', mask=None, 
+                 search_range=10, mt_len=25, sample_freq=1/5, model_train='', mask=None, 
                  dilate_factor=0.5, aso_trh=0.5):
         """Refinement of the tracked objects.
 
@@ -44,7 +44,8 @@ class Refiner:
             threshold_mt_F (int): mitosis displace maximum, can be evaluated as maximum cytokinesis distance.
             threshold_mt_T (int): mitosis frame difference maximum, can be evaluated as maximum mitosis frame length.
             - Essential for SVM/TRAIN mode (for normalizing different imaging conditions):
-            search_range (int): when calculating mitosis score, how many time points to consider.
+            search_range (int): when calculating mitosis score, how many time points to consider. 
+                Any track length shorter than search_range will not be considered during mitosis association.
             mt_len (int): mitosis length of the cells, evaluated manually.
             sample_freq (float): sampling frequency: x frame per minute.
             model_train (str): path to SVM model training data.
@@ -164,10 +165,7 @@ class Refiner:
     def register_track(self):
         """Register track annotation table 
         """
-        if self.MODE == 'TRH':
-            frame_tolerance = self.FRAME_MT_TOLERANCE
-        else:
-            frame_tolerance = self.SEARCH_RANGE
+        frame_tolerance = self.SEARCH_RANGE
 
         track = self.track.copy()
         # annotation table: record appearance and disappearance information of the track
@@ -595,6 +593,10 @@ class Refiner:
             save_train = np.concatenate((X, np.expand_dims(y, axis=1), np.expand_dims(from_new, axis=1)), axis=1)
             pd.DataFrame(save_train).to_csv('../../test/test_train.csv', index=False, header=False)
             '''
+            
+            # TODO only use 2-D feature map
+            X = X[:,0:2]
+            ipts = ipts[:,0:2]
 
             # Normalize
             s = RobustScaler()

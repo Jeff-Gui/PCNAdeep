@@ -9,9 +9,9 @@ EDGE_FLT: 10
 SIZE_FLT: 800
 TRACKER:
   DISPLACE: 60
-  GAP_FILL: 5
+  GAP_FILL: 10
 POST_PROCESS:
-  MIN_G: 25
+  MIN_BG: 5
   MIN_S: 20
   MIN_M: 10
   REFINER:
@@ -21,13 +21,13 @@ POST_PROCESS:
     SMOOTH: 5
     MITOSIS_LEN: 25
     SAMPLE_FREQ: 0.2
+    SEARCH_RANGE: 10
     MODE: TRH
     # TRH mode only
     MAX_DIST_TRH: 100
     MAX_FRAME_TRH: 25
     # SVM mode only
     ASO_TRH: 0.5
-    SEARCH_RANGE: 20
     SVM_TRAIN_DATA: '../models/SVM_train.txt'
   RESOLVER:
     MIN_TRACK: 50
