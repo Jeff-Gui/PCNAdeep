@@ -287,11 +287,10 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000, edge
         ori = np.max(mask_slice[mask[s, :, :] != 0])
         if ori != 0:
             ovl_count += 1
-            if sc > np.max(conf[ori - 1]):
-                mask_slice[mask_slice == ori] = 0
-                mask_slice[mask[s, :, :] != 0] = s + 1
-        else:
-            mask_slice[mask[s, :, :] != 0] = s + 1
+            if sc <= np.max(conf[ori - 1]):
+                mask[s, mask_slice == ori] = 0
+        mask_slice[mask[s, :, :] != 0] = s + 1
+        
     #print('Overlapping rate: ' + str(ovl_count / mask.shape[0]))
     #print(mask.shape[0])
 
