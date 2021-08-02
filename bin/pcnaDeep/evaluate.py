@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
+import yaml
 import logging
 import subprocess
 from pcnaDeep.data.preparePCNA import load_PCNAs_json
@@ -14,29 +15,20 @@ from detectron2 import model_zoo
 
 class pcna_detectronEvaluator:
 
-    def __init__(self, cfg_path, dataset_ann_path, dataset_path, out_dir, class_name=["G1/G2", "S", "M", "E"], 
-                 confidence_threshold=0.5):
+    def __init__(self, dataset_ann_path, dataset_path, out_dir, class_name=["G1/G2", "S", "M", "E"]):
         """Evaluate Detectron2 performance using COCO matrix
 
         Args:
-            cfg_path (str): path to config file.
             dataset_ann_path (str): path to the testing dataset annotation `json` file.
             dataset_path (str): path to testing dataset, must in format of pcnaDeep: separate dic and mcy folders.
             out_dir (str): output directory.
             class_name (list): classification name, should be the same as training config.
-            confidence_threshold (float): confidence threshold, default 0.5.
         """
-        self.CLASS_NAMES = class_name
-        self.cfg = get_cfg()
-        self.cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
-        self.cfg.merge_from_file(cfg_path)
-        self.cfg.MODEL.RETINANET.SCORE_THRESH_TEST = confidence_threshold
-        self.cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = confidence_threshold
-        self.cfg.MODEL.PANOPTIC_FPN.COMBINE.INSTANCES_CONFIDENCE_THRESH = confidence_threshold
-
+        self.CLASS_NAMES = class_name 
         self.out = out_dir
         DatasetCatalog.register("pcna_test", lambda: load_PCNAs_json(list(dataset_ann_path), list(dataset_path)))
         MetadataCatalog.get("pcna_test").set(thing_classes=self.CLASS_NAMES, evaluator_type='coco')
+        self.cfg = get_cfg()
 
         self.logger = logging.getLogger('detectron2')
         self.logger.setLevel(logging.DEBUG)
@@ -46,16 +38,24 @@ class pcna_detectronEvaluator:
         handler1.setFormatter(formatter)
         self.logger.addHandler(handler1)
 
-    def run_evaluate(self, model_path):
+    def run_evaluate(self, model_path, model_config, confidence_threshold):
         """Run evaluation
 
         Args:
             model_path (str): path to pre-trained model.
+            model_config (str): path to the config file corresponding to the model.
+            confidence_threshold (float): confidence threshold, default 0.5.
         """
+
         evaluator = COCOEvaluator(dataset_name="pcna_test", output_dir=self.out, 
                                   tasks=('segm',), distributed=True)
+       
+        self.cfg.merge_from_file(model_config)
+        self.cfg.MODEL.PANOPTIC_FPN.COMBINE.INSTANCES_CONFIDENCE_THRESH = confidence_threshold
+        self.cfg.MODEL.RETINANET.SCORE_THRESH_TEST = confidence_threshold
+        self.cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = confidence_threshold
+        self.cfg.CLASS_NAMES = self.CLASS_NAMES
         
-        self.cfg.MODEL.WEIGHTS = model_path
         val_loader = build_detection_test_loader(self.cfg, "pcna_test")
         model = build_model(self.cfg)
         result = inference_on_dataset(model, val_loader, evaluator)

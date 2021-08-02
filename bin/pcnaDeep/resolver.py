@@ -397,7 +397,7 @@ class Resolver:
 
         if m_exit is None and m_entry is None:
             # some tracks begin/end with mitosis and not associated during refinement. In this case, override any
-            # classification at terminal
+            # classification at terminal. Only track ends/begin with M will be kept, otherwise override with G1/G2.
             # WARNING: this can leads to false negative
             mt_out_begin = deduce_transition(l=cls, tar='M', confidence=confid, min_tar=1,
                                              max_res=np.max((self.minS, self.minG)))
@@ -409,7 +409,7 @@ class Resolver:
                 if mt_out_begin is not None:
                     if compare[0] == mt_out_begin[0] and compare[1] == mt_out_begin[1]:
                         #  if overlap, assign larger index one to None
-                        if mt_out_end[0] < mt_out_begin[1]:
+                        if mt_out_end[0] < mt_out_begin[0]:
                             mt_out_begin = None
                         else:
                             mt_out_end = None
@@ -418,9 +418,10 @@ class Resolver:
                 if mt_out_begin[0] == 0:
                     resolved_class[mt_out_begin[0]: mt_out_begin[1] + 1] = ['M' for _ in
                                                                             range(mt_out_begin[0], mt_out_begin[1] + 1)]
-                # if followed with G1/G2 only, change to G1
-                if np.unique(resolved_class[mt_out_begin[1] + 1:]).tolist() == ['G1/G2']:
-                    resolved_class = ['G1' if i == 'G1/G2' else i for i in resolved_class]
+                    # if followed with G1/G2 only, change to G1
+                    if np.unique(resolved_class[mt_out_begin[1] + 1:]).tolist() == ['G1/G2']:
+                        resolved_class = ['G1' if i == 'G1/G2' else i for i in resolved_class]
+
             if mt_out_end is not None and mt_out_begin is None:
                 if mt_out_end[0] == 0:
                     resolved_class = resolved_class[::-1]
