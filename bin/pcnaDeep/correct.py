@@ -435,10 +435,3 @@ class Trk_obj:
                 continue
 
         return
-
-
-'''
-Testing inputs
-cls -t 1 -f 10 -l S
-
-'''

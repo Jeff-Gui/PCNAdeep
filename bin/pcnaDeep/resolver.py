@@ -115,7 +115,7 @@ def get_rsv_input_gt(track, gt_name='predicted_class', G2_trh=200, no_cls_GT=Fal
 
 
 def resolve_from_gt(track, gt_name='predicted_class', extra_gt=None, G2_trh=None, no_cls_GT=False,
-                    minG=1, minS=1, minM=1, minTrack=0):
+                    minG=1, minS=1, minM=1, minLineage=0):
     """Resolve cell cycle phase from the ground truth. Wrapper of `get_rsv_input_gt()`.
 
     Args:
@@ -129,7 +129,7 @@ def resolve_from_gt(track, gt_name='predicted_class', extra_gt=None, G2_trh=None
         minG (int): minimum G phase frame length (default 1).
         minS (int): minimum S phase frame length (default 1).
         minM (int): minimum M phase frame length (default 1).
-        minTrack (int): minimum track frame length to resolve (default 0, resolve all tracks).
+        minLineage (int): minimum lineage frame length to resolve (default 0, resolve all tracks).
 
     Note:
         - If do not want G2 to be classified based on thresholding, rather, based on ground truth classification.
@@ -165,7 +165,7 @@ def resolve_from_gt(track, gt_name='predicted_class', extra_gt=None, G2_trh=None
             raise ValueError('Must provide a G2 intensity threshold or provide G2 ground truth classification.')
     print('Using G2 intensity threshold: ' + str(G2_trh))
     track_masked, ann, mt_dic, imprecise_m = get_rsv_input_gt(track, gt_name, G2_trh=G2_trh, no_cls_GT=no_cls_GT)
-    r = Resolver(track_masked, ann, mt_dic, minG=minG, minS=minS, minM=minM, minTrack=minTrack,
+    r = Resolver(track_masked, ann, mt_dic, maxBG=minG, minS=minS, minM=minM, minLineage=minLineage,
                  impreciseExit=imprecise_m, G2_trh=G2_trh)
     rsTrack, phase = r.doResolve()
     rsTrack = rsTrack[['trackId', 'frame', 'resolved_class', 'name']]
@@ -180,19 +180,35 @@ def resolve_from_gt(track, gt_name='predicted_class', extra_gt=None, G2_trh=None
 
 class Resolver:
 
-    def __init__(self, track, ann, mt_dic, minG=25, minS=20, minM=10, minTrack=50, impreciseExit=None, G2_trh=100):
+    def __init__(self, track, ann, mt_dic, maxBG=25, minS=20, minM=10, minLineage=10, impreciseExit=None, G2_trh=100):
+        """Resolve cell cycle duration, identity G1 or G2.
+
+        Args:
+            - pcnaDeep.tracker outputs:
+                track (pandas.DataFrame): tracked object table;
+                ann (pandas.DataFrame): track annotation table;
+                mt_dic (dict): mitosis information lookup dictionary;
+                impreciseExit (list): list of tracks which M-G1 transition not clearly labeled.
+            - GPR algorithm parameters for searching S/M phase:
+                maxBG (int): maximum background class appearance allowed within target phase;
+                minS (int): minimum target S phase length;
+                minM (int): minimum target M phase length.
+            - Options:
+                minLineage (int): minimum lineage length to record in the output phase table.
+                G2_trh (int): G2 intensity threshold for classifying arrested G1/G2 tracks. Background subtracted.
+        """
         if impreciseExit is None:
             impreciseExit = []
         self.logger = logging.getLogger('pcna.Resolver')
         self.impreciseExit = impreciseExit
         self.track = track
         self.ann = ann
-        self.minG = minG
+        self.maxBG = maxBG
         self.minS = minS
         self.mt_dic = mt_dic
         self.minM = minM
         self.rsTrack = None
-        self.minTrack = minTrack
+        self.minLineage = minLineage
         self.unresolved = []
         self.mt_unresolved = []
         self.arrest = {}  # trackId : arrest phase
@@ -200,9 +216,7 @@ class Resolver:
         self.phase = pd.DataFrame(columns=['track', 'type', 'G1', 'S', 'M', 'G2', 'parent'])
 
     def doResolve(self):
-        """Resolve cell cycle duration, identify G1 or G2.
-        
-        Main function of class resolver.
+        """Main function of class resolver.
         
         Returns:
             pandas.DataFrame: tracked object table with additional column 'resolved_class'.
@@ -279,8 +293,8 @@ class Resolver:
             intensity.append(corrected_mean)
             ids.append(i)
 
-        #  print(intensity)
         if G2_trh is None:
+            self.logger.warning('No G2 threshold provided, using KMean clustering to distinguish arrested G1/G2 track.')
             X = np.expand_dims(np.array(intensity), axis=1)
             X = MinMaxScaler().fit_transform(X)
             y = list(KMeans(2).fit_predict(X))
@@ -355,7 +369,7 @@ class Resolver:
 
         confid = np.array(trk[['Probability of G1/G2', 'Probability of S', 'Probability of M']])
         out = deduce_transition(l=cls, tar='S', confidence=confid, min_tar=self.minS,
-                                max_res=np.max((self.minM, self.minG)), casual_end=False)
+                                max_res=self.maxBG, casual_end=False)
 
         flag = False
         if not (out is None or out[0] == out[1]):
@@ -402,9 +416,9 @@ class Resolver:
             # classification at terminal. Only track ends/begin with M will be kept, otherwise override with G1/G2.
             # WARNING: this can leads to false negative
             mt_out_begin = deduce_transition(l=cls, tar='M', confidence=confid, min_tar=1,
-                                             max_res=np.max((self.minS, self.minG)))
+                                             max_res=self.maxBG)
             mt_out_end = deduce_transition(l=cls[::-1], tar='M', confidence=confid[::-1, :], min_tar=1,
-                                           max_res=np.max((self.minS, self.minG)))
+                                           max_res=self.maxBG)
             if mt_out_end is not None:
                 #  check if out and end interval overlaps
                 compare = (len(cls)-mt_out_end[1]-1, len(cls)-mt_out_end[0]-1)
@@ -519,7 +533,7 @@ class Resolver:
                 out.loc[out['track'] == j, 'M'] = int(m)
 
         # filter length
-        out = out[out['lin_length'] >= self.minTrack]
+        out = out[out['lin_length'] >= self.minLineage]
 
         # imprecise M (daughter associated with parent, but daughter no M classification) exit labeled
         out['imprecise_exit'] = 0

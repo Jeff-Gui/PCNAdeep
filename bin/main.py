@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import argparse
 import multiprocessing as mp
 import os
@@ -50,7 +51,7 @@ def check_PCNA_cfg(config, img_shape):
             raise ValueError('Tracker displacement should be smaller than image size.')
         if float(config['TRACKER']['GAP_FILL']) >= img_shape[0]:
             raise ValueError('Tracker memory should be smaller than time frame length.')
-        for i in ['MIN_BG', 'MIN_S', 'MIN_M']:
+        for i in ['MAX_BG', 'MIN_S', 'MIN_M']:
             if float(config['POST_PROCESS'][i]) >= img_shape[0] or float(config['POST_PROCESS'][i]) <=0:
                 raise ValueError('Cell cycle phase length should be positive and smaller than frame length.')
         for i in ['SMOOTH', 'MITOSIS_LEN', 'MAX_FRAME_TRH', 'SEARCH_RANGE']:
@@ -191,7 +192,7 @@ def main(stack, config, output, prefix, logger):
         df = float(refiner_cfg['MASK_CONSTRAINT']['DILATE_FACTOR'])
     myRefiner = Refiner(track_out, threshold_mt_F=int(refiner_cfg['MAX_DIST_TRH']),
                         threshold_mt_T=int(refiner_cfg['MAX_FRAME_TRH']), smooth=int(refiner_cfg['SMOOTH']),
-                        minGS=np.min((int(post_cfg['MIN_BG']), int(post_cfg['MIN_S']))),
+                        maxBG=int(post_cfg['MAX_BG']),
                         minM=int(post_cfg['MIN_M']), search_range=int(refiner_cfg['SEARCH_RANGE']),
                         mt_len=int(refiner_cfg['MITOSIS_LEN']), sample_freq=float(refiner_cfg['SAMPLE_FREQ']),
                         model_train=refiner_cfg['SVM_TRAIN_DATA'],
@@ -204,9 +205,9 @@ def main(stack, config, output, prefix, logger):
     ann.to_csv(os.path.join(output, prefix + '_tracks_ann.csv'), index=0)
     logger.debug(pprint.pformat(mt_dic, indent=4))
 
-    myResolver = Resolver(track_rfd, ann, mt_dic, minG=int(post_cfg['MIN_BG']), minS=int(post_cfg['MIN_S']),
-                          minM=int(post_cfg['MIN_M']), 
-                          minTrack=int(post_cfg['RESOLVER']['MIN_LINEAGE']), impreciseExit=imprecise,
+    myResolver = Resolver(track_rfd, ann, mt_dic, maxBG=int(post_cfg['MAX_BG']), minS=int(post_cfg['MIN_S']),
+                          minM=int(post_cfg['MIN_M']),
+                          minLineage=int(post_cfg['RESOLVER']['MIN_LINEAGE']), impreciseExit=imprecise,
                           G2_trh=int(post_cfg['RESOLVER']['G2_TRH']))
     track_rsd, phase = myResolver.doResolve()
     track_rsd.to_csv(os.path.join(output, prefix + '_tracks_refined.csv'), index=0)

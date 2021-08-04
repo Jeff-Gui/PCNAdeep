@@ -26,9 +26,9 @@ def dist(x1, y1, x2, y2):
 
 class Refiner:
 
-    def __init__(self, track, smooth=5, minGS=25, minM=10, mode='SVM',
+    def __init__(self, track, smooth=5, maxBG=25, minM=10, mode='SVM',
                  threshold_mt_F=100, threshold_mt_T=25,
-                 search_range=10, mt_len=25, sample_freq=1/5, model_train='', mask=None, 
+                 search_range=10, mt_len=25, sample_freq=1/5, model_train='', mask=None,
                  dilate_factor=0.5, aso_trh=0.5):
         """Refinement of the tracked objects.
 
@@ -40,7 +40,7 @@ class Refiner:
         Args:
             track (pandas.DataFrame): tracked object table.
             smooth (int): smoothing window on classification confidence.
-            minGS (int): minimum duration of G1/G2/S phase, choose maximum if differs among three.
+            maxBG (int): Maximum appearance of other phases when searching mitosis.
             mode (str): how to resolve parent-daughter relationship, either 'SVM', 'TRAIN' or 'TRH'.
             - Essential for TRH mode:
             threshold_mt_F (int): mitosis displace maximum, can be evaluated as maximum cytokinesis distance.
@@ -80,7 +80,7 @@ class Refiner:
         self.SMOOTH = smooth
         self.ASO_TRH = aso_trh
         self.dilate_factor = dilate_factor
-        self.MIN_GS = minGS
+        self.MAX_BG = maxBG
         self.MIN_M = minM
         self.short_tracks = []
         self.daug_from_broken = []
@@ -111,7 +111,7 @@ class Refiner:
                 continue
 
             found = False
-            if sub.shape[0] > self.MIN_GS and 'M' in list(sub['predicted_class']):
+            if sub.shape[0] > self.MAX_BG and 'M' in list(sub['predicted_class']):
                 cls = sub['predicted_class'].tolist()
                 confid = np.array(sub[['Probability of G1/G2', 'Probability of S', 'Probability of M']])
                 if sub['parentTrackId'].iloc[0] in self.mt_dic.keys():
@@ -119,7 +119,7 @@ class Refiner:
                     esp = list(sub['frame']).index(prev_exit)+1
                 else:
                     esp = self.MIN_M
-                out = deduce_transition(l=cls, tar='M', confidence=confid, min_tar=self.MIN_M, max_res=self.MIN_GS,
+                out = deduce_transition(l=cls, tar='M', confidence=confid, min_tar=self.MIN_M, max_res=self.MAX_BG,
                                         escape=esp)
 
                 if out is not None and out[0] != out[1] and out[1] != len(cls) - 1 and out[0] != esp:
@@ -316,7 +316,7 @@ class Refiner:
                 skp = list(trk['frame']).index(daug_entry)
                 c1 = c1[:skp]
                 c1_confid = c1_confid[:skp, :]
-            trans = deduce_transition(c1, tar='M', confidence=c1_confid, min_tar=1, max_res=self.MIN_GS, escape=skip)
+            trans = deduce_transition(c1, tar='M', confidence=c1_confid, min_tar=1, max_res=self.MAX_BG, escape=skip)
             if trans is not None:
                 trans = trans[1]
             else:
@@ -328,7 +328,7 @@ class Refiner:
                 c1 = c1[skp+1:]
                 c1_confid = c1_confid[skp+1:, :]
             trans = deduce_transition(c1[::-1], tar='M', confidence=c1_confid[::-1, :],
-                                      min_tar=1, max_res=self.MIN_GS, escape=skip)
+                                      min_tar=1, max_res=self.MAX_BG, escape=skip)
             if trans is not None:
                 trans = len(c1) - (1 + trans[1])
             else:
