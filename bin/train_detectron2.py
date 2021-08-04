@@ -163,7 +163,7 @@ def setup(args):
     cfg = get_cfg()
     cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
     #cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
-    cfg.MODEL.WEIGHTS = "../output/mulscale_sat16gma1/model_final.pth"
+    cfg.MODEL.WEIGHTS = "../output/mulscale_sat_rot/model_final.pth"
     cfg.DATASETS.TRAIN = ("pcna",)
     cfg.DATASETS.TEST = ("pcna_test",)
     cfg.DATALOADER.NUM_WORKERS = 4
@@ -190,7 +190,7 @@ def setup(args):
     cfg.MODEL.RPN.NMS_THRESH = 0.7  #  default 0.7
 
     # Augmentation
-    cfg.INPUT.MIN_SIZE_TRAIN = 1200, 1000, 700
+    cfg.INPUT.MIN_SIZE_TRAIN = 1200
     cfg.INPUT.MAX_SIZE_TRAIN = 2048
     cfg.INPUT.MIN_SIZE_TEST = 0  # no resize when test
     cfg.INPUT.MAX_SIZE_TEST = 2048
@@ -209,6 +209,9 @@ def setup(args):
     TRAIN_PREFIX = ['20210103-MCF10A', '20210127-MCF10A-mRels2', '20200902-MCF10A-s1_cpd',
                     '20201118-RPE_rand', 'MCF10A_rand', '20201111-RPE_rand', '20210205-10A_rand',
                     '20200729-RPE-s2_cpd', '20200902-MCF10A-s2_cpd', '20201122-RPE_rand', '20210127-10A_mRel3_rand']
+    TEST_PREFIX = ['testing', 'testing_10A_e2', 'testing_RPE_e1']
+    TEST_PREFIX = ['testing']
+    
     TRAIN_PATH = []
     TRAIN_ANN_PATH = []
     for p in TRAIN_PREFIX:
@@ -217,8 +220,14 @@ def setup(args):
 
     cfg.TRAIN_PATH = TRAIN_PATH
     cfg.TRAIN_ANN_PATH = TRAIN_ANN_PATH
-    cfg.TEST_PATH = [os.path.join(DATASET_ROOT, 'testing')]
-    cfg.TEST_ANN_PATH = [os.path.join(DATASET_ROOT, 'testing.json')]
+
+    TEST_PATH = []
+    TEST_ANN_PATH = []
+    for p in TEST_PREFIX:
+        TEST_PATH.append(os.path.join(DATASET_ROOT, p))
+        TEST_ANN_PATH.append(os.path.join(DATASET_ROOT, p+'.json'))
+    cfg.TEST_PATH = TEST_PATH
+    cfg.TEST_ANN_PATH = TEST_ANN_PATH
 
     cfg.freeze()
     default_setup(cfg, args)

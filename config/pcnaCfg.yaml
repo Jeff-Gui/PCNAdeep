@@ -25,7 +25,7 @@ POST_PROCESS:
     MODE: TRH
     # TRH mode only
     MAX_DIST_TRH: 80
-    MAX_FRAME_TRH: 25
+    MAX_FRAME_TRH: 30
     # SVM mode only
     ASO_TRH: 0.8
     SVM_TRAIN_DATA: '../models/SVM_train.txt'
