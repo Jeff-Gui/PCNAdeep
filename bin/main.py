@@ -57,7 +57,7 @@ def check_PCNA_cfg(config, img_shape):
             to_check = float(config['POST_PROCESS']['REFINER'][i])
             if to_check >= img_shape[0] or to_check <= 0:
                 raise ValueError(i + ' should be smaller than frame length and positive.')
-        to_check = float(config['POST_PROCESS']['RESOLVER']['MIN_TRACK'])
+        to_check = float(config['POST_PROCESS']['RESOLVER']['MIN_LINEAGE'])
         if to_check < 0 or to_check > img_shape[0]:
             raise ValueError('Minimum track length should not be negative or longer then frame length.')
         to_check = float(config['POST_PROCESS']['RESOLVER']['G2_TRH'])
@@ -177,7 +177,7 @@ def main(stack, config, output, prefix, logger):
 
     if np.max(mask_out) < 255:
         mask_out = img_as_ubyte(mask_out)
-    io.imsave(os.path.join(output, prefix + '_mask.tif'), mask_out)
+    #io.imsave(os.path.join(output, prefix + '_mask.tif'), mask_out)
 
     logger.info('Refining and Resolving...')
     post_cfg = config['POST_PROCESS']
@@ -206,7 +206,7 @@ def main(stack, config, output, prefix, logger):
 
     myResolver = Resolver(track_rfd, ann, mt_dic, minG=int(post_cfg['MIN_BG']), minS=int(post_cfg['MIN_S']),
                           minM=int(post_cfg['MIN_M']), 
-                          minTrack=int(post_cfg['RESOLVER']['MIN_TRACK']), impreciseExit=imprecise,
+                          minTrack=int(post_cfg['RESOLVER']['MIN_LINEAGE']), impreciseExit=imprecise,
                           G2_trh=int(post_cfg['RESOLVER']['G2_TRH']))
     track_rsd, phase = myResolver.doResolve()
     track_rsd.to_csv(os.path.join(output, prefix + '_tracks_refined.csv'), index=0)

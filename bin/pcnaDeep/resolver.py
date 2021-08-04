@@ -313,7 +313,8 @@ class Resolver:
         m_exit = info['m_exit'].values[0]
 
         if len(np.unique(lineage['trackId'])) == 1:
-            return self.resolveTrack(lineage.copy(), m_entry=m_entry, m_exit=m_exit)
+            rsd = self.resolveTrack(lineage.copy(), m_entry=m_entry, m_exit=m_exit)
+            return rsd
         else:
             out = pd.DataFrame()
             lg = lineage[lineage['trackId'] == main]
@@ -343,6 +344,7 @@ class Resolver:
         resolved_class = ['G1/G2' for _ in range(trk.shape[0])]
         if trk.shape[0] == 0:
             raise ValueError('Track not found!')
+            #return None
 
         track_id = trk['trackId'].tolist()[0]
         cls = list(trk['predicted_class'])
@@ -434,15 +436,15 @@ class Resolver:
         trk['resolved_class'] = resolved_class
         if np.unique(resolved_class).tolist() == ['G1/G2']:
             self.arrest[track_id] = 'G1'
-        if list_dist(cls, resolved_class) > UNRESOLVED_FRACTION * len(resolved_class) and \
-                len(resolved_class) >= self.minTrack:
+        if list_dist(cls, resolved_class) > UNRESOLVED_FRACTION * len(resolved_class):
             self.unresolved.append(track_id)
         return trk
 
     def doResolvePhase(self):
         """Resolve phase durations
         """
-        out = {'track': [], 'type': [], 'length': [], 'arrest': [], 'G1': [], 'S': [], 'M': [], 'G2': [], 'parent': []}
+        out = {'track': [], 'type': [], 'length': [], 'lin_length':[], 'arrest': [], 
+               'G1': [], 'S': [], 'M': [], 'G2': [], 'parent': []}
 
         # register tracks
         for i in range(self.ann.shape[0]):
@@ -450,6 +452,9 @@ class Resolver:
             if info['track'] in self.unresolved or info['track'] in self.mt_unresolved:
                 continue
             sub = self.rsTrack[self.rsTrack['trackId'] == info['track']]
+            lin = list(sub['lineageId'])[0]
+            sub_lin = self.rsTrack[self.rsTrack['lineageId'] == lin]
+            lin_length = int(np.max(sub_lin['frame']) - np.min(sub_lin['frame']))
             length = int(np.max(sub['frame']) - np.min(sub['frame']) + 1)
             par = info['mitosis_parent']
             if par is None or par in self.mt_unresolved:
@@ -457,6 +462,7 @@ class Resolver:
             out['track'].append(info['track'])
             out['length'].append(length)
             out['parent'].append(par)
+            out['lin_length'].append(lin_length)
             out['M'].append(np.nan)  # resolve later
 
             if list(np.unique(sub['resolved_class'])) == ['G1*']:
@@ -513,7 +519,7 @@ class Resolver:
                 out.loc[out['track'] == j, 'M'] = int(m)
 
         # filter length
-        out = out[out['length'] >= self.minTrack]
+        out = out[out['lin_length'] >= self.minTrack]
 
         # imprecise M (daughter associated with parent, but daughter no M classification) exit labeled
         out['imprecise_exit'] = 0

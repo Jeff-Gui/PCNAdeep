@@ -7,12 +7,14 @@ import pandas as pd
 import numpy as np
 from copy import deepcopy
 from sklearn.svm import SVC
+from sklearn import tree
 import skimage.morphology as morph
 from scipy.optimize import linear_sum_assignment
 from sklearn.preprocessing import RobustScaler
 from sklearn.preprocessing import MinMaxScaler
 from pcnaDeep.data.utils import get_outlier, deduce_transition
 from pcnaDeep.resolver import get_rsv_input_gt
+import tqdm
 #from imblearn.over_sampling import BorderlineSMOTE
 
 
@@ -274,6 +276,9 @@ class Refiner:
         ann.loc[ann['track'] == daughterId, 'm_exit'] = None
         ann.loc[ann['track'] == daughterId, 'mitosis_parent'] = None
 
+        if len(mt_dic[parentId]['daug'].keys()) == 0:
+            del mt_dic[parentId]
+
         return ann, mt_dic
 
     def register_mitosis(self, ann, mt_dic, parentId, daughterId, m_exit, dist_dif, m_entry=0):
@@ -436,16 +441,16 @@ class Refiner:
             raise NotImplementedError('Only allowed to input sample in TRAIN mode.')
 
         self.logger.info('Extracting features...')
-        ft = 0
+        #ft = 0
         ipts = []
         sample_id = []
         y = []
-        for i in par_pool:
+        for i in tqdm.tqdm(par_pool):
             for j in range(len(daug_pool)):
                 if i != daug_pool[j]:
-                    if ft % 500 == 0 and ft > 0:
-                        self.logger.info('Considered ' + str(ft) + '/' + str(len(daug_pool) * len(par_pool)) + ' cases.')
-                    ft += 1
+                    #if ft % 500 == 0 and ft > 0:
+                    #    self.logger.info('Considered ' + str(ft) + '/' + str(len(daug_pool) * len(par_pool)) + ' cases.')
+                    #ft += 1
                     ind = self.getSVMinput(i, daug_pool[j])
 
                     rgd = False  # first register input from broken pairs
@@ -601,10 +606,14 @@ class Refiner:
             # Normalize
             s = RobustScaler()
             X = s.fit_transform(X)
-
+            
             #  model = SVC(kernel='rbf', C=100, gamma=1, probability=True, class_weight='balanced')
-            model = SVC(kernel='linear', C=10, probability=True, class_weight='balanced')
-            model.fit(X, y)
+            #  model = SVC(kernel='linear', C=10, probability=True, class_weight='balanced')
+            #  model.fit(X, y)
+
+            # Decision tree
+            model = tree.DecisionTreeClassifier(max_depth=3, min_samples_leaf=2, min_samples_split=7)
+            model = model.fit(X, y)
 
             s2 = RobustScaler()
             ipts_norm = s2.fit_transform(ipts)
@@ -660,6 +669,14 @@ class Refiner:
 
         self.logger.debug('Parent-Daughter relation to register')
         self.logger.debug(to_register)
+
+        # check original mt_dic, if not in to_register, revert the relation
+        for par in mt_dic.keys():
+            if par not in to_register.keys():
+                ori_daugs = list(mt_dic[par]['daug'].keys())
+                for ori_daug in ori_daugs:
+                    ann, mt_dic = self.revert(deepcopy(ann), deepcopy(mt_dic), par, ori_daug)
+
         ips_count = 0
         for par in to_register.keys():
             daugs, csts = to_register[par]

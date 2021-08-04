@@ -1,5 +1,5 @@
 BATCH: false
-PIX_SATURATE: 1.2
+PIX_SATURATE: 1
 GAMMA: 1
 SPLIT:
   GRID: 0
@@ -8,7 +8,7 @@ SPLIT:
 EDGE_FLT: 10
 SIZE_FLT: 800
 TRACKER:
-  DISPLACE: 60
+  DISPLACE: 80
   GAP_FILL: 10
 POST_PROCESS:
   MIN_BG: 5
@@ -24,11 +24,11 @@ POST_PROCESS:
     SEARCH_RANGE: 10
     MODE: TRH
     # TRH mode only
-    MAX_DIST_TRH: 100
+    MAX_DIST_TRH: 80
     MAX_FRAME_TRH: 25
     # SVM mode only
-    ASO_TRH: 0.5
+    ASO_TRH: 0.8
     SVM_TRAIN_DATA: '../models/SVM_train.txt'
   RESOLVER:
-    MIN_TRACK: 50
+    MIN_LINEAGE: 20
     G2_TRH: 100
