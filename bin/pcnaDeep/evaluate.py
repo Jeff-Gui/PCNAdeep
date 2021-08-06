@@ -1,9 +1,6 @@
 # -*- coding: utf-8 -*-
 import os
-import yaml
-import logging
 import subprocess
-from pcnaDeep.data.preparePCNA import load_PCNAs_json
 from pcnaDeep.data.annotate import relabel_trackID, label_by_track, get_lineage_txt, break_track, save_seq
 
 
@@ -52,6 +49,7 @@ class pcna_ctcEvaluator:
         tracked_mask = label_by_track(mask.copy(), track_new.copy())
         txt = get_lineage_txt(track_new)
         fm = ("%0" + str(self.digit_num) + "d") % self.dt_id
+        tracked_mask = tracked_mask.astype('uint16')
 
         if mode == 'RES':
             # write out processed files for RES folder

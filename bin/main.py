@@ -197,7 +197,7 @@ def main(stack, config, output, prefix, logger):
                         mt_len=int(refiner_cfg['MITOSIS_LEN']), sample_freq=float(refiner_cfg['SAMPLE_FREQ']),
                         model_train=refiner_cfg['SVM_TRAIN_DATA'],
                         mode=refiner_cfg['MODE'], mask=mask_out, dilate_factor=df, 
-                        aso_trh=float(refiner_cfg['ASO_TRH']))
+                        aso_trh=float(refiner_cfg['ASO_TRH']), dist_weight=float(refiner_cfg['DIST_WEIGHT']))
     ann, track_rfd, mt_dic, imprecise = myRefiner.doTrackRefine()
     del mask_out
     gc.collect()

@@ -13,21 +13,22 @@ TRACKER:
 POST_PROCESS:
   MAX_BG: 5
   MIN_S: 20
-  MIN_M: 10
+  MIN_M: 8
   REFINER:
     MASK_CONSTRAINT:
-      ENABLED: true
+      ENABLED: false
       DILATE_FACTOR: 0.5
     SMOOTH: 5
-    MITOSIS_LEN: 25
+    MITOSIS_LEN: 15
     SAMPLE_FREQ: 0.2
     SEARCH_RANGE: 10
     MODE: TRH
     # TRH mode only
     MAX_DIST_TRH: 80
     MAX_FRAME_TRH: 30
+    DIST_WEIGHT: 0.8
     # SVM mode only
-    ASO_TRH: 0.8
+    ASO_TRH: 0.5
     SVM_TRAIN_DATA: '../models/SVM_train.txt'
   RESOLVER:
     MIN_LINEAGE: 10

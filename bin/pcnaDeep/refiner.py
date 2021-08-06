@@ -26,10 +26,10 @@ def dist(x1, y1, x2, y2):
 
 class Refiner:
 
-    def __init__(self, track, smooth=5, maxBG=25, minM=10, mode='SVM',
+    def __init__(self, track, smooth=5, maxBG=5, minM=10, mode='SVM',
                  threshold_mt_F=100, threshold_mt_T=25,
                  search_range=10, mt_len=25, sample_freq=1/5, model_train='', mask=None,
-                 dilate_factor=0.5, aso_trh=0.5):
+                 dilate_factor=0.5, aso_trh=0.5, dist_weight=0.8):
         """Refinement of the tracked objects.
 
         Algorithms:
@@ -53,6 +53,7 @@ class Refiner:
             model_train (str): path to SVM model training data.
             mask (numpy.ndarray): object masks, same shape as input, must labeled with object ID.
             dilate_factor (float): dilate the mask with `n * mean object radius`, default 0.5.
+            dist_weight (float): 0~1, distance weight in calculating cost in TRH mode *only*
         """
 
         self.logger = logging.getLogger('pcna.Refiner')
@@ -91,6 +92,7 @@ class Refiner:
         self.mean_size = np.mean(np.array(self.track[['major_axis', 'minor_axis']]))
         self.mean_intensity = np.mean(np.array(self.track[['mean_intensity']]))
         self.logger.info('Mean size: ' + str(self.mean_size))
+        self.dist_weight = dist_weight
         self.ann = pd.DataFrame(
             columns=['track', 'app_frame', 'disapp_frame', 'app_x', 'app_y', 'disapp_x', 'disapp_y', 'app_stage',
                      'disapp_stage', 'predicted_parent'])
@@ -362,8 +364,8 @@ class Refiner:
 
         for i in pool:
             if i not in daughter_pool and i not in lin_daug_pool and i not in self.short_tracks:
-                #  if re.search('M', self.ann[self.ann['track'] == i]['app_stage'].values[0]) is not None:
-                if re.search('S', self.ann[self.ann['track'] == i]['app_stage'].values[0]) is None:
+                if re.search('M', self.ann[self.ann['track'] == i]['app_stage'].values[0]) is not None:
+                # if re.search('S', self.ann[self.ann['track'] == i]['app_stage'].values[0]) is None:
                     daughter_pool.append(i)
 
         if extra_par:
@@ -500,7 +502,7 @@ class Refiner:
     def plainPredict(self, ipts):
         """Generate cost of each potential daughter-parent pair (sample).
         """
-        WEIGHT_DIST = (1 - self.ASO_TRH) / 2
+        WEIGHT_DIST = (1 - self.ASO_TRH) * self.dist_weight
         WEIGHT_TIME = 1 - self.ASO_TRH - WEIGHT_DIST
 
         out = np.zeros((ipts.shape[0],2))
@@ -563,7 +565,7 @@ class Refiner:
             # Read in baseline training data
             baseline = np.array(pd.read_csv(self.SVM_PATH, header=None))
             baseline_x = baseline[:, :ipts.shape[1]]
-            baseline_y = baseline[:, ipts.shape[1]]
+            baseline_y = baseline[:, baseline.shape[1]-1]
 
             if len(mt_dic.keys())>0:
                 # Train model further with already broken tracks
@@ -577,16 +579,11 @@ class Refiner:
                 X = baseline_x
                 y = baseline_y
 
-            # Oversample positive instances
-            '''
-            smote = BorderlineSMOTE(random_state=1, kind='borderline-1')
-            X, y = smote.fit_resample(X, y)
-            '''
             '''
             # Render training set to inspect
             from_new = [1 for _ in range(ipts_brk.shape[0])] + [0 for _ in range(baseline.shape[0])]
             save_train = np.concatenate((X, np.expand_dims(y, axis=1), np.expand_dims(from_new, axis=1)), axis=1)
-            pd.DataFrame(save_train).to_csv('../../test/test_train.csv', index=False, header=False)
+            pd.DataFrame(save_train).to_csv('test_train.csv', index=False, header=False)
             '''
             
             # TODO only use 2-D feature map
@@ -596,14 +593,13 @@ class Refiner:
             # Normalize
             s = RobustScaler()
             X = s.fit_transform(X)
-            
-            #  model = SVC(kernel='rbf', C=100, gamma=1, probability=True, class_weight='balanced')
-            #  model = SVC(kernel='linear', C=10, probability=True, class_weight='balanced')
-            #  model.fit(X, y)
+            #model = SVC(kernel='rbf', C=100, gamma=1, probability=True, class_weight='balanced')
+            #model = SVC(kernel='linear', C=1000, probability=True, class_weight='balanced')
+            #model.fit(X, y)
 
             # Decision tree
-            model = tree.DecisionTreeClassifier(max_depth=3, min_samples_leaf=2, min_samples_split=7)
-            model = model.fit(X, y)
+            #model = tree.DecisionTreeClassifier(max_depth=3, min_samples_leaf=2, min_samples_split=7)
+            #model = model.fit(X, y)
 
             s2 = RobustScaler()
             ipts_norm = s2.fit_transform(ipts)
