@@ -59,7 +59,7 @@ class pcna_ctcEvaluator:
             txt.to_csv(os.path.join(self.root, fm + '_RES', 'res_track.txt'), sep=' ', index=0, header=False)
         elif mode == 'GT':
             fm = os.path.join(self.root, fm + '_GT')
-            self.__saveGT(fm, txt, mask)
+            self.__saveGT(fm, txt, tracked_mask)
         else:
             raise ValueError('Can only generate CTC format files as RES or GT, not: ' + mode)
         return

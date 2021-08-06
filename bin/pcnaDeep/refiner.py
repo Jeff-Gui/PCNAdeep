@@ -454,7 +454,9 @@ class Refiner:
                             sample_id.append([i, daug_pool[j]])
                             rgd = True
 
-                    if not rgd and ind[1] <= 0:
+                    par_end = self.ann[self.ann['track'] == i]['disapp_frame'].values[0]
+                    daug_appear = self.ann[self.ann['track'] == daug_pool[j]]['app_frame'].values[0]
+                    if not rgd and (ind[1] <= 0 or par_end >= daug_appear):
                         continue
                     elif not rgd:
                         if self.mask is not None:

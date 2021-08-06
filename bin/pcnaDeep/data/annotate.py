@@ -51,8 +51,10 @@ def label_by_track(mask, label_table):
         sl = mask[i, :, :].copy()
         lbs = np.unique(sl).tolist()
 
+        '''
         if lbs[-1] + 1 != len(lbs):
             raise ValueError('Mask is not continuously or wrongly labeled.')
+        '''
 
         ori_labels = set(lbs) - {0}
         untracked = list(ori_labels - set(list(sub_table['continuous_label'])))
@@ -63,7 +65,6 @@ def label_by_track(mask, label_table):
         for j in sub_table.index:
             sl[mask[i, :, :] == sub_table.loc[j, 'continuous_label']] = sub_table.loc[j, 'trackId']
         mask[i, :, :] = sl.copy()
-
     return mask
 
 
