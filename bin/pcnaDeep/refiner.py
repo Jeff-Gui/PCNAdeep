@@ -67,7 +67,6 @@ class Refiner:
                          'meanDisplace': np.mean(self.getMeanDisplace()['mean_displace'])}
         self.logger.info(self.metaData)
         self.SEARCH_RANGE = search_range
-        self.mt_score_begin, self.mt_score_end = self.getMTscore(self.SEARCH_RANGE, self.MT_DISCOUNT)
         if mode == 'SVM' or mode == 'TRAIN' or mode == 'TRAIN_GT':
             self.SVM_PATH = model_train
         elif mode == 'TRH':
@@ -181,8 +180,6 @@ class Refiner:
                "disapp_y": [0 for _ in range(track_count)],
                "app_stage": [None for _ in range(track_count)],  # cell cycle classification at appearance
                "disapp_stage": [None for _ in range(track_count)],  # cell cycle classification at disappearance
-               # "predicted_parent" : [None for _ in range(track_count)], # non-mitotic parent track TO-predict
-               # "predicted_daughter" : [None for _ in range(track_count)],
                "mitosis_parent": [None for _ in range(track_count)],  # mitotic parent track to predict
                "mitosis_daughter": ['' for _ in range(track_count)],
                "m_entry": [None for _ in range(track_count)],
@@ -365,7 +362,8 @@ class Refiner:
 
         for i in pool:
             if i not in daughter_pool and i not in lin_daug_pool and i not in self.short_tracks:
-                if re.search('M', self.ann[self.ann['track'] == i]['app_stage'].values[0]) is not None:
+                #  if re.search('M', self.ann[self.ann['track'] == i]['app_stage'].values[0]) is not None:
+                if re.search('S', self.ann[self.ann['track'] == i]['app_stage'].values[0]) is None:
                     daughter_pool.append(i)
 
         if extra_par:
@@ -441,17 +439,13 @@ class Refiner:
             raise NotImplementedError('Only allowed to input sample in TRAIN mode.')
 
         self.logger.info('Extracting features...')
-        #ft = 0
         ipts = []
         sample_id = []
         y = []
         for i in tqdm.tqdm(par_pool):
             for j in range(len(daug_pool)):
                 if i != daug_pool[j]:
-                    #if ft % 500 == 0 and ft > 0:
-                    #    self.logger.info('Considered ' + str(ft) + '/' + str(len(daug_pool) * len(par_pool)) + ' cases.')
-                    #ft += 1
-                    ind = self.getSVMinput(i, daug_pool[j])
+                    ind = self.getAsoInput(i, daug_pool[j])
 
                     rgd = False  # first register input from broken pairs
                     if i in self.mt_dic.keys():
@@ -459,13 +453,7 @@ class Refiner:
                             ipts.append(ind)
                             sample_id.append([i, daug_pool[j]])
                             rgd = True
-                    '''
-                    if not rgd and (ind[0] >= 10 or ind[1] <= 0 or
-                                    ind[1] > 10 * self.metaData['mt_len'] / self.metaData['sample_freq']):
-                        # if distance over 3 (average radius + average move * time frame difference), discard it.
-                        # if frame difference smaller than 0 or over 3 (mitosis length / sample frequency), discard it.
-                        continue
-                    '''
+
                     if not rgd and ind[1] <= 0:
                         continue
                     elif not rgd:
@@ -793,44 +781,7 @@ class Refiner:
 
         return pd.DataFrame(d)
 
-    def getMTscore(self, search_range, discount=0.9):
-        """Measure mitosis score based on cell cycle classification.
-
-        Args:
-            search_range (int): region for calculation
-            discount (float): discounting factor when calculating mitosis score
-                mitosis_score = SUM(discount^frame_diff * confidence of class 'M')
-                default shallow discount = 0.9
-        """
-        PSEUDOCOUNT = 0.01
-
-        mt_score_begin = {}
-        mt_score_end = {}
-        for trackId in np.unique(self.track['trackId']):
-            sub = self.track[self.track['trackId'] == trackId]
-            fme_begin = sub['frame'].iloc[0] + search_range - 1
-            fme_end = sub['frame'].iloc[-1] - search_range + 1
-            idx = sub[sub['frame'] <= fme_begin].index
-
-            frame_start = sub['frame'].loc[idx[0]]
-            x_start = np.power(discount, np.abs(sub['frame'].loc[idx] - frame_start))
-            score_start = np.sum(
-                np.multiply(x_start,
-                            sub['Probability of M'].loc[idx] - sub['Probability of S'].loc[idx] +
-                            int(sub['emerging'].loc[idx].values[0])))
-
-            idx2 = sub[sub['frame'] >= fme_end].index
-            frame_end = sub['frame'].loc[idx2[0]]
-            x_end = np.power(discount, np.abs(sub['frame'].loc[idx2] - frame_end))
-            score_end = np.sum(
-                np.multiply(x_end,
-                            sub['Probability of M'].loc[idx2] - sub['Probability of S'].loc[idx2]))
-
-            mt_score_begin[trackId] = score_start / len(idx) + PSEUDOCOUNT
-            mt_score_end[trackId] = score_end / len(idx2) + PSEUDOCOUNT
-        return mt_score_begin, mt_score_end
-
-    def getSVMinput(self, parent, daughter):
+    def getAsoInput(self, parent, daughter):
         """Generate SVM classifier input for track 1 & 2.
 
         Args:
@@ -838,9 +789,8 @@ class Refiner:
             daughter (int): daughter track ID.
 
         Returns:
-            Input vector of SVM classifier:
-            - [distance_diff, frame_diff, m_score_par + m_score_daug]    <-  track specific
-            - ave_major/minor_axis_diff = abs(parent_axis - daughter_axis) / parent_axis
+            Input vector of the classifier:
+            - [distance_diff, frame_diff]
 
             Some parameters are normalized with dataset specific features:
             - distance_diff /= ave_displace
@@ -883,25 +833,8 @@ class Refiner:
         # Feature 1: distance
         distance_diff = dist(x1, y1, x2, y2)
 
-        # Feature 3: mitosis score
-        m_score_par = self.mt_score_end[parent]
-        m_score_daug = self.mt_score_begin[daughter]
-
-        # Feature 4: minimum intensity, pcna intensity during mitosis is very low
-        par_idx = par[par['frame'] >= par['frame'].iloc[-1] - self.SEARCH_RANGE + 1].index
-        daug_idx = daug[daug['frame'] <= daug['frame'].iloc[0] + self.SEARCH_RANGE - 1].index
-        par_intensity = np.mean(par['mean_intensity'].loc[par_idx] - par['background_mean'].loc[par_idx])
-        daug_intensity = np.mean(daug['mean_intensity'].loc[daug_idx] - daug['background_mean'].loc[daug_idx])
-
-        # Feature 5/6: length of parent and daughter track
-        len_par = (par['frame'].iloc[-1] - par['frame'].iloc[0] + 1)/self.metaData['mt_len']
-        len_daug = (daug['frame'].iloc[-1] - daug['frame'].iloc[0] + 1)/self.metaData['mt_len']
-
         out = [distance_diff / (self.mean_size/2 + np.abs(frame_diff) * self.metaData['meanDisplace']),
-               frame_diff / self.metaData['sample_freq'],
-               np.min((par_intensity, daug_intensity)) / self.mean_intensity,
-               m_score_par + m_score_daug,
-               np.min((len_par, len_daug)) / self.metaData['sample_freq']]
+               frame_diff / self.metaData['sample_freq']]
 
         return out
 
@@ -979,8 +912,6 @@ class Refiner:
             self.track, _, self.mt_dic, self.imprecise = get_rsv_input_gt(self.track, 'predicted_class')
 
         self.track, self.short_tracks, self.ann = self.register_track()
-        self.mt_score_begin, self.mt_score_end = self.getMTscore(self.SEARCH_RANGE, self.MT_DISCOUNT)
-
         if self.MODE == 'TRAIN_GT':
             return self.get_SVM_train()
         elif self.MODE == 'TRH':

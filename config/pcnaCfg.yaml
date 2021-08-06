@@ -16,7 +16,7 @@ POST_PROCESS:
   MIN_M: 10
   REFINER:
     MASK_CONSTRAINT:
-      ENABLED: false
+      ENABLED: true
       DILATE_FACTOR: 0.5
     SMOOTH: 5
     MITOSIS_LEN: 25
