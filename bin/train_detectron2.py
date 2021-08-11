@@ -206,9 +206,16 @@ def setup(args):
     # Dataset metadata
     DATASET_ROOT = '/home/zje/dataset/pcna'
     
-    TRAIN_PREFIX = ['20210103-MCF10A', '20210127-MCF10A-mRels2', '20200902-MCF10A-s1_cpd',
-                    '20201118-RPE_rand', 'MCF10A_rand', '20201111-RPE_rand', '20210205-10A_rand',
-                    '20200729-RPE-s2_cpd', '20200902-MCF10A-s2_cpd', '20201122-RPE_rand', '20210127-10A_mRel3_rand']
+    TRAIN_PREFIX = ['20210103-MCF10A', 
+                    '20210127-MCF10A-mRels2',
+                    '20200902-MCF10A-s1_cpd',
+                    'MCF10A_rand',
+                    '20210205-10A_rand',
+                    '20210127-10A_mRel3_rand',
+                    '20200902-MCF10A-s2_cpd',
+                    '20201118-RPE_rand', '20201111-RPE_rand', 
+                    '20200729-RPE-s2_cpd', '20201122-RPE_rand', 
+                    ]
     TEST_PREFIX = ['testing', 'testing_10A_e2', 'testing_RPE_e1']
     TEST_PREFIX = ['testing']
     

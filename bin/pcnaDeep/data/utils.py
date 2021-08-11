@@ -353,11 +353,18 @@ def deduce_transition(l, tar, confidence, min_tar, max_res, escape=0, casual_end
         i += 1
     if i == (len(idx) - 1) and found:
         m_exit = idx[-1]
+    elif g_panelty < max_res and (found or 
+                                  casual_end and idx[i] - cur_m_entry + 1 >= min_tar and cur_m_entry != idx[-1]):
+        found = True
+        m_exit = idx[-1]
+       
+    '''
     elif casual_end and i == (len(idx) - 1) and g_panelty < max_res and not found and cur_m_entry != idx[-1]:
         found = True
         m_exit = idx[-1]
         if m_exit - cur_m_entry + 1 < min_tar:
             return None
+    '''
 
     if found and m_exit is not None:
         return cur_m_entry, m_exit

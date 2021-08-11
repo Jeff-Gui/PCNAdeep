@@ -593,13 +593,12 @@ class Refiner:
             # Normalize
             s = RobustScaler()
             X = s.fit_transform(X)
-            #model = SVC(kernel='rbf', C=100, gamma=1, probability=True, class_weight='balanced')
+            model = SVC(kernel='rbf', C=100, gamma=1, probability=True, class_weight='balanced')
             #model = SVC(kernel='linear', C=1000, probability=True, class_weight='balanced')
-            #model.fit(X, y)
 
             # Decision tree
             #model = tree.DecisionTreeClassifier(max_depth=3, min_samples_leaf=2, min_samples_split=7)
-            #model = model.fit(X, y)
+            model = model.fit(X, y)
 
             s2 = RobustScaler()
             ipts_norm = s2.fit_transform(ipts)
