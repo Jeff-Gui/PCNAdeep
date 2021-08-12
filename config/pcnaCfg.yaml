@@ -12,7 +12,7 @@ TRACKER:
   GAP_FILL: 10
 POST_PROCESS:
   MAX_BG: 5
-  MIN_S: 20
+  MIN_S: 10
   MIN_M: 8
   REFINER:
     MASK_CONSTRAINT:
@@ -25,8 +25,8 @@ POST_PROCESS:
     MODE: TRH
     # TRH mode only
     MAX_DIST_TRH: 80
-    MAX_FRAME_TRH: 30
-    DIST_WEIGHT: 0.8
+    MAX_FRAME_TRH: 20
+    DIST_WEIGHT: 0.5
     # SVM mode only
     ASO_TRH: 0.5
     SVM_TRAIN_DATA: '../models/SVM_train.txt'
