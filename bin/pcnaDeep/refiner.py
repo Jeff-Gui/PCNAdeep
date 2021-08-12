@@ -595,6 +595,7 @@ class Refiner:
             X = s.fit_transform(X)
             model = SVC(kernel='rbf', C=100, gamma=1, probability=True, class_weight='balanced')
             #model = SVC(kernel='linear', C=1000, probability=True, class_weight='balanced')
+            model.fit(X, y)
 
             # Decision tree
             #model = tree.DecisionTreeClassifier(max_depth=3, min_samples_leaf=2, min_samples_split=7)
@@ -802,32 +803,26 @@ class Refiner:
         m_exit = self.getMtransition(daughter, direction='exit')
         if m_entry is None:
             m_entry = par['frame'].iloc[-1]
-            x1 = par['Center_of_the_object_0'].iloc[-1]
-            y1 = par['Center_of_the_object_1'].iloc[-1]
             self.mt_entry_lookup[parent] = (m_entry, 0)  # 0: imprecise
         else:
-            idx = list(par['frame']).index(m_entry)
-            x1 = par['Center_of_the_object_0'].iloc[idx]
-            y1 = par['Center_of_the_object_1'].iloc[idx]
             self.mt_entry_lookup[parent] = (m_entry, 1)  # 1: precise
         if m_exit is None:
             m_exit = daug['frame'].iloc[0]
-            x2 = daug['Center_of_the_object_0'].iloc[0]
-            y2 = daug['Center_of_the_object_1'].iloc[0]
             self.mt_exit_lookup[daughter] = (m_exit, 0)
         else:
-            idx = list(daug['frame']).index(m_exit)
-            x2 = daug['Center_of_the_object_0'].iloc[idx]
-            y2 = daug['Center_of_the_object_1'].iloc[idx]
             self.mt_exit_lookup[daughter] = (m_exit, 1)
 
         if m_entry >= daug['frame'].iloc[0]:
             # mitosis daughter should appear after NEBD of parent, set -1 to be filtered out in extract_feature() method
             frame_diff = -1
         else:
-            frame_diff = m_exit - m_entry
+            frame_diff = daug['frame'].iloc[0] - par['frame'].iloc[-1]
 
         # Feature 1: distance
+        x1 = par['Center_of_the_object_0'].iloc[-1]
+        y1 = par['Center_of_the_object_1'].iloc[-1]
+        x2 = daug['Center_of_the_object_0'].iloc[0]
+        y2 = daug['Center_of_the_object_1'].iloc[0]
         distance_diff = dist(x1, y1, x2, y2)
 
         out = [distance_diff / (self.mean_size/2 + np.abs(frame_diff) * self.metaData['meanDisplace']),

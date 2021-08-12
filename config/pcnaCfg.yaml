@@ -25,7 +25,7 @@ POST_PROCESS:
     MODE: TRH
     # TRH mode only
     MAX_DIST_TRH: 80
-    MAX_FRAME_TRH: 30
+    MAX_FRAME_TRH: 20
     DIST_WEIGHT: 0.5
     # SVM mode only
     ASO_TRH: 0.5

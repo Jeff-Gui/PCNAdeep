@@ -162,8 +162,8 @@ def setup(args):
 
     cfg = get_cfg()
     cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
-    #cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
-    cfg.MODEL.WEIGHTS = "../output/mulscale_sat_rot/model_final.pth"
+    cfg.MODEL.WEIGHTS = model_zoo.get_checkpoint_url("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml")
+    #cfg.MODEL.WEIGHTS = "../output/mulscale_sat_rot/model_final.pth"
     cfg.DATASETS.TRAIN = ("pcna",)
     cfg.DATASETS.TEST = ("pcna_test",)
     cfg.DATALOADER.NUM_WORKERS = 4
@@ -174,7 +174,7 @@ def setup(args):
     cfg.SOLVER.WEIGHT_DECAY = 0.0001
     cfg.SOLVER.WEIGHT_DECAY_NORM = 0.0
     cfg.SOLVER.GAMMA = 0.1
-    cfg.SOLVER.STEPS = (600, 1200, 1600, 2000)
+    cfg.SOLVER.STEPS = (800, 1400, 1800, 2200)
     cfg.SOLVER.CHECKPOINT_PERIOD = 2000
     cfg.TEST.EVAL_PERIOD = 600  # 600
 
@@ -186,7 +186,7 @@ def setup(args):
     # Avoid overlapping
     cfg.MODEL.ROI_HEADS.NMS_THRESH_TEST = 0.5  #  default 0.5
     cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.05  #  default 0.05
-    cfg.MODEL.PANOPTIC_FPN.COMBINE.OVERLAP_THRESH = 0.9  #  default 0.5
+    #cfg.MODEL.PANOPTIC_FPN.COMBINE.OVERLAP_THRESH = 0.9  #  default 0.5
     cfg.MODEL.RPN.NMS_THRESH = 0.7  #  default 0.7
 
     # Augmentation
