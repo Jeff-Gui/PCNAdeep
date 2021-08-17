@@ -342,6 +342,9 @@ def deduce_transition(l, tar, confidence, min_tar, max_res, escape=0, casual_end
         g_panelty += np.sum(confid_cls[idx[i] + 1:idx[i + 1]])
         if acc_m >= min_tar:
             found = True
+            if g_panelty < max_res:
+                g_panelty = 0
+                acc_m = 0
         if g_panelty >= max_res:
             if found:
                 m_exit = idx[i]

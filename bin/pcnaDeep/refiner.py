@@ -29,7 +29,7 @@ class Refiner:
     def __init__(self, track, smooth=5, maxBG=5, minM=10, mode='SVM',
                  threshold_mt_F=100, threshold_mt_T=25,
                  search_range=10, mt_len=25, sample_freq=1/5, model_train='', mask=None,
-                 dilate_factor=0.5, aso_trh=0.5, dist_weight=0.8):
+                 dilate_factor=0.5, aso_trh=0.5, dist_weight=0.8, svm_c=0.5, dt_id=None, test_id=None):
         """Refinement of the tracked objects.
 
         Algorithms:
@@ -54,6 +54,7 @@ class Refiner:
             mask (numpy.ndarray): object masks, same shape as input, must labeled with object ID.
             dilate_factor (float): dilate the mask with `n * mean object radius`, default 0.5.
             dist_weight (float): 0~1, distance weight in calculating cost in TRH mode *only*
+            svm_c (int): SVM C parameter, higher stricter.
         """
 
         self.logger = logging.getLogger('pcna.Refiner')
@@ -77,7 +78,12 @@ class Refiner:
             raise ValueError('Mode can only be SVM, TRAIN or TRH, for SVM-mitosis resolver, '
                              'training of the resolver or threshold based resolver.')
 
+        self.dt_id = dt_id
+        self.test_id = test_id
+
         self.SMOOTH = smooth
+        self.DO_AUG = True
+        self.SVM_C = svm_c
         self.ASO_TRH = aso_trh
         self.dilate_factor = dilate_factor
         self.MAX_BG = maxBG
@@ -567,7 +573,8 @@ class Refiner:
             baseline_x = baseline[:, :ipts.shape[1]]
             baseline_y = baseline[:, baseline.shape[1]-1]
 
-            if len(mt_dic.keys())>0:
+            self.logger.info('Augment SVM train: ' + str(self.DO_AUG))
+            if len(mt_dic.keys()) > 0 and self.DO_AUG:
                 # Train model further with already broken tracks
                 ipts_brk = self.extract_train_from_break(sample_id, ipts, mt_dic)
                 y = [1 for _ in range(ipts_brk.shape[0])]
@@ -579,28 +586,29 @@ class Refiner:
                 X = baseline_x
                 y = baseline_y
 
-            '''
             # Render training set to inspect
-            from_new = [1 for _ in range(ipts_brk.shape[0])] + [0 for _ in range(baseline.shape[0])]
-            save_train = np.concatenate((X, np.expand_dims(y, axis=1), np.expand_dims(from_new, axis=1)), axis=1)
-            pd.DataFrame(save_train).to_csv('test_train.csv', index=False, header=False)
             '''
-            
-            # TODO only use 2-D feature map
-            X = X[:,0:2]
-            ipts = ipts[:,0:2]
+            import os
+            root_save = os.path.join('D:\Chan Lab\Jeff Experiments\SVM_data', self.dt_id)
+            if self.DO_AUG:
+                from_new = [1 for _ in range(ipts_brk.shape[0])] + [0 for _ in range(baseline.shape[0])]
+                save_train = np.concatenate((X, np.expand_dims(y, axis=1), np.expand_dims(from_new, axis=1)), axis=1)
+            else:
+                save_train = np.concatenate((X, np.expand_dims(y, axis=1)), axis=1)
+            pd.DataFrame(save_train).to_csv(os.path.join(root_save, self.test_id+'_test_train.csv'), index=False)
+            '''
 
             # Normalize
             s = RobustScaler()
             X = s.fit_transform(X)
-            model = SVC(kernel='rbf', C=100, gamma=1, probability=True, class_weight='balanced')
-            #model = SVC(kernel='linear', C=1000, probability=True, class_weight='balanced')
-            model.fit(X, y)
+            self.logger.info('Fitting SVM with rbf kernal, C=' + str(self.SVM_C) + ' gamma=' + str(10))
+            #model = SVC(kernel='rbf', C=self.SVM_C, gamma=10, probability=True, class_weight='balanced')
+            model = SVC(kernel='linear', C=self.SVM_C, probability=True, class_weight='balanced')
 
             # Decision tree
             #model = tree.DecisionTreeClassifier(max_depth=3, min_samples_leaf=2, min_samples_split=7)
-            model = model.fit(X, y)
 
+            model.fit(X, y)
             s2 = RobustScaler()
             ipts_norm = s2.fit_transform(ipts)
             res = model.predict_proba(ipts_norm)
