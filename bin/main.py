@@ -178,7 +178,7 @@ def main(stack, config, output, prefix, logger):
 
     if np.max(mask_out) < 255:
         mask_out = img_as_ubyte(mask_out)
-    #io.imsave(os.path.join(output, prefix + '_mask.tif'), mask_out)
+    io.imsave(os.path.join(output, prefix + '_mask.tif'), mask_out)
 
     logger.info('Refining and Resolving...')
     post_cfg = config['POST_PROCESS']
