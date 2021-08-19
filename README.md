@@ -5,7 +5,7 @@
 Welcome! pcnaDeep integrates cutting-edge detection techniques with tracking and cell cycle resolving models.
 With pre-trained Detectron2 maskRCNN model, pcnaDeep is able to detect and resolve very dense cell tracks with __PCNA fluorescent Only__.
 
-<iframe height=600 width=600 src='/assets/res_demo.mov' frameborder=0></iframe>
+![image](/assets/res_demo.gif)
 
 ## Installation
 1. PyTorch (torch >= 1.7.1) installation is essential, while CUDA GPU support is recommended. Visit [PyTorch homepage](https://pytorch.org/) for specific installation schedule.
