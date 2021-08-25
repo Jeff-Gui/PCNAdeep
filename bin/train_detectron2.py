@@ -44,7 +44,6 @@ import detectron2.data.transforms as T
 
 
 def build_sem_seg_train_aug(cfg):
-    augs = []
     
     augs = [
         T.ResizeShortestEdge(

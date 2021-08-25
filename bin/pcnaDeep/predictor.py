@@ -328,7 +328,7 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000, edge
         # get background intensity
         b1,b3,b2,b4 = expand_bbox((out_props.iloc[row]['bbox-0'], out_props.iloc[row]['bbox-1'],
                                    out_props.iloc[row]['bbox-2'], out_props.iloc[row]['bbox-3']),
-                                  1, img_relabel.shape)
+                                  2, img_relabel.shape)
         obj_region = img_relabel[b1:b2, b3:b4].copy()
         its_region = img[b1:b2, b3:b4, 0].copy()
         dic_region = img[b1:b2, b3:b4, 2].copy()

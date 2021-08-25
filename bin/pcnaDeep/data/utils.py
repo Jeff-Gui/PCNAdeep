@@ -10,6 +10,7 @@ import skimage.io as io
 import skimage.measure as measure
 from PIL import Image, ImageDraw
 from skimage.util import img_as_ubyte
+import warnings
 
 
 def json2mask(ip, height, width, out=None, label_phase=False, mask_only=False):
@@ -417,6 +418,7 @@ def expand_bbox(bbox, factor, limit):
         bbox (tuple): (x1, y1, x2, y2).
         factor (float): positive value, expand height and width by multiplying the factor.
             Round if result is not integer.
+            The output shape will be (factor + 1) ** 2 times of the original size.
         limit (tuple): (x_max, y_max), limit values to avoid boundary crush.
 
     Returns:
@@ -458,7 +460,7 @@ def align_table_and_mask(table, mask):
     """
     count = 0
     for i in range(mask.shape[0]):
-        sub = table[table['frame']==i]
+        sub = table[table['frame'] == i]
         sls = mask[i,:,:].copy()
         lbs = sorted(list(np.unique(sls)))
         if lbs[0] == 0:
@@ -467,9 +469,58 @@ def align_table_and_mask(table, mask):
         rmd = list(set(lbs) - set(registered))
         if rmd:
             for j in rmd:
-                sls[sls==j] = 0
+                sls[sls == j] = 0
                 count += 1
             mask[i,:,:] = sls
 
     print('Removed ' + str(count) + ' objects.')
     return mask
+
+
+def merge_obj_tables(a, b, col, mode='label'):
+    """Merge two object tables according to shared frame and continuous label / location identity.
+
+    Args:
+        a (pandas.DataFrame): donor table. Record not found in acceptor will be ignored.
+        b (pandas.DataFrame): acceptor table. Record cannot be matched with donor will results in NA and warned.
+        col (str): key in both a and b that aimed to merge. Only allow one key and a time 
+        mode (str): either 'label' or 'loc'.
+
+    Note:
+        Both a and b tables must have the keys:
+            - Center_of_the_object_0
+            - Center_of_the_object_1
+            - continuous label
+            - frame
+            - (key to merge)
+        
+        In loc mode, location will be rounded to 3 digits before matching.
+    """
+
+    rs = []
+    if col not in a.columns:
+        raise ValueError(col + ' not found in donor table.')
+
+    if mode == 'loc':
+        a['Center_of_the_object_0'] = np.ceil(a['Center_of_the_object_0'])
+        a['Center_of_the_object_1'] = np.ceil(a['Center_of_the_object_1'])
+
+    for i in range(b.shape[0]):
+        fme = b['frame'].iloc[i]
+
+        if mode == 'label':
+            lb = b['continuous_label'].iloc[i]
+            cd = a[(b['continuous_label'] == lb) & (a['frame'] == fme)]
+        else:
+            x = np.ceil(b['Center_of_the_object_0'].iloc[i])
+            y = np.ceil(b['Center_of_the_object_1'].iloc[i])
+            cd = a[(a['Center_of_the_object_0'] == x) & (a['Center_of_the_object_1'] == y) & (a['frame'] == fme)]
+
+        if cd.shape[0] == 0:
+            warnings.warn('Not found in donor for record: ' + str(list(b.iloc[i])))
+            rs.append(np.nan)
+        else:
+            rs.append(cd[col].iloc[0])
+    b[col] = rs
+    
+    return b

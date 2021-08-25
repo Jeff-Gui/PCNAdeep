@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-
 import gc
 import trackpy as tp
 import skimage.measure as measure
@@ -75,6 +74,7 @@ def track_mask(mask, displace=40, gap_fill=5, render_phase=False, size_min=100, 
         (pandas.DataFrame): tracked object table.
         (mask_lbd): mask with each frame labeled with object IDs.
     """
+    BBOX_FACTOR = 2  # dilate the bounding box when calculating the background intensity.
     PHASE_DIC = {10: 'G1/G2', 50: 'S', 100: 'M', 200: 'G1/G2'}
     p = pd.DataFrame()
     mask_lbd = np.zeros(mask.shape)
@@ -144,7 +144,7 @@ def track_mask(mask, displace=40, gap_fill=5, render_phase=False, size_min=100, 
                 phase.append(0)
             # extract intensity
             b1, b3, b2, b4 = expand_bbox((props.iloc[k][0], props.iloc[k][1],
-                                          props.iloc[k][2], props.iloc[k][3]), 1, (h,w))
+                                          props.iloc[k][2], props.iloc[k][3]), BBOX_FACTOR, (h,w))
             lbd = int(props.iloc[k][6])
             obj_region = mask_lbd[i, b1:b2, b3:b4].copy()
             its_region = PCNA_intensity[i, b1:b2, b3:b4].copy()

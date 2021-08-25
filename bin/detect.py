@@ -2,7 +2,6 @@ import argparse
 import json
 import multiprocessing as mp
 import os
-import re
 import time
 import gc
 
@@ -11,7 +10,6 @@ import pandas as pd
 import skimage.io as io
 from detectron2.config import get_cfg
 from detectron2.utils.logger import setup_logger
-
 from pcnaDeep.predictor import VisualizationDemo, pred2json, predictFrame
 from pcnaDeep.data.utils import getDetectInput
 

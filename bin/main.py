@@ -7,21 +7,19 @@ import time
 import yaml
 import pprint
 import gc
-
 import numpy as np
 import pandas as pd
 import skimage.io as io
 from skimage.util import img_as_ubyte
 from detectron2.config import get_cfg
 from detectron2.utils.logger import setup_logger
-
 from pcnaDeep.predictor import VisualizationDemo, predictFrame
 from pcnaDeep.refiner import Refiner
 from pcnaDeep.resolver import Resolver
 from pcnaDeep.tracker import track
 from pcnaDeep.split import split_frame, join_frame, join_table, resolve_joined_stack
 from pcnaDeep.data.utils import getDetectInput
-from tqdm import tqdm, trange
+from tqdm import trange
 
 
 def setup_cfg(args):
@@ -54,7 +52,7 @@ def check_PCNA_cfg(config, img_shape):
         for i in ['MAX_BG', 'MIN_S', 'MIN_M']:
             if float(config['POST_PROCESS'][i]) >= img_shape[0] or float(config['POST_PROCESS'][i]) <=0:
                 raise ValueError('Cell cycle phase length should be positive and smaller than frame length.')
-        for i in ['SMOOTH', 'MITOSIS_LEN', 'MAX_FRAME_TRH', 'SEARCH_RANGE']:
+        for i in ['SMOOTH', 'MAX_FRAME_TRH', 'SEARCH_RANGE']:
             to_check = float(config['POST_PROCESS']['REFINER'][i])
             if to_check >= img_shape[0] or to_check <= 0:
                 raise ValueError(i + ' should be smaller than frame length and positive.')
@@ -194,7 +192,7 @@ def main(stack, config, output, prefix, logger):
                         threshold_mt_T=int(refiner_cfg['MAX_FRAME_TRH']), smooth=int(refiner_cfg['SMOOTH']),
                         maxBG=int(post_cfg['MAX_BG']),
                         minM=int(post_cfg['MIN_M']), search_range=int(refiner_cfg['SEARCH_RANGE']),
-                        mt_len=int(refiner_cfg['MITOSIS_LEN']), sample_freq=float(refiner_cfg['SAMPLE_FREQ']),
+                        sample_freq=float(refiner_cfg['SAMPLE_FREQ']),
                         model_train=refiner_cfg['SVM_TRAIN_DATA'], svm_c=int(refiner_cfg['C']),
                         mode=refiner_cfg['MODE'], mask=mask_out, dilate_factor=df, 
                         aso_trh=float(refiner_cfg['ASO_TRH']), dist_weight=float(refiner_cfg['DIST_WEIGHT']))

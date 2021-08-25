@@ -31,7 +31,7 @@ X.to_csv(os.path.join(root, prefix+'_svm_train.txt'), index=False, header=False)
 
 #%% Try out model fitting
 
-table = pd.read_csv('/Users/jefft/Desktop/Chan lab/SRTP/ImageAnalysis/PCNAdeep/models/SVM_train.txt',
+table = pd.read_csv('/models/SVM_train.txt',
                     header=None)
 table = np.array(table)
 X = table[:,:table.shape[1]-1]

@@ -7,7 +7,6 @@ import pandas as pd
 import numpy as np
 from copy import deepcopy
 from sklearn.svm import SVC
-from sklearn import tree
 import skimage.morphology as morph
 from scipy.optimize import linear_sum_assignment
 from sklearn.preprocessing import RobustScaler
@@ -15,7 +14,6 @@ from sklearn.preprocessing import MinMaxScaler
 from pcnaDeep.data.utils import get_outlier, deduce_transition
 from pcnaDeep.resolver import get_rsv_input_gt
 import tqdm
-#from imblearn.over_sampling import BorderlineSMOTE
 
 
 def dist(x1, y1, x2, y2):
@@ -28,7 +26,7 @@ class Refiner:
 
     def __init__(self, track, smooth=5, maxBG=5, minM=10, mode='SVM',
                  threshold_mt_F=100, threshold_mt_T=25,
-                 search_range=10, mt_len=25, sample_freq=1/5, model_train='', mask=None,
+                 search_range=10, sample_freq=1/5, model_train='', mask=None,
                  dilate_factor=0.5, aso_trh=0.5, dist_weight=0.8, svm_c=0.5, dt_id=None, test_id=None):
         """Refinement of the tracked objects.
 
@@ -48,7 +46,6 @@ class Refiner:
             - Essential for SVM/TRAIN mode (for normalizing different imaging conditions):
             search_range (int): when calculating mitosis score, how many time points to consider. 
                 Any track length shorter than search_range will not be considered during mitosis association.
-            mt_len (int): mitosis length of the cells, evaluated manually.
             sample_freq (float): sampling frequency: x frame per minute.
             model_train (str): path to SVM model training data.
             mask (numpy.ndarray): object masks, same shape as input, must labeled with object ID.
@@ -64,8 +61,7 @@ class Refiner:
         self.count = np.unique(track['trackId'])
 
         self.MODE = mode
-        self.MT_DISCOUNT = 0.9
-        self.metaData = {'mt_len': mt_len, 'sample_freq': sample_freq,
+        self.metaData = {'sample_freq': sample_freq,
                          'meanDisplace': np.mean(self.getMeanDisplace()['mean_displace'])}
         self.logger.info(self.metaData)
         self.SEARCH_RANGE = search_range
@@ -85,6 +81,8 @@ class Refiner:
         self.DO_AUG = True
         self.SVM_C = svm_c
         self.ASO_TRH = aso_trh
+        if self.MODE == 'TRH':
+            self.ASO_TRH = 0.5
         self.dilate_factor = dilate_factor
         self.MAX_BG = maxBG
         self.MIN_M = minM
@@ -602,11 +600,7 @@ class Refiner:
             s = RobustScaler()
             X = s.fit_transform(X)
             self.logger.info('Fitting SVM with rbf kernal, C=' + str(self.SVM_C) + ' gamma=' + str(10))
-            #model = SVC(kernel='rbf', C=self.SVM_C, gamma=10, probability=True, class_weight='balanced')
             model = SVC(kernel='linear', C=self.SVM_C, probability=True, class_weight='balanced')
-
-            # Decision tree
-            #model = tree.DecisionTreeClassifier(max_depth=3, min_samples_leaf=2, min_samples_split=7)
 
             model.fit(X, y)
             s2 = RobustScaler()
@@ -800,7 +794,7 @@ class Refiner:
 
             Some parameters are normalized with dataset specific features:
             - distance_diff /= ave_displace
-            - frame_diff /= (sample_freq * mt_len)
+            - frame_diff /= sample_freq
         """
         par = self.track[self.track['trackId'] == parent].sort_values(by='frame')
         daug = self.track[self.track['trackId'] == daughter].sort_values(by='frame')
