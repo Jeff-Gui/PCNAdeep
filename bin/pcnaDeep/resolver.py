@@ -468,7 +468,7 @@ class Resolver:
             sub = self.rsTrack[self.rsTrack['trackId'] == info['track']]
             lin = list(sub['lineageId'])[0]
             sub_lin = self.rsTrack[self.rsTrack['lineageId'] == lin]
-            lin_length = int(np.max(sub_lin['frame']) - np.min(sub_lin['frame']))
+            lin_length = int(np.max(sub_lin['frame']) - np.min(sub_lin['frame'])) + 1
             length = int(np.max(sub['frame']) - np.min(sub['frame']) + 1)
             par = info['mitosis_parent']
             if par is None or par in self.mt_unresolved:

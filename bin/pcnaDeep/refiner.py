@@ -123,7 +123,7 @@ class Refiner:
                     prev_exit = self.mt_dic[int(sub['parentTrackId'].iloc[0])]['daug'][trk]['m_exit']
                     esp = list(sub['frame']).index(prev_exit)+1
                 else:
-                    esp = self.MIN_M
+                    esp = 0
                 out = deduce_transition(l=cls, tar='M', confidence=confid, min_tar=self.MIN_M, max_res=self.MAX_BG,
                                         escape=esp)
 

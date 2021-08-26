@@ -14,6 +14,11 @@ POST_PROCESS:
     SMOOTH: 5          # Sliding window to smooth classification scores.
     SAMPLE_FREQ: 0.2   # Metadata, sampling frequency in frame per minute.
     SEARCH_RANGE: 10   # Range of searching M/E classification for defining candidate mother/daughter tracks.
+
+    MASK_CONSTRAINT:
+      ENABLED: false
+      DILATE_FACTOR: 0.5
+
     MODE: TRH          # Mitosis association mode, either TRH (threshold-based) or SVM (require training data).
     # TRH mode only
     MAX_DIST_TRH: 120  # Maximum distance allowed for valid mother/daughter pair.
@@ -26,11 +31,6 @@ POST_PROCESS:
   RESOLVER:
     MIN_LINEAGE: 10    # Minimum lineage length to be recorded in the `phase` table output.
     G2_TRH: 100        # For arrested G1/G2 tracks, over-threshold tracks will be classified as G2.
-
-  #MITOSIS_LEN: 15
-    #MASK_CONSTRAINT:
-    #  ENABLED: false
-    #  DILATE_FACTOR: 0.5
 
 ### EXPERIMENT ONLY. DO NOT CHANGE.
 SPLIT:
