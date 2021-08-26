@@ -216,7 +216,6 @@ def setup(args):
                     '20200729-RPE-s2_cpd', '20201122-RPE_rand', 
                     ]
     TEST_PREFIX = ['testing', 'testing_10A_e2', 'testing_RPE_e1']
-    TEST_PREFIX = ['testing']
     
     TRAIN_PATH = []
     TRAIN_ANN_PATH = []

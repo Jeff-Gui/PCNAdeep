@@ -155,7 +155,7 @@ def mask2json(in_dir, out_dir, phase_labeled=False, phase_dic={10: "G1/G2", 50: 
     return
 
 
-def getDetectInput(pcna, dic, gamma=0.8, sat=2):
+def getDetectInput(pcna, dic, gamma=1, sat=1):
     """Generate pcna-mScarlet and DIC channel to RGB format for detectron2 model prediction
 
     Args:
