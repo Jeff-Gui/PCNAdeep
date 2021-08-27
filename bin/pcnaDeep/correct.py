@@ -88,7 +88,8 @@ class Trk_obj:
               ' with new ID ' + str(new) + '.')
 
         for dd in dir_daugs:
-            self.create_parent(new, dd)
+            if dd != new:
+                self.create_parent(new, dd)
 
         return
 
