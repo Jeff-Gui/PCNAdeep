@@ -8,6 +8,5 @@ Welcome to pcnaDeep's documentation!
 
 .. toctree::
    :maxdepth: 4
-   
-   tutorials/index
+
    modules/index
