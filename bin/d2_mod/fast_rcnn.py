@@ -1,9 +1,10 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
+# Modified by Yifan Gui @ Kuan Yoow Chan lab
+
 import logging
 from typing import Dict, List, Tuple, Union
 import torch
 from fvcore.nn import giou_loss, smooth_l1_loss
-from fvcore.nn.focal_loss import sigmoid_focal_loss
 from torch import nn
 from torch.nn import functional as F
 
@@ -321,7 +322,7 @@ class FastRCNNOutputs:
         """
         Deprecated
         """
-        return {"loss_cls": self.softmax_focal_loss(), "loss_box_reg": self.box_reg_loss()}
+        return {"loss_cls": self.softmax_cross_entropy_loss(), "loss_box_reg": self.box_reg_loss()}
 
     def predict_boxes(self):
         """
@@ -360,9 +361,6 @@ class FastRCNNOutputLayers(nn.Module):
         smooth_l1_beta: float = 0.0,
         box_reg_loss_type: str = "smooth_l1",
         loss_weight: Union[float, Dict[str, float]] = 1.0,
-        focal_alpha=1,
-        focal_gamma=0,
-        cls_loss='ce',
     ):
         """
         NOTE: this interface is experimental.
@@ -408,13 +406,6 @@ class FastRCNNOutputLayers(nn.Module):
         if isinstance(loss_weight, float):
             loss_weight = {"loss_cls": loss_weight, "loss_box_reg": loss_weight}
         self.loss_weight = loss_weight
-        self.focal_alpha = focal_alpha
-        self.focal_gamma = focal_gamma
-        self.cls_loss = cls_loss
-        if self.cls_loss == 'focal':
-            print('Using focal loss, alpha=' + str(self.focal_alpha) + ', gamma=' + str(self.focal_gamma))
-        else:
-            print('Using cross entropy loss')
 
     @classmethod
     def from_config(cls, cfg, input_shape):
@@ -452,23 +443,6 @@ class FastRCNNOutputLayers(nn.Module):
         proposal_deltas = self.bbox_pred(x)
         return scores, proposal_deltas
 
-    def softmax_focal_loss(self, scores, gt_class, reduction):
-        """
-        Compute the softmax focal loss for box classification.
-
-        Returns:
-            scaler Tensor
-        """
-        if gt_class.numel() == 0 and reduction == "mean":
-            return scores.sum() * 0.0
-        else:
-            return sigmoid_focal_loss(scores, 
-                F.one_hot(gt_class, num_classes=scores.shape[1]).float(),
-                alpha = self.focal_alpha,
-                gamma = self.focal_gamma,
-                reduction=reduction,
-            )
-
     def losses(self, predictions, proposals):
         """
         Args:
@@ -504,8 +478,7 @@ class FastRCNNOutputLayers(nn.Module):
             proposal_boxes = gt_boxes = torch.empty((0, 4), device=proposal_deltas.device)
 
         losses = {
-            "loss_cls": self.softmax_focal_loss(scores, gt_classes, reduction="mean") if self.cls_loss=='focal' else
-              cross_entropy(scores, gt_classes, reduction="mean"),
+            "loss_cls": cross_entropy(scores, gt_classes, reduction="mean"),
             "loss_box_reg": self.box_reg_loss(
                 proposal_boxes, gt_boxes, proposal_deltas, gt_classes
             ),

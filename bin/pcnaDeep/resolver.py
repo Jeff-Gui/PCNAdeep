@@ -190,9 +190,9 @@ class Resolver:
                 mt_dic (dict): mitosis information lookup dictionary;
                 impreciseExit (list): list of tracks which M-G1 transition not clearly labeled.
             - GPR algorithm parameters for searching S/M phase:
-                maxBG (int): maximum background class appearance allowed within target phase;
-                minS (int): minimum target S phase length;
-                minM (int): minimum target M phase length.
+                maxBG (float): maximum background class appearance allowed within target phase;
+                minS (float): minimum target S phase length;
+                minM (float): minimum target M phase length.
             - Options:
                 minLineage (int): minimum lineage length to record in the output phase table.
                 G2_trh (int): G2 intensity threshold for classifying arrested G1/G2 tracks. Background subtracted.

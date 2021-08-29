@@ -38,7 +38,8 @@ class Refiner:
         Args:
             track (pandas.DataFrame): tracked object table.
             smooth (int): smoothing window on classification confidence.
-            maxBG (int): Maximum appearance of other phases when searching mitosis.
+            maxBG (float): Maximum appearance of other phases when searching mitosis.
+            minM (float): Minimum appearance of mitosis.
             mode (str): how to resolve parent-daughter relationship, either 'SVM', 'TRAIN' or 'TRH'.
             - Essential for TRH mode:
             threshold_mt_F (int): mitosis displace maximum, can be evaluated as maximum cytokinesis distance.

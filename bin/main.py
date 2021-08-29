@@ -190,8 +190,8 @@ def main(stack, config, output, prefix, logger):
         df = float(refiner_cfg['MASK_CONSTRAINT']['DILATE_FACTOR'])
     myRefiner = Refiner(track_out, threshold_mt_F=int(refiner_cfg['MAX_DIST_TRH']),
                         threshold_mt_T=int(refiner_cfg['MAX_FRAME_TRH']), smooth=int(refiner_cfg['SMOOTH']),
-                        maxBG=int(post_cfg['MAX_BG']),
-                        minM=int(post_cfg['MIN_M']), search_range=int(refiner_cfg['SEARCH_RANGE']),
+                        maxBG=float(post_cfg['MAX_BG']),
+                        minM=float(post_cfg['MIN_M']), search_range=int(refiner_cfg['SEARCH_RANGE']),
                         sample_freq=float(refiner_cfg['SAMPLE_FREQ']),
                         model_train=refiner_cfg['SVM_TRAIN_DATA'], svm_c=int(refiner_cfg['C']),
                         mode=refiner_cfg['MODE'], mask=mask_out, dilate_factor=df, 
@@ -203,8 +203,8 @@ def main(stack, config, output, prefix, logger):
     ann.to_csv(os.path.join(output, prefix + '_tracks_ann.csv'), index=0)
     logger.debug(pprint.pformat(mt_dic, indent=4))
 
-    myResolver = Resolver(track_rfd, ann, mt_dic, maxBG=int(post_cfg['MAX_BG']), minS=int(post_cfg['MIN_S']),
-                          minM=int(post_cfg['MIN_M']),
+    myResolver = Resolver(track_rfd, ann, mt_dic, maxBG=float(post_cfg['MAX_BG']), minS=float(post_cfg['MIN_S']),
+                          minM=float(post_cfg['MIN_M']),
                           minLineage=int(post_cfg['RESOLVER']['MIN_LINEAGE']), impreciseExit=imprecise,
                           G2_trh=int(post_cfg['RESOLVER']['G2_TRH']))
     track_rsd, phase = myResolver.doResolve()
@@ -291,8 +291,8 @@ if __name__ == "__main__":
                                           sat=float(pcna_cfg_dict['PIX_SATURATE']),
                                           gamma=float(pcna_cfg_dict['GAMMA']))
 
-                    inspect = imgs[range(0, imgs.shape[0], 100),:,:,:].copy()
-                    io.imsave(os.path.join(args.output, si[0], si[0] + '_sample_intput.tif'), inspect)
+                    #inspect = imgs[range(0, imgs.shape[0], 100),:,:,:].copy()
+                    #io.imsave(os.path.join(args.output, si[0], si[0] + '_sample_intput.tif'), inspect)
     
                     main(stack=imgs, config=pcna_cfg_dict, output=os.path.join(args.output, si[0]), 
                          prefix=si[0], logger=logger)
@@ -314,8 +314,8 @@ if __name__ == "__main__":
                         os.mkdir(md)
                     imgs = io.imread(os.path.join(ipt, si))
 
-                    inspect = imgs[range(0, imgs.shape[0], 100),:,:,:].copy()
-                    io.imsave(os.path.join(args.output, prefix, prefix + '_sample_intput.tif'), inspect)
+                    #inspect = imgs[range(0, imgs.shape[0], 100),:,:,:].copy()
+                    #io.imsave(os.path.join(args.output, prefix, prefix + '_sample_intput.tif'), inspect)
 
                     main(stack=imgs, config=pcna_cfg_dict, output=os.path.join(args.output, prefix), 
                          prefix=prefix, logger=logger)
@@ -348,7 +348,7 @@ if __name__ == "__main__":
         elif prefix.split('_')[-1] in ['DIC', 'dic', 'mCy', 'mcy', 'pcna', 'PCNA']:
             prefix = '_'.join(prefix.split('_')[:-1])
 
-        inspect = imgs[range(0, imgs.shape[0], 100),:,:,:].copy()
-        io.imsave(os.path.join(args.output, prefix + '_sample_intput.tif'), inspect)
+        #inspect = imgs[range(0, imgs.shape[0], 100),:,:,:].copy()
+        #io.imsave(os.path.join(args.output, prefix + '_sample_intput.tif'), inspect)
 
         main(stack=imgs, config=pcna_cfg_dict, output=args.output, prefix=prefix, logger=logger)

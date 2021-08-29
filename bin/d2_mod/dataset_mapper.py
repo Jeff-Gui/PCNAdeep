@@ -1,5 +1,5 @@
 # Copyright (c) Facebook, Inc. and its affiliates.
-# Adapted by Yifan Gui, 2021.6
+# Modified by Yifan Gui @ Kuan Yoow Chan lab, 2021.6
 import os
 import copy
 import logging
@@ -91,10 +91,9 @@ class DatasetMapper:
         mode = "training" if is_train else "inference"
         logger.info(f"[DatasetMapper] Augmentations used in {mode}: {augmentations}")
 
-        self.rescale_sat = 0.6
+        self.rescale_sat = 1
         self.gamma = 1
-        print('Rescale saturation: ' + str(self.rescale_sat) + ', gamma correction: ' + str(self.gamma))
-        self.saved = 20
+        logger.info('Rescale saturation: ' + str(self.rescale_sat) + ', gamma correction: ' + str(self.gamma))
 
     @classmethod
     def from_config(cls, cfg, is_train: bool = True):
@@ -162,7 +161,8 @@ class DatasetMapper:
         pcna = img_as_ubyte(pcna)
         dic = img_as_ubyte(dic)
         #pcna_raw = img_as_ubyte(pcna_raw)
-        slice_list = [pcna, pcna, dic]
+        slice_list = [pcna, pcna, pcna]
+        #slice_list = [pcna, pcna, dic]
         image = np.stack(slice_list, axis=2)
 
         return image
@@ -195,10 +195,6 @@ class DatasetMapper:
         transforms = self.augmentations(aug_input)
         image, sem_seg_gt = aug_input.image, aug_input.sem_seg
         
-        if self.saved<20:
-            self.saved += 1
-            io.imsave('/home/zje/dataset/test_train/'+os.path.basename(dataset_dict['file_name']), image)
-
         image_shape = image.shape[:2]  # h, w
         # Pytorch's dataloader is efficient on torch.Tensor due to shared-memory,
         # but not efficient on large generic data structures due to the use of pickle & mp.Queue.
