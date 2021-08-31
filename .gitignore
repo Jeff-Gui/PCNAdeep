@@ -1,8 +1,7 @@
 output
 models
-model
-example
-examples
+examples/**
+!examples/readme.md
 inspect
 test
 bin/pcnaDeep/test_*.py
