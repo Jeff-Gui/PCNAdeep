@@ -232,6 +232,7 @@ MODEL:
     NAME: SemSegFPNHead
     NORM: GN
     NUM_CLASSES: 54
+  WEIGHTS: ../models/mrcnn_sat_rot_aug.pth
 
 TEST:
   DETECTIONS_PER_IMAGE: 1024
