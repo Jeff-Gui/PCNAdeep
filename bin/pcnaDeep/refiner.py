@@ -27,7 +27,7 @@ class Refiner:
     def __init__(self, track, smooth=5, maxBG=5, minM=10, mode='SVM',
                  threshold_mt_F=100, threshold_mt_T=25,
                  search_range=10, sample_freq=1/5, model_train='', mask=None,
-                 dilate_factor=0.5, aso_trh=0.5, dist_weight=0.8, svm_c=0.5, dt_id=None, test_id=None):
+                 dilate_factor=0, aso_trh=0.5, dist_weight=0.8, svm_c=0.5, dt_id=None, test_id=None):
         """Refinement of the tracked objects.
 
         Algorithms:
@@ -91,13 +91,16 @@ class Refiner:
         self.daug_from_broken = []
         self.mt_dic = {}
         self.par_mt_mask = {}
+        self.daug_mt_mask = {}
         self.mt_exit_lookup = {}  # {parent ID: (exit frame, quality)}
         self.mt_entry_lookup = {}  # {daughter ID: (exit frame, quality)}
         self.imprecise = []  # imprecise mitosis: daughter exit without M classification
         self.mean_size = np.mean(np.array(self.track[['major_axis', 'minor_axis']]))
         self.mean_intensity = np.mean(np.array(self.track[['mean_intensity']]))
         self.logger.info('Mean size: ' + str(self.mean_size))
-        self.dist_weight = dist_weight
+        self.iou_weight = 0.4 if mask is not None else 0
+        self.dist_weight = (1 - self.iou_weight) * dist_weight
+        self.frame_weight = 1 - self.iou_weight - self.dist_weight
         self.ann = pd.DataFrame(
             columns=['track', 'app_frame', 'disapp_frame', 'app_x', 'app_y', 'disapp_x', 'disapp_y', 'app_stage',
                      'disapp_stage', 'predicted_parent'])
@@ -399,8 +402,9 @@ class Refiner:
             out = np.sum(np.stack(sls, axis=0), axis=0)
             out = out.astype('bool')
             # dilate the mask by 50% mean radius, adjustable
-            dilate_range = int(2 * self.dilate_factor * int(np.floor(self.mean_size/4)))
-            out = morph.binary_dilation(out, selem=np.ones((dilate_range, dilate_range)))
+            if self.dilate_factor > 0:
+                dilate_range = int(2 * self.dilate_factor * int(np.floor(self.mean_size/4)))
+                out = morph.binary_dilation(out, selem=np.ones((dilate_range, dilate_range)))
             if np.sum(out) == 0:
                 warnings.warn('Object not found in mask for parent: ' + str(p) + ' in frames: ' + str(frame)[1:-1])
             self.par_mt_mask[p] = out
@@ -414,22 +418,50 @@ class Refiner:
         else:
             return self.par_mt_mask[p]
 
-    def daug_app_in_par_mask(self, par, daug):
-        """Check if daughter appears in the mask of parent
+
+    def get_daughter_mask(self, d):
+        """Extract daughter mask, begin from track appearance, end with mitosis exit
+
+            Args:
+                d (int): daughter track ID
+        """
+        if d not in self.daug_mt_mask.keys():
+            sub = self.track[(self.track['trackId'] == d) & (self.track['frame'] <= (self.mt_exit_lookup[d][0] + 2))]
+            lbs = list(sub['continuous_label'])
+            frame = list(sub['frame'])
+            sls = []
+            for i in range(len(lbs)):
+                sl = self.mask[frame[i], :, :].copy()
+                sl[sl != lbs[i]] = 0
+                sl = sl.astype('bool')
+                sls.append(sl)
+            out = np.sum(np.stack(sls, axis=0), axis=0)
+            out = out.astype('bool')
+            # dilate the mask by 50% mean radius, adjustable
+            if self.dilate_factor > 0:
+                dilate_range = int(2 * self.dilate_factor * int(np.floor(self.mean_size/4)))
+                out = morph.binary_dilation(out, selem=np.ones((dilate_range, dilate_range)))
+            if np.sum(out) == 0:
+                warnings.warn('Object not found in mask for daughter: ' + str(d) + ' in frames: ' + str(frame)[1:-1])
+            self.daug_mt_mask[d] = out
+            return out
+        else:
+            return self.daug_mt_mask[d]
+
+    def get_IoU(self, par, daug):
+        """Generate IoU score for parent and daughter tracks.
 
         Args:
             par (int): parent track ID
             daug (int): daughter track ID
         """
-        mask = self.get_parent_mask(par)
-        sub = self.ann[self.ann['track'] == daug]
-        x = int(np.floor(sub['app_x']))
-        y = int(np.floor(sub['app_y']))
-
-        if mask[y, x]:
-            return True
-        else:
-            return False
+        mask_par = self.get_parent_mask(par).astype('bool')
+        mask_daug = self.get_daughter_mask(daug).astype('bool')
+        insertion = np.zeros(mask_par.shape).astype('uint8')
+        union = np.zeros(mask_daug.shape).astype('uint8')
+        insertion[mask_par & mask_daug] = 1
+        union[mask_par | mask_daug] = 1
+        return float(np.sum(insertion) / np.sum(union))
 
     def extract_features(self, par_pool, daug_pool, remove_outlier=None, normalize=None, sample=None):
         """Extract Input Features for the classifier
@@ -466,9 +498,6 @@ class Refiner:
                     if not rgd and (ind[1] <= 0 or par_end >= daug_appear):
                         continue
                     elif not rgd:
-                        if self.mask is not None:
-                            if not self.daug_app_in_par_mask(i, daug_pool[j]):
-                                continue
                         ipts.append(ind)
                         sample_id.append([i, daug_pool[j]])
 
@@ -507,8 +536,6 @@ class Refiner:
     def plainPredict(self, ipts):
         """Generate cost of each potential daughter-parent pair (sample).
         """
-        WEIGHT_DIST = (1 - self.ASO_TRH) * self.dist_weight
-        WEIGHT_TIME = 1 - self.ASO_TRH - WEIGHT_DIST
 
         out = np.zeros((ipts.shape[0],2))
         s = MinMaxScaler()
@@ -517,12 +544,17 @@ class Refiner:
         frame_tol = self.FRAME_MT_TOLERANCE / self.metaData['sample_freq']
         dist_tol = self.DIST_MT_TOLERANCE / (self.mean_size/2 +
                                              1 * self.metaData['meanDisplace'])
-
+        f = 1 - self.ASO_TRH
         for i in range(ipts.shape[0]):
             if ipts[i,1] <= 0 or ipts[i,0] > dist_tol or ipts[i,1] > frame_tol:
                 score = 0
             else:
-                score = np.round(1 - WEIGHT_DIST * ipts_norm[i,0] - WEIGHT_TIME * ipts_norm[i,1], 3)
+                if self.mask is not None:
+                    score = 1 - self.dist_weight * ipts_norm[i,0] * f - self.frame_weight * ipts_norm[i,1] * f - \
+                            self.iou_weight * ipts_norm[i,2] * f
+                else:
+                    score = 1 - self.dist_weight * ipts_norm[i, 0] * f - self.frame_weight * ipts_norm[i, 1] * f 
+                score = np.round(score, 3)
             out[i,0] = 1-score
             out[i,1] = score
         return out
@@ -791,7 +823,7 @@ class Refiner:
 
         Returns:
             Input vector of the classifier:
-            - [distance_diff, frame_diff]
+            - [distance_diff, frame_diff, IoU of mask]
 
             Some parameters are normalized with dataset specific features:
             - distance_diff /= ave_displace
@@ -828,8 +860,14 @@ class Refiner:
         y2 = daug['Center_of_the_object_1'].iloc[0]
         distance_diff = dist(x1, y1, x2, y2)
 
+        # Feature 3: IoU
+        if self.mask is None:
+            iou = 1
+        else:
+            iou = self.get_IoU(parent, daughter)
+
         out = [distance_diff / (self.mean_size/2 + np.abs(frame_diff) * self.metaData['meanDisplace']),
-               frame_diff / self.metaData['sample_freq']]
+               frame_diff / self.metaData['sample_freq'], 1-iou]
 
         return out
 
