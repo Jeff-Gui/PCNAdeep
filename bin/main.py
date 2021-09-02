@@ -10,6 +10,7 @@ import gc
 import numpy as np
 import pandas as pd
 import skimage.io as io
+import torch
 from skimage.util import img_as_ubyte
 from detectron2.config import get_cfg
 from detectron2.utils.logger import setup_logger
@@ -142,6 +143,7 @@ def main(stack, config, output, prefix, logger):
         for i in trg:
             img_relabel, out_props = predictFrame(stack[i,:], i, demo, edge_flt=edge, size_flt=size_flt)
             table_out = table_out.append(out_props)
+            img_relabel = torch.from_numpy(img_relabel.astype('int16'))  # new
             mask_out.append(img_relabel)
             trg.set_description('Frame %i' % i)
             trg.set_postfix(instances=str(out_props.shape[0]))
@@ -158,8 +160,8 @@ def main(stack, config, output, prefix, logger):
     tw = stack.shape[1]
     del stack
     gc.collect()
-    
-    mask_out = np.stack(mask_out, axis=0)
+    mask_out = torch.stack(mask_out, axis=0)
+    mask_out = mask_out.numpy()
 
     if spl:
         mask_out = join_frame(mask_out.copy(), n=spl)
@@ -289,7 +291,7 @@ if __name__ == "__main__":
                     imgs = getDetectInput(io.imread(os.path.join(args.pcna, si[1])), 
                                           io.imread(os.path.join(args.bf, si[2])),
                                           sat=float(pcna_cfg_dict['PIX_SATURATE']),
-                                          gamma=float(pcna_cfg_dict['GAMMA']))
+                                          gamma=float(pcna_cfg_dict['GAMMA']), torch_gpu=True)
 
                     #inspect = imgs[range(0, imgs.shape[0], 100),:,:,:].copy()
                     #io.imsave(os.path.join(args.output, si[0], si[0] + '_sample_intput.tif'), inspect)
@@ -338,7 +340,7 @@ if __name__ == "__main__":
             dic = io.imread(args.bf)
             logger.info("Generating composite...")
             imgs = getDetectInput(pcna, dic, sat=float(pcna_cfg_dict['PIX_SATURATE']),
-                                  gamma=float(pcna_cfg_dict['GAMMA']))
+                                  gamma=float(pcna_cfg_dict['GAMMA']), torch_gpu = True)
             del pcna
             del dic
             gc.collect()

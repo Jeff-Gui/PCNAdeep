@@ -3,6 +3,7 @@ import copy
 import json
 import os
 import re
+import torch
 import numpy as np
 import pandas as pd
 import skimage.exposure as exposure
@@ -155,7 +156,7 @@ def mask2json(in_dir, out_dir, phase_labeled=False, phase_dic={10: "G1/G2", 50: 
     return
 
 
-def getDetectInput(pcna, dic, gamma=1, sat=1):
+def getDetectInput(pcna, dic, gamma=1, sat=1, torch_gpu=False):
     """Generate pcna-mScarlet and DIC channel to RGB format for detectron2 model prediction
 
     Args:
@@ -163,6 +164,7 @@ def getDetectInput(pcna, dic, gamma=1, sat=1):
         dic (numpy.ndarray): uint16 DIC or phase contrast image stack.
         gamma (float): gamma adjustment, >0, default 0.8.
         sat (float): percent saturation, 0~100, default 0.
+        torch_gpu (bool): use torch to speed up calculation.
 
     Returns:
         (numpy.ndarray): uint8 composite image (T*H*W*C)
@@ -174,7 +176,7 @@ def getDetectInput(pcna, dic, gamma=1, sat=1):
     if sat < 0 or sat > 100:
         raise ValueError('Saturated pixel should not be negative or exceeds 100')
 
-    print("Input shape: " + str(stack.shape) + " saturation: " + str(sat) + ", gamma " + str(gamma))
+    print("Saturation: " + str(sat) + ", Gamma " + str(gamma))
     if len(stack.shape) < 3:
         stack = np.expand_dims(stack, axis=0)
         dic_img = np.expand_dims(dic_img, axis=0)
@@ -194,10 +196,15 @@ def getDetectInput(pcna, dic, gamma=1, sat=1):
         slice_list = [fme, fme, dic_slice]
 
         s = np.stack(slice_list, axis=2)
+        if torch_gpu:
+            s = torch.from_numpy(s)
         outs.append(s)
-
-    final_out = np.stack(outs, axis=0)
-    print("Output shape: ", final_out.shape)
+    
+    if torch_gpu:
+        final_out = torch.stack(outs, axis=0).numpy()
+    else:
+        final_out = np.stack(outs, axis=0)
+    print("Shape: ", final_out.shape)
     return final_out
 
 

@@ -116,7 +116,7 @@ if __name__ == "__main__":
             if args.is_slice:
                 dic = np.expand_dims(dic, axis=0)
                 mcy = np.expand_dims(mcy, axis=0)
-            imgs = getDetectInput(mcy, dic, sat=args.sat, gamma=args.gamma)
+            imgs = getDetectInput(mcy, dic, sat=args.sat, gamma=args.gamma, torch_gpu=True)
             del dic, mcy
             gc.collect()
 
