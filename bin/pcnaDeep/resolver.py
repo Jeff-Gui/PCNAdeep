@@ -263,13 +263,19 @@ class Resolver:
         The annotation format is track ID - (parentTrackId, optional) - resolved_class
         """
         ann = []
-        for i in range(self.rsTrack.shape[0]):
-            inform = list(self.rsTrack.iloc[i][['trackId', 'parentTrackId', 'resolved_class']])
-            inform = list(map(lambda x:str(x), inform))
+        cls_col = 'resolved_class'
+        if cls_col not in self.track.columns:
+            print('Phase not resolved yet. Using predicted phase classifications.')
+            cls_col = 'predicted_class'
+        track_id = list(self.track['trackId'])
+        parent_id = list(self.track['parentTrackId'])
+        cls_lb = list(self.track[cls_col])
+        for i in range(self.track.shape[0]):
+            inform = [str(track_id[i]), str(parent_id[i]), cls_lb[i]]
             if inform[1] == '0':
                 del inform[1]
             ann.append('-'.join(inform))
-        self.rsTrack['name'] = ann
+        self.track['name'] = ann
         return
 
     def resolveArrest(self, G2_trh=None):
