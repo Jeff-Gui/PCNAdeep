@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from setuptools import setup
 
 
@@ -12,7 +13,7 @@ def _parse_requirements(file_path):
 install_reqs = _parse_requirements('requirements.txt')
 
 setup(name='pcnaDeep',
-      version='0.1',
+      version='1.0',
       description='deep learning pipeline for PCNA-based cell cycle profiling',
       url='https://github.com/Jeff-Gui/PCNAdeep',
       author='Yifan Gui',

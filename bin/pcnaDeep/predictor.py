@@ -1,4 +1,5 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
+# -*- coding: utf-8 -*-
+# Modified by Yifan Gui from FAIR Detectron2, Apache 2.0 licence.
 import atexit
 import bisect
 import multiprocessing as mp
@@ -190,7 +191,6 @@ def pred2json(mask, label_table, fp):
         return {}
 
     tmp = {"filename": fp, "size": mask.astype('bool').size, "regions": [], "file_attributes": {}}
-    # print(np.unique(mask), np.unique(label_table['continuous_label']))
     for region in measure.regionprops(label_image=mask, intensity_image=None):
         if region.image.shape[0] < 2 or region.image.shape[1] < 2:
             continue
@@ -290,9 +290,6 @@ def predictFrame(img, frame_id, demonstrator, is_gray=False, size_flt=1000, edge
             if sc <= np.max(conf[ori - 1]):
                 mask[s, mask_slice == ori] = 0
         mask_slice[mask[s, :, :] != 0] = s + 1
-        
-    #print('Overlapping rate: ' + str(ovl_count / mask.shape[0]))
-    #print(mask.shape[0])
 
     img_relabel = measure.label(mask_slice, connectivity=1) 
     # original segmentation may have separated region, flood and re-label it

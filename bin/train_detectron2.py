@@ -1,5 +1,6 @@
-#!/usr/bin/env python
+# -*- coding: utf-8 -*-
 # Copyright (c) Facebook, Inc. and its affiliates.
+# Modified by Yifan Gui from FAIR Detectron2, Apache 2.0 licence.
 """
 Detection Training Script.
 

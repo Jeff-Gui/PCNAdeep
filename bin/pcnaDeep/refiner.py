@@ -404,12 +404,6 @@ class Refiner:
             if np.sum(out) == 0:
                 warnings.warn('Object not found in mask for parent: ' + str(p) + ' in frames: ' + str(frame)[1:-1])
             self.par_mt_mask[p] = out
-            '''
-            import skimage.io as io
-            from skimage.util import img_as_ubyte
-            to_save = img_as_ubyte(out)
-            io.imsave('../../test/test_files/mask/'+str(p)+'.tif', to_save)
-            '''
             return out
         else:
             return self.par_mt_mask[p]
@@ -585,18 +579,6 @@ class Refiner:
                 X = baseline_x
                 y = baseline_y
 
-            # Render training set to inspect
-            '''
-            import os
-            root_save = os.path.join('D:\Chan Lab\Jeff Experiments\SVM_data', self.dt_id)
-            if self.DO_AUG:
-                from_new = [1 for _ in range(ipts_brk.shape[0])] + [0 for _ in range(baseline.shape[0])]
-                save_train = np.concatenate((X, np.expand_dims(y, axis=1), np.expand_dims(from_new, axis=1)), axis=1)
-            else:
-                save_train = np.concatenate((X, np.expand_dims(y, axis=1)), axis=1)
-            pd.DataFrame(save_train).to_csv(os.path.join(root_save, self.test_id+'_test_train.csv'), index=False)
-            '''
-
             # Normalize
             s = RobustScaler()
             X = s.fit_transform(X)
@@ -607,11 +589,6 @@ class Refiner:
             s2 = RobustScaler()
             ipts_norm = s2.fit_transform(ipts)
             res = model.predict_proba(ipts_norm)
-            '''
-            # Render res and output prediction
-            save_ipts = np.concatenate((ipts, np.expand_dims(np.argmax(res, axis=1), axis=1)), axis=1)
-            pd.DataFrame(save_ipts).to_csv('../../test/test_res.csv', index=False, header=False)
-            '''
         else:
             res = self.plainPredict(ipts)
         self.logger.info('Finished prediction.')
@@ -632,15 +609,7 @@ class Refiner:
                             cost[i, j] = 1
                         else:
                             cost[i, j] = res[sp_index[0]][1]
-        '''
-        # Save input for debugging
-        save_cost = pd.DataFrame(cost.copy())
-        save_cost.index = cost_r_idx
-        save_cost.columns = cost_c_idx
-        save_cost.to_csv('../../test/test_cost.csv')
-        pd.DataFrame(np.concatenate((ipts, sample_id, np.expand_dims(np.argmax(res, axis=1), axis=1)),
-                                    axis=1)).to_csv('../../test/test_input.csv')
-        '''
+
         cost = cost * -1
         row_ind, col_ind = linear_sum_assignment(cost)
 

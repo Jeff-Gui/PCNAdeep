@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# Modified by Yifan Gui from FAIR Detectron2, Apache 2.0 licence.
 import argparse
 import json
 import multiprocessing as mp

@@ -292,9 +292,6 @@ if __name__ == "__main__":
                                           io.imread(os.path.join(args.bf, si[2])),
                                           sat=float(pcna_cfg_dict['PIX_SATURATE']),
                                           gamma=float(pcna_cfg_dict['GAMMA']), torch_gpu=True)
-
-                    #inspect = imgs[range(0, imgs.shape[0], 100),:,:,:].copy()
-                    #io.imsave(os.path.join(args.output, si[0], si[0] + '_sample_intput.tif'), inspect)
     
                     main(stack=imgs, config=pcna_cfg_dict, output=os.path.join(args.output, si[0]), 
                          prefix=si[0], logger=logger)
@@ -315,9 +312,6 @@ if __name__ == "__main__":
                     else:
                         os.mkdir(md)
                     imgs = io.imread(os.path.join(ipt, si))
-
-                    #inspect = imgs[range(0, imgs.shape[0], 100),:,:,:].copy()
-                    #io.imsave(os.path.join(args.output, prefix, prefix + '_sample_intput.tif'), inspect)
 
                     main(stack=imgs, config=pcna_cfg_dict, output=os.path.join(args.output, prefix), 
                          prefix=prefix, logger=logger)
@@ -349,8 +343,5 @@ if __name__ == "__main__":
             prefix = '-'.join(prefix.split('-')[:-1])
         elif prefix.split('_')[-1] in ['DIC', 'dic', 'mCy', 'mcy', 'pcna', 'PCNA']:
             prefix = '_'.join(prefix.split('_')[:-1])
-
-        #inspect = imgs[range(0, imgs.shape[0], 100),:,:,:].copy()
-        #io.imsave(os.path.join(args.output, prefix + '_sample_intput.tif'), inspect)
 
         main(stack=imgs, config=pcna_cfg_dict, output=args.output, prefix=prefix, logger=logger)
