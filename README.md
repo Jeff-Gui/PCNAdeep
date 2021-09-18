@@ -1,11 +1,9 @@
 # pcnaDeep: a deep-learning based single-cell cycle profiler with PCNA signal
 
-<img src="/assets/icon.png" alt="banner" width="200" align="top" />
-
 Welcome! pcnaDeep integrates cutting-edge detection techniques with tracking and cell cycle resolving models.
 Using the Mask R-CNN model under FAIR's Detectron2 framework, pcnaDeep is able to detect and resolve very dense cell tracks with __PCNA fluorescent Only__.
 
-<!--![image](/assets/res_demo.gif)-->
+<img src="/tutorial/assets/overview.jpg" alt="overview" width="600" />
 
 ## Installation
 1. PyTorch (torch >= 1.7.1) installation and CUDA GPU support are essential. Visit [PyTorch homepage](https://pytorch.org/) for specific installation schedule.

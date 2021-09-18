@@ -268,9 +268,11 @@ class Trk_obj:
         if cls_col not in self.track.columns:
             print('Phase not resolved yet. Using predicted phase classifications.')
             cls_col = 'predicted_class'
+        track_id = list(self.track['trackId'])
+        parent_id = list(self.track['parentTrackId'])
+        cls_lb = list(self.track[cls_col])
         for i in range(self.track.shape[0]):
-            inform = list(self.track.iloc[i][['trackId', 'parentTrackId', cls_col]])
-            inform = list(map(lambda x:str(x), inform))
+            inform = [str(track_id[i]), str(parent_id[i]), cls_lb[i]]
             if inform[1] == '0':
                 del inform[1]
             ann.append('-'.join(inform))
