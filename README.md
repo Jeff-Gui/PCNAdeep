@@ -1,7 +1,9 @@
 # pcnaDeep: a deep-learning based single-cell cycle profiler with PCNA signal
 
 Welcome! pcnaDeep integrates cutting-edge detection techniques with tracking and cell cycle resolving models.
-Using the Mask R-CNN model under FAIR's Detectron2 framework, pcnaDeep is able to detect and resolve very dense cell tracks with __PCNA fluorescent Only__.
+Using the Mask R-CNN model under FAIR's Detectron2 framework, pcnaDeep is able to detect and resolve very dense cell tracks with __PCNA fluorescent__.
+
+Check out our [preprint](https://www.biorxiv.org/content/10.1101/2021.09.19.460933).
 
 <img src="/tutorial/assets/overview.jpg" alt="overview" width="800" />
 
@@ -32,7 +34,9 @@ Using the Mask R-CNN model under FAIR's Detectron2 framework, pcnaDeep is able t
 
 ## Download pre-trained Mask R-CNN weights
 
-The Mask R-CNN is trained on 60X microscopic images sized 1200X1200 square pixels. [Download here]().
+The Mask R-CNN is trained on 60X microscopic images sized 1200X1200 square pixels. [Download here](https://zenodo.org/record/5515771/files/mrcnn_sat_rot_aug.pth?download=1).
+
+You must download pre-trained weights and save it under `~/models/` for running tutorials.
 
 ## Getting started
 
@@ -46,4 +50,4 @@ API documentation is available [here]().
 
 ## Licence
 
-pcnaDeep is released under the [Apache 2.0 license]().
+pcnaDeep is released under the [Apache 2.0 license](LICENSE).
