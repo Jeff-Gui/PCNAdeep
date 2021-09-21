@@ -11,7 +11,7 @@ __pycache__
 .Rhistory
 
 # sphinx
-#_build
+_build
 
 # idea
 .idea

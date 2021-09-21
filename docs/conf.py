@@ -14,7 +14,7 @@ import os
 import sys
 import sphinx_rtd_theme
 sys.path.insert(0, os.path.abspath('../bin'))
-#sys.path.insert(0, os.path.abspath('../detectron2-0.4_mod'))
+sys.path.insert(0, os.path.abspath('../detectron2-0.4_mod'))
 print(sys.path)
 
 # -- Project information -----------------------------------------------------
@@ -82,3 +82,20 @@ html_theme = 'sphinx_rtd_theme'
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
 html_static_path = ['_static']
+
+letex_engine = 'xelatex'
+latex_elements = {
+    'papersize': 'a4paper',
+    # Additional stuff for the LaTeX preamble.
+    'preamble':r'''
+    \usepackage{xeCJK}
+    \usepackage{indentfirst}
+    \setlength{\parindent}{2em}
+    \setCJKmainfont[BoldFont=STFangsong, ItalicFont=STKaiti]{STSong}
+    \setCJKsansfont[BoldFont=STHeiti]{STXihei}
+    \setCJKmonofont{STFangsong}
+    ''',
+}
+
+
+

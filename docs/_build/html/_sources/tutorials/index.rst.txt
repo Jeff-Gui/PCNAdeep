@@ -1,8 +1,0 @@
-Tutorials
-==================
-
-.. toctree::
-
-  getting_started
-
-  .. only:: html
