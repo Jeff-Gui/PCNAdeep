@@ -23,7 +23,6 @@ cityscapesscripts
 tabulate
 lvis
 psutil
-pkg_resources
 caffe2
 onnx
 panopticapi
