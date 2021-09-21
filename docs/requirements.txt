@@ -9,6 +9,7 @@ opencv-python
 scikit-learn>=0.24.1
 scipy
 tqdm
+git+git://github.com/facebookresearch/fvcore.git
 
 sphinx_rtd_theme
 sphinx
