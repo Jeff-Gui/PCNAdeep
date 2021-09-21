@@ -14,7 +14,7 @@ import os
 import sys
 import sphinx_rtd_theme
 sys.path.insert(0, os.path.abspath('../bin'))
-#sys.path.insert(0, os.path.abspath('../detectron2-0.4_mod'))
+sys.path.insert(0, os.path.abspath('../detectron2-0.4_mod'))
 print(sys.path)
 
 # -- Project information -----------------------------------------------------

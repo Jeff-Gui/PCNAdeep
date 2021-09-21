@@ -10,7 +10,8 @@ scikit-learn>=0.24.1
 scipy
 tqdm
 git+git://github.com/facebookresearch/fvcore.git
-git+git://github.com/facebookresearch/detectron2.git
+pycocotools
+iopath
 
 sphinx_rtd_theme
 sphinx
