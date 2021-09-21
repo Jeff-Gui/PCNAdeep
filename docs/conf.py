@@ -32,6 +32,7 @@ release = '1.0'
 # ones.
 extensions = [
     "recommonmark",
+    "numpy",
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
