@@ -14,7 +14,7 @@ import os
 import sys
 import sphinx_rtd_theme
 sys.path.insert(0, os.path.abspath('../bin'))
-sys.path.insert(0, os.path.abspath('../detectron2-0.4_mod'))
+#sys.path.insert(0, os.path.abspath('../detectron2-0.4_mod'))
 print(sys.path)
 
 # -- Project information -----------------------------------------------------
@@ -34,6 +34,7 @@ release = '1.0'
 # ones.
 extensions = [
     "recommonmark",
+    "rst2pdf.pdfbuilder",
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
@@ -52,6 +53,7 @@ napoleon_numpy_docstring = True
 napoleon_use_rtype = True
 autodoc_inherit_docstrings = False
 autodoc_member_order = "bysource"
+pdf_documents = [('index', u'rst2pdf', u'Test', u'Jeff')]
 
 intersphinx_mapping = {
     "python": ("https://docs.python.org/3.6", None),

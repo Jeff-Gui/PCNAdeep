@@ -1,0 +1,1078 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>pcnaDeep: Getting Started &mdash; pcnaDeep 0.1 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+        <script data-url_root="../../" id="documentation_options" src="../../_static/documentation_options.js"></script>
+        <script src="../../_static/jquery.js"></script>
+        <script src="../../_static/underscore.js"></script>
+        <script src="../../_static/doctools.js"></script>
+        <script crossorigin="anonymous" integrity="sha256-Ae2Vz/4ePdIu6ZyI/5ZGsYnb+m0JlOmKPjt6XZ9JJkA=" src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"></script>
+        <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+        <script>window.MathJax = {"tex": {"inlineMath": [["$", "$"], ["\\(", "\\)"]], "processEscapes": true}, "options": {"ignoreHtmlClass": "tex2jax_ignore|mathjax_ignore|document", "processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    
+    <script type="text/javascript" src="../../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../../index.html" class="icon icon-home"> pcnaDeep
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul>
+<li class="toctree-l1"><a class="reference internal" href="../index.html">API Documentation</a></li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../../index.html">pcnaDeep</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+      <li>pcnaDeep: Getting Started</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../../_sources/modules/tutorials/getting_started.ipynb.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  
+<style>
+/* CSS for nbsphinx extension */
+
+/* remove conflicting styling from Sphinx themes */
+div.nbinput.container div.prompt *,
+div.nboutput.container div.prompt *,
+div.nbinput.container div.input_area pre,
+div.nboutput.container div.output_area pre,
+div.nbinput.container div.input_area .highlight,
+div.nboutput.container div.output_area .highlight {
+    border: none;
+    padding: 0;
+    margin: 0;
+    box-shadow: none;
+}
+
+div.nbinput.container > div[class*=highlight],
+div.nboutput.container > div[class*=highlight] {
+    margin: 0;
+}
+
+div.nbinput.container div.prompt *,
+div.nboutput.container div.prompt * {
+    background: none;
+}
+
+div.nboutput.container div.output_area .highlight,
+div.nboutput.container div.output_area pre {
+    background: unset;
+}
+
+div.nboutput.container div.output_area div.highlight {
+    color: unset;  /* override Pygments text color */
+}
+
+/* avoid gaps between output lines */
+div.nboutput.container div[class*=highlight] pre {
+    line-height: normal;
+}
+
+/* input/output containers */
+div.nbinput.container,
+div.nboutput.container {
+    display: -webkit-flex;
+    display: flex;
+    align-items: flex-start;
+    margin: 0;
+    width: 100%;
+}
+@media (max-width: 540px) {
+    div.nbinput.container,
+    div.nboutput.container {
+        flex-direction: column;
+    }
+}
+
+/* input container */
+div.nbinput.container {
+    padding-top: 5px;
+}
+
+/* last container */
+div.nblast.container {
+    padding-bottom: 5px;
+}
+
+/* input prompt */
+div.nbinput.container div.prompt pre {
+    color: #307FC1;
+}
+
+/* output prompt */
+div.nboutput.container div.prompt pre {
+    color: #BF5B3D;
+}
+
+/* all prompts */
+div.nbinput.container div.prompt,
+div.nboutput.container div.prompt {
+    width: 4.5ex;
+    padding-top: 5px;
+    position: relative;
+    user-select: none;
+}
+
+div.nbinput.container div.prompt > div,
+div.nboutput.container div.prompt > div {
+    position: absolute;
+    right: 0;
+    margin-right: 0.3ex;
+}
+
+@media (max-width: 540px) {
+    div.nbinput.container div.prompt,
+    div.nboutput.container div.prompt {
+        width: unset;
+        text-align: left;
+        padding: 0.4em;
+    }
+    div.nboutput.container div.prompt.empty {
+        padding: 0;
+    }
+
+    div.nbinput.container div.prompt > div,
+    div.nboutput.container div.prompt > div {
+        position: unset;
+    }
+}
+
+/* disable scrollbars on prompts */
+div.nbinput.container div.prompt pre,
+div.nboutput.container div.prompt pre {
+    overflow: hidden;
+}
+
+/* input/output area */
+div.nbinput.container div.input_area,
+div.nboutput.container div.output_area {
+    -webkit-flex: 1;
+    flex: 1;
+    overflow: auto;
+}
+@media (max-width: 540px) {
+    div.nbinput.container div.input_area,
+    div.nboutput.container div.output_area {
+        width: 100%;
+    }
+}
+
+/* input area */
+div.nbinput.container div.input_area {
+    border: 1px solid #e0e0e0;
+    border-radius: 2px;
+    /*background: #f5f5f5;*/
+}
+
+/* override MathJax center alignment in output cells */
+div.nboutput.container div[class*=MathJax] {
+    text-align: left !important;
+}
+
+/* override sphinx.ext.imgmath center alignment in output cells */
+div.nboutput.container div.math p {
+    text-align: left;
+}
+
+/* standard error */
+div.nboutput.container div.output_area.stderr {
+    background: #fdd;
+}
+
+/* ANSI colors */
+.ansi-black-fg { color: #3E424D; }
+.ansi-black-bg { background-color: #3E424D; }
+.ansi-black-intense-fg { color: #282C36; }
+.ansi-black-intense-bg { background-color: #282C36; }
+.ansi-red-fg { color: #E75C58; }
+.ansi-red-bg { background-color: #E75C58; }
+.ansi-red-intense-fg { color: #B22B31; }
+.ansi-red-intense-bg { background-color: #B22B31; }
+.ansi-green-fg { color: #00A250; }
+.ansi-green-bg { background-color: #00A250; }
+.ansi-green-intense-fg { color: #007427; }
+.ansi-green-intense-bg { background-color: #007427; }
+.ansi-yellow-fg { color: #DDB62B; }
+.ansi-yellow-bg { background-color: #DDB62B; }
+.ansi-yellow-intense-fg { color: #B27D12; }
+.ansi-yellow-intense-bg { background-color: #B27D12; }
+.ansi-blue-fg { color: #208FFB; }
+.ansi-blue-bg { background-color: #208FFB; }
+.ansi-blue-intense-fg { color: #0065CA; }
+.ansi-blue-intense-bg { background-color: #0065CA; }
+.ansi-magenta-fg { color: #D160C4; }
+.ansi-magenta-bg { background-color: #D160C4; }
+.ansi-magenta-intense-fg { color: #A03196; }
+.ansi-magenta-intense-bg { background-color: #A03196; }
+.ansi-cyan-fg { color: #60C6C8; }
+.ansi-cyan-bg { background-color: #60C6C8; }
+.ansi-cyan-intense-fg { color: #258F8F; }
+.ansi-cyan-intense-bg { background-color: #258F8F; }
+.ansi-white-fg { color: #C5C1B4; }
+.ansi-white-bg { background-color: #C5C1B4; }
+.ansi-white-intense-fg { color: #A1A6B2; }
+.ansi-white-intense-bg { background-color: #A1A6B2; }
+
+.ansi-default-inverse-fg { color: #FFFFFF; }
+.ansi-default-inverse-bg { background-color: #000000; }
+
+.ansi-bold { font-weight: bold; }
+.ansi-underline { text-decoration: underline; }
+
+
+div.nbinput.container div.input_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight] > pre,
+div.nboutput.container div.output_area div[class*=highlight].math,
+div.nboutput.container div.output_area.rendered_html,
+div.nboutput.container div.output_area > div.output_javascript,
+div.nboutput.container div.output_area:not(.rendered_html) > img{
+    padding: 5px;
+    margin: 0;
+}
+
+/* fix copybtn overflow problem in chromium (needed for 'sphinx_copybutton') */
+div.nbinput.container div.input_area > div[class^='highlight'],
+div.nboutput.container div.output_area > div[class^='highlight']{
+    overflow-y: hidden;
+}
+
+/* hide copybtn icon on prompts (needed for 'sphinx_copybutton') */
+.prompt a.copybtn {
+    display: none;
+}
+
+/* Some additional styling taken form the Jupyter notebook CSS */
+div.rendered_html table {
+  border: none;
+  border-collapse: collapse;
+  border-spacing: 0;
+  color: black;
+  font-size: 12px;
+  table-layout: fixed;
+}
+div.rendered_html thead {
+  border-bottom: 1px solid black;
+  vertical-align: bottom;
+}
+div.rendered_html tr,
+div.rendered_html th,
+div.rendered_html td {
+  text-align: right;
+  vertical-align: middle;
+  padding: 0.5em 0.5em;
+  line-height: normal;
+  white-space: normal;
+  max-width: none;
+  border: none;
+}
+div.rendered_html th {
+  font-weight: bold;
+}
+div.rendered_html tbody tr:nth-child(odd) {
+  background: #f5f5f5;
+}
+div.rendered_html tbody tr:hover {
+  background: rgba(66, 165, 245, 0.2);
+}
+
+/* CSS overrides for sphinx_rtd_theme */
+
+/* 24px margin */
+.nbinput.nblast.container,
+.nboutput.nblast.container {
+    margin-bottom: 19px;  /* padding has already 5px */
+}
+
+/* ... except between code cells! */
+.nblast.container + .nbinput.container {
+    margin-top: -19px;
+}
+
+.admonition > p:before {
+    margin-right: 4px;  /* make room for the exclamation icon */
+}
+
+/* Fix math alignment, see https://github.com/rtfd/sphinx_rtd_theme/pull/686 */
+.math {
+    text-align: unset;
+}
+</style>
+<div class="nbinput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[4]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">skimage.io</span> <span class="k">as</span> <span class="nn">io</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">import</span> <span class="nn">os</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<span class="n">example_root</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">abspath</span><span class="p">(</span><span class="s1">&#39;__file__&#39;</span><span class="p">))),</span> <span class="s1">&#39;examples&#39;</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<section id="pcnaDeep:-Getting-Started">
+<h1>pcnaDeep: Getting Started<a class="headerlink" href="#pcnaDeep:-Getting-Started" title="Permalink to this headline">¶</a></h1>
+<section id="Author:-Yifan-Gui-&#64;-Kuan-Yoow-Chan-group">
+<h2>Author: Yifan Gui &#64; Kuan Yoow Chan group<a class="headerlink" href="#Author:-Yifan-Gui-@-Kuan-Yoow-Chan-group" title="Permalink to this headline">¶</a></h2>
+<p><strong>Welcome!</strong> pcnaDeep is a four-stage model that profiles the cell cycle, including:</p>
+<ul class="simple">
+<li><p>Instance segmentation <em>(Detectron2’s Mask R-CNN)</em></p></li>
+<li><p>Cell tracking <em>(TrackPy)</em></p></li>
+<li><p>Mitosis association</p></li>
+<li><p>Cell cycle resolving</p></li>
+</ul>
+<p>Check the <a href="#id9"><span class="problematic" id="id10">`Manuscript Supplementary Material &lt;&gt;`__</span></a> for detailed descriptions.</p>
+<p><strong>Installation guide</strong> is available on our <a href="#id9"><span class="problematic" id="id11">`GitHub main page &lt;&gt;`__</span></a>.</p>
+<img alt="Overview" src="modules/assets/overview.jpg" />
+<hr class="docutils" />
+<p>Below we use a demo stack from images of MCF10A to illustrate the pipeline.</p>
+</section>
+<section id="Frist,-please-downloadPretrained-Mask-R-CNN-model-(343-MB)-&lt;&gt;anddemo-data-(745-MB)-&lt;&gt;.">
+<h2><strong>Frist, please download</strong><a href="#id9"><span class="problematic" id="id12">`Pretrained Mask R-CNN model (343 MB) &lt;&gt;`__</span></a><strong>and</strong><a href="#id9"><span class="problematic" id="id13">`demo data (745 MB) &lt;&gt;`__</span></a><strong>.</strong><a class="headerlink" href="#Frist,-please-downloadPretrained-Mask-R-CNN-model-(343-MB)-<>anddemo-data-(745-MB)-<>." title="Permalink to this headline">¶</a></h2>
+<p><strong>The Mask R-CNN model should be saved under ``~/models/`` and demo data under ``~/examples/``</strong></p>
+<div class="line-block">
+<div class="line"><em>Note:</em> The video has been down-sampled by four times, i.e., at sampling frequency of 0.05 frame per minute, so as to reduce size.</div>
+<div class="line">We do not recommand profiling cell cycle with that low frequency.</div>
+</div>
+</section>
+<section id="1-Quick-Demo-Run">
+<h2>1 Quick Demo Run<a class="headerlink" href="#1-Quick-Demo-Run" title="Permalink to this headline">¶</a></h2>
+<p>To run pcnaDeep demo, navigate to <code class="docutils literal notranslate"><span class="pre">bin</span></code> and call the <code class="docutils literal notranslate"><span class="pre">main.py</span></code> script with the following commands. Make sure GPU is available.</p>
+<p><code class="docutils literal notranslate"><span class="pre">python</span> <span class="pre">main.py</span> <span class="pre">--pcna</span> <span class="pre">../examples/demo/MCF10A_demo_PCNA.tif</span> <span class="pre">--bf</span> <span class="pre">../examples/demo/MCF10A_demo_BF.tif</span> <span class="pre">--pcna-config</span> <span class="pre">../config/pcnaCfg.yaml</span> <span class="pre">--dtrn-config</span> <span class="pre">../config/dtrnCfg.yaml</span>&#160; <span class="pre">--output</span> <span class="pre">../examples/demo/testing</span> <span class="pre">--opts</span> <span class="pre">MODEL.WEIGHT</span> <span class="pre">../models/mrcnn_sat_rot_aug.pth</span></code></p>
+<hr class="docutils" />
+<p>We disect the input arguments and output files in the following sections.</p>
+</section>
+<section id="2-Input">
+<h2>2 Input<a class="headerlink" href="#2-Input" title="Permalink to this headline">¶</a></h2>
+<div class="line-block">
+<div class="line">pcnaDeep takes <strong>``uint16``</strong> time-lapse image stack inputs from <strong>two channels</strong>: PCNA fluorescent (<strong>FL</strong>) and the bright field (<strong>BF</strong>).</div>
+<div class="line">This is specified through <strong>``–pcna``</strong> and <strong>``–bf``</strong>.</div>
+</div>
+<p><strong>Caution</strong>: The model is trained on <strong>60X images sized 1200X1200 pixel</strong> (1.83um/pixel). It is not recommanded to use images that have large difference in size for the pretrained model. However, it is practical to train on your own data (see tutorial <a class="reference external" href="train_pcna_detectron2.ipynb">here</a>) or perform multi-scale training to fit your specific task.</p>
+<p>We inspect these images as below.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[3]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">pcna</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">example_root</span><span class="p">,</span> <span class="s1">&#39;demo&#39;</span><span class="p">,</span> <span class="s1">&#39;MCF10A_demo_PCNA.tif&#39;</span><span class="p">))</span>
+<span class="n">bf</span> <span class="o">=</span> <span class="n">io</span><span class="o">.</span><span class="n">imread</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">example_root</span><span class="p">,</span> <span class="s1">&#39;demo&#39;</span><span class="p">,</span> <span class="s1">&#39;MCF10A_demo_BF.tif&#39;</span><span class="p">))</span>
+<span class="k">assert</span> <span class="n">pcna</span><span class="o">.</span><span class="n">shape</span> <span class="o">==</span> <span class="n">bf</span><span class="o">.</span><span class="n">shape</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">pcna</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+(135, 1200, 1200)
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">2</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">10</span><span class="p">,</span><span class="mi">10</span><span class="p">))</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;PCNA FL&#39;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;BF&#39;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">pcna</span><span class="p">[</span><span class="mi">0</span><span class="p">,:,:])</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">bf</span><span class="p">[</span><span class="mi">0</span><span class="p">,:,:])</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[12]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&lt;matplotlib.image.AxesImage at 0x2a2020cef48&gt;
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/modules_tutorials_getting_started_8_1.png" src="../../_images/modules_tutorials_getting_started_8_1.png" />
+</div>
+</div>
+<p>The pixel intensity level of raw images does not cover the full range, therefore raw images are scaled during rum-time. Since Mask R-CNN does prediction on 3-channel RGB images, the PCNA FL and BF channels are stacked, with PCNA FL repeated once.</p>
+<p>pcnaDeep uses <code class="docutils literal notranslate"><span class="pre">pcnaDeep.data.utils.getDetectInput</span></code> for this pre-processing step, using <strong>``PIX_SATURATE``</strong> and <strong>``GAMMA``</strong> in the <strong>pcnaDeep config file</strong> (see comments in <a class="reference external" href="pcna_config_ref.ipynb">config reference</a>). - <code class="docutils literal notranslate"><span class="pre">PIX_SATURATE</span></code>: <strong>Saturation percentage</strong> of the pixel intensity level. If set to 1 by default, 1% of the lowest and highest pixel intensity will be cropped. That is, 1% lowest set to 0 while 1% highest set to 255 in the <code class="docutils literal notranslate"><span class="pre">uint8</span></code> format. - <code class="docutils literal notranslate"><span class="pre">GAMMA</span></code>: <strong>Gamma correction
+factor</strong>. By default, pcnaDeep does not perform any gamma correction, i.e, <code class="docutils literal notranslate"><span class="pre">gamma=1</span></code></p>
+<p>This step will convert <code class="docutils literal notranslate"><span class="pre">uint16</span></code> raw input to <code class="docutils literal notranslate"><span class="pre">uint8</span></code> images for downstream processing.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[14]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">pcnaDeep.data.utils</span> <span class="kn">import</span> <span class="n">getDetectInput</span>
+<span class="n">comp</span> <span class="o">=</span> <span class="n">getDetectInput</span><span class="p">(</span><span class="n">pcna</span><span class="p">,</span> <span class="n">bf</span><span class="p">,</span> <span class="n">gamma</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">sat</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+Input shape: (135, 1200, 1200) saturation: 1, gamma 1
+Output shape:  (135, 1200, 1200, 3)
+</pre></div></div>
+</div>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">fig</span><span class="p">,</span> <span class="n">axes</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="mi">3</span><span class="p">,</span> <span class="n">figsize</span><span class="o">=</span><span class="p">(</span><span class="mi">15</span><span class="p">,</span><span class="mi">15</span><span class="p">))</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;PCNA FL (scaled)&#39;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;BF (scaled)&#39;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">set_title</span><span class="p">(</span><span class="s1">&#39;composite&#39;</span><span class="p">)</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">comp</span><span class="p">[</span><span class="mi">0</span><span class="p">,:,:,</span><span class="mi">0</span><span class="p">])</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">1</span><span class="p">]</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">comp</span><span class="p">[</span><span class="mi">0</span><span class="p">,:,:,</span><span class="mi">2</span><span class="p">])</span>
+<span class="n">axes</span><span class="p">[</span><span class="mi">2</span><span class="p">]</span><span class="o">.</span><span class="n">imshow</span><span class="p">(</span><span class="n">comp</span><span class="p">[</span><span class="mi">0</span><span class="p">,:,:,:])</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[16]:
+</pre></div>
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+&lt;matplotlib.image.AxesImage at 0x2a20c80b648&gt;
+</pre></div></div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<img alt="../../_images/modules_tutorials_getting_started_11_1.png" src="../../_images/modules_tutorials_getting_started_11_1.png" />
+</div>
+</div>
+<p>On top of parameters for image input and pre-processing, the command also specifies two config files <code class="docutils literal notranslate"><span class="pre">--pcna-cfg</span></code> and <code class="docutils literal notranslate"><span class="pre">--dtrn-cfg</span></code>:</p>
+<ul class="simple">
+<li><p><strong>``–pcna-cfg``</strong>: For configuring parameters involved in pcnaDeep main function. Default <code class="docutils literal notranslate"><span class="pre">~/config/pcnaCfg.yaml</span></code>.</p></li>
+</ul>
+<div class="line-block">
+<div class="line">pcnaDeep configs are discussed in the below section. - <strong>``–dtrn-cfg``</strong>: For configuring Detectron2’s Mask R-CNN model, see config reference <a href="#id9"><span class="problematic" id="id14">`here &lt;&gt;`__</span></a>. Default <code class="docutils literal notranslate"><span class="pre">~/config/dtrnCfg.yaml</span></code>.</div>
+<div class="line">In the command above, we use <strong>``–opts MODEL.WEIGHT``</strong> to change Detectron2 config and specify the pre-trained model.</div>
+</div>
+<p>Finally, the output directory should be specified through <strong>``–output``</strong>.</p>
+</section>
+<hr class="docutils" />
+<section id="3-Adjust-Default-Configs">
+<h2>3 Adjust Default Configs<a class="headerlink" href="#3-Adjust-Default-Configs" title="Permalink to this headline">¶</a></h2>
+<p>In <strong>``pcnaCfg.yaml``</strong>, here are important parameters the user is suggested to change for his/her own datasets <strong>before the first trial</strong>. These parameters are either imaging condition-specific or cell type-specific. However, if you are unsure about how to adjust, it is always fine to try with defaults.</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">SAMPLE_FREQ</span></code> Change to the sampling frequency of the video, in the unit of <em>frame per minute</em>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MAX_DIST_TRH</span></code> (<em>the distance threshold</em>) Change to the largest allowed pixel distance between mother and daughter tracks in mitosis.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">MAX_FRAME_TRH</span></code> (<em>the frame threshold</em>) Change to the largest allowed frame distance between mother’s disappearance and daughter’s appearance.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">DISPLACE</span></code> Change to the largest allowed object movement in pixel unit. Since pcnaDeep tracks object in a 3D feature space, the parmeter should not be set to a very small value as in a 2D space. Our emperical setting is around one cell’s diameter.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">GAP_FILL</span></code> Change to the largest frame gap allowed in one track.</p></li>
+</ul>
+<p>Here are the parameters the user may change to fine-tune the pipeline <strong>after the first trial</strong>. - <code class="docutils literal notranslate"><span class="pre">EDGE_FLT</span></code> Filter out objects at the edge as their cell cycle may not be precisely classified (imagine an S-exit cell that show no foci in the field of view). - <code class="docutils literal notranslate"><span class="pre">SIZE_FLT</span></code> Filter out small objects (e.g. cell debris), in pixel square unit. - <code class="docutils literal notranslate"><span class="pre">MAX_BG</span></code> In Greedy Phase Searching algorithm, set to largest allowed background label appearance - 1 for searching target phase. The minus one is because
+the algorithm is operating on confidence score smaller than one. - <code class="docutils literal notranslate"><span class="pre">MIN_S,</span> <span class="pre">MIN_M</span></code> In Greedy Phase Searching algorithm, set to smallest targeted phase label appearance - 1 for searching S/M, respectively.</p>
+<p>Other parameters are explained in the <a class="reference external" href="pcna_config_ref.ipynb">config reference</a>.</p>
+<hr class="docutils" />
+<p>A second way of adjusting parameters is to scale them according to your sampling frequency. That is to say, scale default time-related parameters to a half if you use <code class="docutils literal notranslate"><span class="pre">SAMPLE_FREQ</span> <span class="pre">=</span> <span class="pre">0.1</span></code> (default 0.2), including <code class="docutils literal notranslate"><span class="pre">GAP_FILL,</span> <span class="pre">MAX_BG,</span> <span class="pre">MIN_S,</span> <span class="pre">MIN_M,</span> <span class="pre">SMOOTH,</span> <span class="pre">SEARCH_RANGE,</span> <span class="pre">MAX_FRAME_TRH,</span> <span class="pre">MIN_LINEAGE</span></code>. For distance-related ones including <code class="docutils literal notranslate"><span class="pre">DISPLACE,</span> <span class="pre">MAX_DIST_TRH</span></code>, our experience is not to incrase too much because cell movement does not increase proportionally; 1.5 times is fine for doubled sampling
+frequency.</p>
+</section>
+<hr class="docutils" />
+<section id="4-Output">
+<h2>4 Output<a class="headerlink" href="#4-Output" title="Permalink to this headline">¶</a></h2>
+<p>The entire pipeline of pcnaDeep outputs <strong>four tables and the cell nucleus mask</strong>.</p>
+<ul class="simple">
+<li><p>The <strong>``_tracks_refined.csv``</strong> is the most important output referred as <strong>tracked object table</strong>.</p></li>
+<li><p>The <strong>``_phase.csv``</strong> records cell cycle phase information in the tracks referred as <strong>phase table</strong>.</p></li>
+<li><p>The <strong>``_tracks.csv``</strong> recordes unresolved tracks and <strong>``_tracks_ann.csv``</strong> records track metadata. These two table are mainly used for debugging.</p></li>
+</ul>
+<section id="Tracked-object-table">
+<h3>Tracked object table<a class="headerlink" href="#Tracked-object-table" title="Permalink to this headline">¶</a></h3>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">tracks</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">example_root</span><span class="p">,</span> <span class="s1">&#39;demo&#39;</span><span class="p">,</span> <span class="s1">&#39;testing&#39;</span><span class="p">,</span> <span class="s1">&#39;MCF10A_demo_tracks_refined.csv&#39;</span><span class="p">))</span>
+<span class="n">tracks</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">5</span><span class="p">,:]</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[22]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>frame</th>
+      <th>trackId</th>
+      <th>lineageId</th>
+      <th>parentTrackId</th>
+      <th>Center_of_the_object_1</th>
+      <th>Center_of_the_object_0</th>
+      <th>predicted_class</th>
+      <th>Probability of G1/G2</th>
+      <th>Probability of S</th>
+      <th>Probability of M</th>
+      <th>continuous_label</th>
+      <th>major_axis</th>
+      <th>minor_axis</th>
+      <th>mean_intensity</th>
+      <th>emerging</th>
+      <th>background_mean</th>
+      <th>BF_mean</th>
+      <th>BF_std</th>
+      <th>resolved_class</th>
+      <th>name</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>0</td>
+      <td>1</td>
+      <td>1</td>
+      <td>0</td>
+      <td>12.786237</td>
+      <td>306.448602</td>
+      <td>G1/G2</td>
+      <td>0.987494</td>
+      <td>0.003337</td>
+      <td>0.003102</td>
+      <td>1</td>
+      <td>94.857803</td>
+      <td>33.434676</td>
+      <td>65.535054</td>
+      <td>0</td>
+      <td>22.284506</td>
+      <td>100.912258</td>
+      <td>100.912258</td>
+      <td>G1*</td>
+      <td>1-G1*</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>1</td>
+      <td>1</td>
+      <td>1</td>
+      <td>0</td>
+      <td>11.821749</td>
+      <td>311.677541</td>
+      <td>G1/G2</td>
+      <td>0.987840</td>
+      <td>0.002807</td>
+      <td>0.003376</td>
+      <td>1</td>
+      <td>92.924259</td>
+      <td>31.024087</td>
+      <td>64.373050</td>
+      <td>0</td>
+      <td>21.462401</td>
+      <td>96.698345</td>
+      <td>96.698345</td>
+      <td>G1*</td>
+      <td>1-G1*</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>2</td>
+      <td>1</td>
+      <td>1</td>
+      <td>0</td>
+      <td>14.087873</td>
+      <td>315.990060</td>
+      <td>G1/G2</td>
+      <td>0.993086</td>
+      <td>0.002398</td>
+      <td>0.001691</td>
+      <td>1</td>
+      <td>93.731589</td>
+      <td>36.377008</td>
+      <td>75.036581</td>
+      <td>0</td>
+      <td>21.154368</td>
+      <td>100.809543</td>
+      <td>100.809543</td>
+      <td>G1*</td>
+      <td>1-G1*</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>3</td>
+      <td>1</td>
+      <td>1</td>
+      <td>0</td>
+      <td>14.332696</td>
+      <td>315.752964</td>
+      <td>G1/G2</td>
+      <td>0.995262</td>
+      <td>0.001990</td>
+      <td>0.001109</td>
+      <td>1</td>
+      <td>95.994787</td>
+      <td>36.818030</td>
+      <td>67.778585</td>
+      <td>0</td>
+      <td>21.222768</td>
+      <td>99.287954</td>
+      <td>99.287954</td>
+      <td>G1*</td>
+      <td>1-G1*</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>4</td>
+      <td>1</td>
+      <td>1</td>
+      <td>0</td>
+      <td>14.545693</td>
+      <td>316.967041</td>
+      <td>G1/G2</td>
+      <td>0.997403</td>
+      <td>0.001637</td>
+      <td>0.000482</td>
+      <td>1</td>
+      <td>96.657960</td>
+      <td>37.142564</td>
+      <td>70.597378</td>
+      <td>0</td>
+      <td>21.173854</td>
+      <td>104.335581</td>
+      <td>104.335581</td>
+      <td>G1*</td>
+      <td>1-G1*</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
+</div>
+<p>Each row in the table corresponds to one object. The important fields are:</p>
+<ul class="simple">
+<li><p><strong>``Frame, Center_of_the_object_0, Center_of_the_object_1``</strong>: The 3D location of the object, corresponding to time, x and y coordinate.</p></li>
+<li><p><strong>``trackId, lineageId, parentTrackId``</strong>: Every individual track has its own <code class="docutils literal notranslate"><span class="pre">trackId</span></code>. <code class="docutils literal notranslate"><span class="pre">lineageId</span></code> refers to the most ancenstry cell that the cell is divided from. <code class="docutils literal notranslate"><span class="pre">parentTrackId</span></code> refers to the direct mother of the cell, 0 if no mother.</p></li>
+<li><p><strong>``predicted_class, resolved_class``</strong>: The first field contains morphological labels from Mask R-CNN output while the second for resolved cell cycle phase.</p></li>
+<li><p><strong>``continuous_label``</strong>: corresponds to values labeled in the cell nueleus mask.</p></li>
+</ul>
+</section>
+<section id="Phase-table">
+<h3>Phase table<a class="headerlink" href="#Phase-table" title="Permalink to this headline">¶</a></h3>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="n">phase</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">example_root</span><span class="p">,</span> <span class="s1">&#39;demo&#39;</span><span class="p">,</span> <span class="s1">&#39;testing&#39;</span><span class="p">,</span> <span class="s1">&#39;MCF10A_demo_phase.csv&#39;</span><span class="p">))</span>
+<span class="n">phase</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">:</span><span class="mi">5</span><span class="p">,:]</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[23]:
+</pre></div>
+</div>
+<div class="output_area rendered_html docutils container">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>track</th>
+      <th>type</th>
+      <th>length</th>
+      <th>lin_length</th>
+      <th>arrest</th>
+      <th>G1</th>
+      <th>S</th>
+      <th>M</th>
+      <th>G2</th>
+      <th>parent</th>
+      <th>imprecise_exit</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>1</td>
+      <td>arrest-G1</td>
+      <td>135</td>
+      <td>134</td>
+      <td>135.0</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>2</td>
+      <td>arrest-G1</td>
+      <td>34</td>
+      <td>33</td>
+      <td>34.0</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>5</td>
+      <td>arrest-G1</td>
+      <td>41</td>
+      <td>40</td>
+      <td>41.0</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>6</td>
+      <td>normal</td>
+      <td>62</td>
+      <td>134</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>&gt;42</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>7</td>
+      <td>arrest-G1</td>
+      <td>27</td>
+      <td>26</td>
+      <td>27.0</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>NaN</td>
+      <td>0</td>
+      <td>0</td>
+    </tr>
+  </tbody>
+</table>
+</div></div>
+</div>
+<p>The track ID is recorded in <code class="docutils literal notranslate"><span class="pre">track</span></code> column. Arrested tracks are annotated with <code class="docutils literal notranslate"><span class="pre">arrest-phase</span></code> in <code class="docutils literal notranslate"><span class="pre">type</span></code> column.</p>
+<p>Cell cycle phase durations are indicated. If the detected phase is incomplete, it is annotated with <code class="docutils literal notranslate"><span class="pre">&gt;</span></code> (e.g. <code class="docutils literal notranslate"><span class="pre">&gt;42</span></code>), showing tracked length.</p>
+<p>Importantly, the <strong>``imprecise_exit``</strong> indicates the mitosis exit of the daughter cell is not preciesly detected, because no M label has been asigned to the track. The daughter is associated with its mother through E label, and the mitosis length is calculated by assuming the first appearance of the track is mitosis exit.</p>
+</section>
+</section>
+<hr class="docutils" />
+<section id="The-Runtime-Logging">
+<h2>The Runtime Logging<a class="headerlink" href="#The-Runtime-Logging" title="Permalink to this headline">¶</a></h2>
+<div class="line-block">
+<div class="line">Most of the information in the runtime logging and output <code class="docutils literal notranslate"><span class="pre">log.txt</span></code> is for debugging.</div>
+<div class="line">However, there are <strong>three kinds of rare warnings</strong> the user must pay attention to.</div>
+</div>
+<ul class="simple">
+<li><p>The first indicates consecutive mitosis without S phase in between. The entire lineage will not be resolved.</p></li>
+</ul>
+<p>**   <a href="#id1"><span class="problematic" id="id2">``</span></a>pcna.Resolver WARNING: Sequential mitosis without S phase; Ignore tracks: 1,2,3``**</p>
+<ul class="simple">
+<li><p>The second indicates &gt;20% phase difference after resolving, compared with morphological labels.</p></li>
+</ul>
+<p>**   <a href="#id3"><span class="problematic" id="id4">``</span></a>pcna.Resolver WARNING: Numerous classification change after resolving, check: 10,11``**</p>
+<ul class="simple">
+<li><p>The third indicates biologically invalid phase transitions.</p></li>
+</ul>
+<p>**   <a href="#id5"><span class="problematic" id="id6">``</span></a>pcna.Resolver WARNING: Wrong transition S-M in track: 12``**</p>
+<p>Both of the warnings may result from tracking and detection errors. According to the reported <strong>``trackId``</strong>, the user is suggested to check the above output tables or to exclude these tracks from any further analysis.</p>
+</section>
+<hr class="docutils" />
+<section id="5-Visualisation">
+<h2>5 Visualisation<a class="headerlink" href="#5-Visualisation" title="Permalink to this headline">¶</a></h2>
+<p>The <strong>tracked object table</strong> is directly importable into <strong>Fiji</strong> through <a class="reference external" href="https://github.com/tinevez/TrackMate-CSVImporter">TrackMate CSV Importer</a> (installation required).</p>
+<ol class="arabic simple">
+<li><p>Load <code class="docutils literal notranslate"><span class="pre">MCF10A_demo_PCNA.tif</span></code> to Fiji through dragging it to the tool bar or <strong>File &gt; Open</strong>. Enhance the contrast if required.</p></li>
+</ol>
+<p>   You may also use the composite image generated in the above <strong>Step 2</strong>.</p>
+<ol class="arabic simple" start="2">
+<li><p>Invert t and z axis of the image if necessary, through <strong>Image &gt; Properties</strong>.</p></li>
+</ol>
+<p>    In this example, set <em>frame (t)</em> to 66 and <em>slice (z)</em> to 1.</p>
+<ol class="arabic simple" start="3">
+<li><p>Open TrackMate CSV Importer through <strong>Plugin &gt; Tracking &gt; TrackMate CSV Importer</strong>.</p></li>
+<li><p>Config parameters as the following (see screenshot below): <a href="#id7"><span class="problematic" id="id8">|e2ed10b713df40bcadd24086bbc503d9|</span></a></p>
+<ul class="simple">
+<li><p>Compute all features? = unchecked; Import tracks? = tracked</p></li>
+<li><p>Radius: choose one comfortable to the cell size, in this case is 50 pixels</p></li>
+<li><p><strong>X/Y column: Center_of_the_object_0/1</strong></p></li>
+<li><p><strong>Z column: “Don’t use”</strong></p></li>
+<li><p>Frame column: frame</p></li>
+<li><p>Track column: trackId</p></li>
+<li><p>Name column: name</p></li>
+<li><p>Quality column &amp; ID column: “Don’t use”</p></li>
+</ul>
+</li>
+<li><p>Click ‘Import’, and then adjust GUI</p>
+<ul class="simple">
+<li><p>check “Display spot names”</p></li>
+<li><p>under “Track display mode”, choose “Show local tracks”</p></li>
+</ul>
+</li>
+</ol>
+<p>Each object is labeled with its “name”, which is <strong>``trackId-(parentTrackId)-resolved phase``</strong>.</p>
+</section>
+<hr class="docutils" />
+<section id="6-Manual-Correction">
+<h2>6 Manual Correction<a class="headerlink" href="#6-Manual-Correction" title="Permalink to this headline">¶</a></h2>
+<p>Manual correction is allowed by operating the <strong>tracked object table</strong> through a command line interface. We recorded a <a href="#id9"><span class="problematic" id="id15">`video guide &lt;&gt;`__</span></a> to illustrate all of its usage. It works on the same demo video as above and begins with the following codes.</p>
+<div class="nbinput docutils container">
+<div class="prompt highlight-none notranslate"><div class="highlight"><pre><span></span>[24]:
+</pre></div>
+</div>
+<div class="input_area highlight-ipython3 notranslate"><div class="highlight"><pre>
+<span></span><span class="kn">from</span> <span class="nn">pcnaDeep.correct</span> <span class="kn">import</span> <span class="n">Trk_obj</span>
+<span class="n">c</span> <span class="o">=</span> <span class="n">Trk_obj</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">example_root</span><span class="p">,</span> <span class="s1">&#39;demo&#39;</span><span class="p">,</span> <span class="s1">&#39;testing&#39;</span><span class="p">,</span> <span class="s1">&#39;MCF10A_demo_tracks_refined_corrected.csv&#39;</span><span class="p">))</span>
+<span class="n">c</span><span class="o">.</span><span class="n">doCorrect</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
+<div class="nboutput nblast docutils container">
+<div class="prompt empty docutils container">
+</div>
+<div class="output_area docutils container">
+<div class="highlight"><pre>
+@ Correct &gt; q
+</pre></div></div>
+</div>
+</section>
+<hr class="docutils" />
+<section id="Specific-Tutorials-(advanced-usage-explained)">
+<h2>Specific Tutorials (advanced usage explained)<a class="headerlink" href="#Specific-Tutorials-(advanced-usage-explained)" title="Permalink to this headline">¶</a></h2>
+<ol class="arabic simple">
+<li><p><a class="reference external" href="train_pcna_detectron2.ipynb">Train Detectron2 Mask R-CNN model</a></p></li>
+<li><p><a class="reference external" href="evaluation_with_CTC.ipynb">Evaluate with Cell Tracking Challenge Matrices</a></p></li>
+<li><p><a class="reference external" href="run_in_batch.ipynb">Run in batch</a></p></li>
+<li><p><a class="reference external" href="hack_in.ipynb">Hack in intermediate stages</a></p></li>
+<li><p><a class="reference external" href="train_pcna_SVM.ipynb">Train an SVM classifier for mitosis association (experimental)</a></p></li>
+</ol>
+<p><strong>Example data for tutorial 1 (Size: 76 MB)</strong>: <a href="#id9"><span class="problematic" id="id16">`download &lt;&gt;`__</span></a>.</p>
+<p><strong>Example data for tutorial 2 &amp; 5 (Size 76 MB)</strong>: <a href="#id9"><span class="problematic" id="id17">`download &lt;&gt;`__</span></a>.</p>
+<p><strong>Example data for tutorial 4 (Size: 26 MB)</strong>: <a href="#id9"><span class="problematic" id="id18">`download &lt;&gt;`__</span></a>.</p>
+<p><em>Remember</em> to save data under <code class="docutils literal notranslate"><span class="pre">~/examples/</span></code>.</p>
+</section>
+</section>
+
+
+           </div>
+           
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Chan Kuan Yoow Group.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>

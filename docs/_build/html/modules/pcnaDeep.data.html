@@ -1,0 +1,677 @@
+
+
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <title>pcnaDeep.data &mdash; pcnaDeep 1.0 documentation</title>
+  
+
+  
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+  <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+
+  
+  
+
+  
+  
+
+  
+
+  
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+    
+      <script type="text/javascript" id="documentation_options" data-url_root="../" src="../_static/documentation_options.js"></script>
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    
+    <script type="text/javascript" src="../_static/js/theme.js"></script>
+
+    
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="prev" title="pcnaDeep" href="pcnaDeep.html" /> 
+</head>
+
+<body class="wy-body-for-nav">
+
+   
+  <div class="wy-grid-for-nav">
+    
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+          
+
+          
+            <a href="../index.html" class="icon icon-home"> pcnaDeep
+          
+
+          
+          </a>
+
+          
+            
+            
+          
+
+          
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+
+          
+        </div>
+
+        
+        <div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="main navigation">
+          
+            
+            
+              
+            
+            
+              <ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="index.html">API Documentation</a><ul class="current">
+<li class="toctree-l2 current"><a class="reference internal" href="pcnaDeep.html">pcnaDeep</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="pcnaDeep.html#module-pcnaDeep.predictor">pcnaDeep.predictor</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pcnaDeep.html#module-pcnaDeep.refiner">pcnaDeep.refiner</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pcnaDeep.html#module-pcnaDeep.resolver">pcnaDeep.resolver</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pcnaDeep.html#module-pcnaDeep.tracker">pcnaDeep.tracker</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pcnaDeep.html#module-pcnaDeep.evaluate">pcnaDeep.evaluate</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pcnaDeep.html#module-pcnaDeep.split">pcnaDeep.split</a></li>
+<li class="toctree-l3"><a class="reference internal" href="pcnaDeep.html#module-pcnaDeep.correct">pcnaDeep.correct</a></li>
+<li class="toctree-l3 current"><a class="reference internal" href="pcnaDeep.html#subpackages">Subpackages</a><ul class="current">
+<li class="toctree-l4 current"><a class="current reference internal" href="#">pcnaDeep.data</a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            
+          
+        </div>
+        
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap">
+
+      
+      <nav class="wy-nav-top" aria-label="top navigation">
+        
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">pcnaDeep</a>
+        
+      </nav>
+
+
+      <div class="wy-nav-content">
+        
+        <div class="rst-content">
+        
+          
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div role="navigation" aria-label="breadcrumbs navigation">
+
+  <ul class="wy-breadcrumbs">
+    
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+        
+          <li><a href="index.html">API Documentation</a> &raquo;</li>
+        
+          <li><a href="pcnaDeep.html">pcnaDeep</a> &raquo;</li>
+        
+      <li>pcnaDeep.data</li>
+    
+    
+      <li class="wy-breadcrumbs-aside">
+        
+          
+            <a href="../_sources/modules/pcnaDeep.data.rst.txt" rel="nofollow"> View page source</a>
+          
+        
+      </li>
+    
+  </ul>
+
+  
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+            
+  <section id="pcnadeep-data">
+<h1>pcnaDeep.data<a class="headerlink" href="#pcnadeep-data" title="Permalink to this headline">¶</a></h1>
+<section id="module-pcnaDeep.data.annotate">
+<span id="pcnadeep-data-annotate"></span><h2>pcnaDeep.data.annotate<a class="headerlink" href="#module-pcnaDeep.data.annotate" title="Permalink to this headline">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="pcnaDeep.data.annotate.relabel_trackID">
+<span class="sig-prename descclassname"><span class="pre">pcnaDeep.data.annotate.</span></span><span class="sig-name descname"><span class="pre">relabel_trackID</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">label_table</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pcnaDeep/data/annotate.html#relabel_trackID"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pcnaDeep.data.annotate.relabel_trackID" title="Permalink to this definition">¶</a></dt>
+<dd><p>Relabel trackID in tracking table, starting from 1.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>label_table</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.3.3)"><em>pandas.DataFrame</em></a>) – tracked object table.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>tracked object table with relabeled trackID.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.3.3)">pandas.DataFrame</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pcnaDeep.data.annotate.label_by_track">
+<span class="sig-prename descclassname"><span class="pre">pcnaDeep.data.annotate.</span></span><span class="sig-name descname"><span class="pre">label_by_track</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mask</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label_table</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pcnaDeep/data/annotate.html#label_by_track"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pcnaDeep.data.annotate.label_by_track" title="Permalink to this definition">¶</a></dt>
+<dd><p>Label objects in mask with track ID</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>mask</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.21)"><em>numpy.ndarray</em></a>) – uint8 np array, output from main model.</p></li>
+<li><p><strong>label_table</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.3.3)"><em>pandas.DataFrame</em></a>) – track table.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>uint8/16 dtype based on track count.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.21)">numpy.ndarray</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pcnaDeep.data.annotate.get_lineage_txt">
+<span class="sig-prename descclassname"><span class="pre">pcnaDeep.data.annotate.</span></span><span class="sig-name descname"><span class="pre">get_lineage_txt</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">label_table</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pcnaDeep/data/annotate.html#get_lineage_txt"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pcnaDeep.data.annotate.get_lineage_txt" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate txt table in Cell Tracking Challenge (CTC) format.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>label_table</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.3.3)"><em>pandas.DataFrame</em></a>) – table processed, should not has gaped tracks.</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>lineage table in .txt format that fits CTC.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.3.3)">pandas.DataFrame</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pcnaDeep.data.annotate.break_track">
+<span class="sig-prename descclassname"><span class="pre">pcnaDeep.data.annotate.</span></span><span class="sig-name descname"><span class="pre">break_track</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">label_table</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pcnaDeep/data/annotate.html#break_track"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pcnaDeep.data.annotate.break_track" title="Permalink to this definition">¶</a></dt>
+<dd><p>Break tracks in a lineage table into single tracks, where
+NO gaped tracks allowed. All gaps will be transferred into parent-daughter
+relationship.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>label_table</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.3.3)"><em>pandas.DataFrame</em></a>) – tracked object table to process.</p>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Algorithm:</dt><dd><ol class="arabic simple">
+<li><p>Rename raw parentTrackId to mtParTrk.</p></li>
+<li><p>Initiate new parentTrackId column with 0.</p></li>
+<li><p>Separate all tracks individually.</p></li>
+</ol>
+</dd>
+</dl>
+<p class="rubric">Notes</p>
+<p>In original lineage table, single track can be gaped, lineage only associates
+mitosis tracks, not gaped tracks.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns</dt>
+<dd class="field-odd"><p>processed tracked object table.</p>
+</dd>
+<dt class="field-even">Return type</dt>
+<dd class="field-even"><p><a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.3.3)">pandas.DataFrame</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pcnaDeep.data.annotate.separate">
+<span class="sig-prename descclassname"><span class="pre">pcnaDeep.data.annotate.</span></span><span class="sig-name descname"><span class="pre">separate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">frame_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mtPar_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ori_id</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pcnaDeep/data/annotate.html#separate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pcnaDeep.data.annotate.separate" title="Permalink to this definition">¶</a></dt>
+<dd><p>For single gaped track, separate it into all complete tracks.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>frame_list</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#list" title="(in Python v3.6)"><em>list</em></a>) – frames list, length equals to label table.</p></li>
+<li><p><strong>mtPar_list</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#list" title="(in Python v3.6)"><em>list</em></a>) – mitosis parent list, for solving mitosis relationship.</p></li>
+<li><p><strong>ori_id</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/functions.html#int" title="(in Python v3.6)"><em>int</em></a>) – original track ID.</p></li>
+<li><p><strong>base</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/functions.html#int" title="(in Python v3.6)"><em>int</em></a>) – base track ID, will assign new track ID sequentially from base + 1.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Dictionary of having following keys: frame, trackId, parentTrackId, mtParTrk.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#dict" title="(in Python v3.6)">dict</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pcnaDeep.data.annotate.save_seq">
+<span class="sig-prename descclassname"><span class="pre">pcnaDeep.data.annotate.</span></span><span class="sig-name descname"><span class="pre">save_seq</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stack</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prefix</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dig_num</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">3</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dtype</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'uint16'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">img_format</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'.tif'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">keep_chn</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sep</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'-'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pcnaDeep/data/annotate.html#save_seq"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pcnaDeep.data.annotate.save_seq" title="Permalink to this definition">¶</a></dt>
+<dd><p>Save image stack and label sequentially.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>stack</strong> (<em>numpy array</em>) – image stack in THW format (Time, Height, Width).</p></li>
+<li><p><strong>out_dir</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#str" title="(in Python v3.6)"><em>str</em></a>) – output directory.</p></li>
+<li><p><strong>prefix</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#str" title="(in Python v3.6)"><em>str</em></a>) – prefix of single slice, output will be prefix-000x.tif/png.
+(see sep below for separator).</p></li>
+<li><p><strong>dig_num</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/functions.html#int" title="(in Python v3.6)"><em>int</em></a>) – digit number (3 -&gt; 00x) for labeling image sequentially.</p></li>
+<li><p><strong>dtype</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.dtype.html#numpy.dtype" title="(in NumPy v1.21)"><em>numpy.dtype</em></a>) – data type to save, either ‘uint8’ or ‘uint16’.</p></li>
+<li><p><strong>base</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/functions.html#int" title="(in Python v3.6)"><em>int</em></a>) – base number of the label (starting from).</p></li>
+<li><p><strong>img_format</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#str" title="(in Python v3.6)"><em>str</em></a>) – image format, ‘.tif’ or ‘.png’, remind the dot.</p></li>
+<li><p><strong>keep_chn</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/functions.html#bool" title="(in Python v3.6)"><em>bool</em></a>) – whether to keep full channel or not.</p></li>
+<li><p><strong>sep</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#str" title="(in Python v3.6)"><em>str</em></a>) – separator between file name and id, default ‘-‘.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pcnaDeep.data.annotate.findM">
+<span class="sig-prename descclassname"><span class="pre">pcnaDeep.data.annotate.</span></span><span class="sig-name descname"><span class="pre">findM</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gt_cls</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">direction</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'begin'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pcnaDeep/data/annotate.html#findM"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pcnaDeep.data.annotate.findM" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find M exit/entry from ground truth classification.</p>
+<p>The method assumes that all mitosis classification is continuous, therefore only suitable.
+for processing classification ground truth. For processing prediction, use <cite>pcnaDeep.refiner.deduce_transition</cite>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>gt_cls</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#list" title="(in Python v3.6)"><em>list</em></a>) – list of classifications.</p></li>
+<li><p><strong>direction</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#str" title="(in Python v3.6)"><em>str</em></a>) – begin/end, search M from which terminal of the classification list.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>index of the mitosis entry/exit.</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3.6/library/functions.html#int" title="(in Python v3.6)">int</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pcnaDeep.data.annotate.check_continuous_track">
+<span class="sig-prename descclassname"><span class="pre">pcnaDeep.data.annotate.</span></span><span class="sig-name descname"><span class="pre">check_continuous_track</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">table</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pcnaDeep/data/annotate.html#check_continuous_track"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pcnaDeep.data.annotate.check_continuous_track" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check if every track is continuous (no gap). Returns trackID list that is gaped.</p>
+</dd></dl>
+
+</section>
+<section id="module-pcnaDeep.data.preparePCNA">
+<span id="pcnadeep-data-preparepcna"></span><h2>pcnaDeep.data.preparePCNA<a class="headerlink" href="#module-pcnaDeep.data.preparePCNA" title="Permalink to this headline">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="pcnaDeep.data.preparePCNA.load_PCNA_from_json">
+<span class="sig-prename descclassname"><span class="pre">pcnaDeep.data.preparePCNA.</span></span><span class="sig-name descname"><span class="pre">load_PCNA_from_json</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">json_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">width</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1200</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">height</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1200</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pcnaDeep/data/preparePCNA.html#load_PCNA_from_json"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pcnaDeep.data.preparePCNA.load_PCNA_from_json" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load PCNA training data and ground truth from json.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>json_path</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#str" title="(in Python v3.6)"><em>str</em></a>) – path to .json ground truth in VIA2 format.</p></li>
+<li><p><strong>image_path</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#str" title="(in Python v3.6)"><em>str</em></a>) – path to raw image.</p></li>
+<li><p><strong>width</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/functions.html#int" title="(in Python v3.6)"><em>int</em></a>) – width of the image.</p></li>
+<li><p><strong>height</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/functions.html#int" title="(in Python v3.6)"><em>int</em></a>) – height of the image.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pcnaDeep.data.preparePCNA.load_PCNAs_json">
+<span class="sig-prename descclassname"><span class="pre">pcnaDeep.data.preparePCNA.</span></span><span class="sig-name descname"><span class="pre">load_PCNAs_json</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">json_paths</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image_paths</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pcnaDeep/data/preparePCNA.html#load_PCNAs_json"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pcnaDeep.data.preparePCNA.load_PCNAs_json" title="Permalink to this definition">¶</a></dt>
+<dd><p>Load multiple training dataset.</p>
+</dd></dl>
+
+</section>
+<section id="module-pcnaDeep.data.utils">
+<span id="pcnadeep-data-utils"></span><h2>pcnaDeep.data.utils<a class="headerlink" href="#module-pcnaDeep.data.utils" title="Permalink to this headline">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="pcnaDeep.data.utils.json2mask">
+<span class="sig-prename descclassname"><span class="pre">pcnaDeep.data.utils.</span></span><span class="sig-name descname"><span class="pre">json2mask</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ip</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">height</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">width</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">label_phase</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask_only</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pcnaDeep/data/utils.html#json2mask"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pcnaDeep.data.utils.json2mask" title="Permalink to this definition">¶</a></dt>
+<dd><p>Draw mask according to VIA2 annotation and summarize information</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>ip</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#str" title="(in Python v3.6)"><em>str</em></a>) – input directory of the json file.</p></li>
+<li><p><strong>out</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#str" title="(in Python v3.6)"><em>str</em></a>) – optonal, output directory of the image and summary table.</p></li>
+<li><p><strong>height</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/functions.html#int" title="(in Python v3.6)"><em>int</em></a>) – image height.</p></li>
+<li><p><strong>width</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/functions.html#int" title="(in Python v3.6)"><em>int</em></a>) – image width.</p></li>
+<li><p><strong>label_phase</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/functions.html#bool" title="(in Python v3.6)"><em>bool</em></a>) – whether to label the mask with values corresponding to cell cycle classification or not.
+If true, will label as the following values: ‘G1/G2’:10, ‘S’:50, ‘M’:100;
+If false, will output binary masks.</p></li>
+<li><p><strong>mask_only</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/functions.html#bool" title="(in Python v3.6)"><em>bool</em></a>) – whether to suppress file output and return mask only.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Outputs:</dt><dd><p><cite>png</cite> files of object masks.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pcnaDeep.data.utils.mask2json">
+<span class="sig-prename descclassname"><span class="pre">pcnaDeep.data.utils.</span></span><span class="sig-name descname"><span class="pre">mask2json</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">phase_labeled</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">phase_dic</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">{10:</span> <span class="pre">'G1/G2',</span> <span class="pre">50:</span> <span class="pre">'S',</span> <span class="pre">100:</span> <span class="pre">'M',</span> <span class="pre">200:</span> <span class="pre">'E'}</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">prefix</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'object_info'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pcnaDeep/data/utils.html#mask2json"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pcnaDeep.data.utils.mask2json" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate VIA2-readable json file from masks</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>in_dir</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#str" title="(in Python v3.6)"><em>str</em></a>) – input directory of mask slices in .png format. Stack input is not implemented.</p></li>
+<li><p><strong>out_dir</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#str" title="(in Python v3.6)"><em>str</em></a>) – output directory for .json output</p></li>
+<li><p><strong>phase_labeled</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/functions.html#bool" title="(in Python v3.6)"><em>bool</em></a>) – whether cell cycle phase has already been labeled.
+If true, a phase_dic variable should be supplied to resolve phase information.</p></li>
+<li><p><strong>phase_dic</strong> (<em>dic</em>) – lookup dictionary of cell cycle phase labeling on the mask.</p></li>
+<li><p><strong>prefix</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#str" title="(in Python v3.6)"><em>str</em></a>) – prefix of .json output.</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="simple">
+<dt>Outputs:</dt><dd><dl class="simple">
+<dt>prefix.json in VIA2 format. Note the output is not a VIA2 project, so default image directory</dt><dd><p>must be set for the first time of labeling.</p>
+</dd>
+</dl>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pcnaDeep.data.utils.getDetectInput">
+<span class="sig-prename descclassname"><span class="pre">pcnaDeep.data.utils.</span></span><span class="sig-name descname"><span class="pre">getDetectInput</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pcna</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dic</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">gamma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sat</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">torch_gpu</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pcnaDeep/data/utils.html#getDetectInput"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pcnaDeep.data.utils.getDetectInput" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generate pcna-mScarlet and DIC channel to RGB format for detectron2 model prediction</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pcna</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.21)"><em>numpy.ndarray</em></a>) – uint16 PCNA-mScarlet image stack (T*H*W).</p></li>
+<li><p><strong>dic</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.21)"><em>numpy.ndarray</em></a>) – uint16 DIC or phase contrast image stack.</p></li>
+<li><p><strong>gamma</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/functions.html#float" title="(in Python v3.6)"><em>float</em></a>) – gamma adjustment, &gt;0, default 0.8.</p></li>
+<li><p><strong>sat</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/functions.html#float" title="(in Python v3.6)"><em>float</em></a>) – percent saturation, 0~100, default 0.</p></li>
+<li><p><strong>torch_gpu</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/functions.html#bool" title="(in Python v3.6)"><em>bool</em></a>) – use torch to speed up calculation.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>uint8 composite image (T*H*W*C)</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.21)">numpy.ndarray</a>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pcnaDeep.data.utils.retrieve">
+<span class="sig-prename descclassname"><span class="pre">pcnaDeep.data.utils.</span></span><span class="sig-name descname"><span class="pre">retrieve</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">table</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">image</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">rp_fields</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">funcs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pcnaDeep/data/utils.html#retrieve"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pcnaDeep.data.utils.retrieve" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="simple">
+<dt>Retrieve extra skimage.measure.regionprops fields of every object;</dt><dd><p>Or apply customized functions to extract features form the masked object.</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>table</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.3.3)"><em>pandas.DataFrame</em></a>) – object table tracked or untracked,
+should have 2 fields:
+1. frame: time location;
+2. continuous label: region label on mask</p></li>
+<li><p><strong>mask</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.21)"><em>numpy.ndarray</em></a>) – labeled mask corresponding to table</p></li>
+<li><p><strong>image</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.21)"><em>numpy.ndarray</em></a>) – intensity image, only the first channel allowed</p></li>
+<li><p><strong>rp_fields</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#list" title="(in Python v3.6)"><em>list</em></a><em>(</em><a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#str" title="(in Python v3.6)"><em>str</em></a><em>)</em>) – skimage.measure.regionpprops allowed fields</p></li>
+<li><p><strong>funcs</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#list" title="(in Python v3.6)"><em>list</em></a><em>(</em><em>function</em><em>)</em>) – customized function that outputs one value from
+an array input</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>labeled object table with additional columns</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pcnaDeep.data.utils.mt_dic2mt_lookup">
+<span class="sig-prename descclassname"><span class="pre">pcnaDeep.data.utils.</span></span><span class="sig-name descname"><span class="pre">mt_dic2mt_lookup</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">mt_dic</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pcnaDeep/data/utils.html#mt_dic2mt_lookup"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pcnaDeep.data.utils.mt_dic2mt_lookup" title="Permalink to this definition">¶</a></dt>
+<dd><p>Convert mt_dic to mitosis lookup</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>mt_dic</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#dict" title="(in Python v3.6)"><em>dict</em></a>) – standard mitosis info dictionary in pcnaDeep</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p><dl class="simple">
+<dt>mitosis lookup table with 3 columns:</dt><dd><p>trackA (int) | trackB (int) | Mitosis? (int, 0/1)</p>
+</dd>
+</dl>
+</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>mt_lookup (pd.DataFrame)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pcnaDeep.data.utils.get_outlier">
+<span class="sig-prename descclassname"><span class="pre">pcnaDeep.data.utils.</span></span><span class="sig-name descname"><span class="pre">get_outlier</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">array</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">col_ids</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pcnaDeep/data/utils.html#get_outlier"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pcnaDeep.data.utils.get_outlier" title="Permalink to this definition">¶</a></dt>
+<dd><p>Get outlier index in an array, specify target column</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>array</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.21)"><em>numpy.ndarray</em></a>) – original array</p></li>
+<li><p><strong>col_ids</strong> (<em>[</em><a class="reference external" href="https://docs.python.org/3.6/library/functions.html#int" title="(in Python v3.6)"><em>int</em></a><em>]</em>) – target columns to remove outliers. Default all</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>index of row containing at least one outlier</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pcnaDeep.data.utils.deduce_transition">
+<span class="sig-prename descclassname"><span class="pre">pcnaDeep.data.utils.</span></span><span class="sig-name descname"><span class="pre">deduce_transition</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">l</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tar</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">confidence</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_tar</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_res</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">escape</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">casual_end</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pcnaDeep/data/utils.html#deduce_transition"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pcnaDeep.data.utils.deduce_transition" title="Permalink to this definition">¶</a></dt>
+<dd><p>Deduce mitosis exit and entry based on adaptive searching</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>l</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#list" title="(in Python v3.6)"><em>list</em></a>) – list of the target cell cycle phase</p></li>
+<li><p><strong>tar</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#str" title="(in Python v3.6)"><em>str</em></a>) – target cell cycle phase</p></li>
+<li><p><strong>min_tar</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/functions.html#int" title="(in Python v3.6)"><em>int</em></a>) – minimum duration of an entire target phase</p></li>
+<li><p><strong>confidence</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.21)"><em>numpy.ndarray</em></a>) – matrix of confidence</p></li>
+<li><p><strong>max_res</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/functions.html#int" title="(in Python v3.6)"><em>int</em></a>) – maximum accumulative duration of unwanted phase</p></li>
+<li><p><strong>escape</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/functions.html#int" title="(in Python v3.6)"><em>int</em></a>) – do not consider the first n instances</p></li>
+<li><p><strong>casual_end</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/functions.html#bool" title="(in Python v3.6)"><em>bool</em></a>) – at the end of the track, whether loosen criteria of a match</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>two indices of the classification list corresponding to entry and exit</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p><a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#tuple" title="(in Python v3.6)">tuple</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pcnaDeep.data.utils.find_daugs">
+<span class="sig-prename descclassname"><span class="pre">pcnaDeep.data.utils.</span></span><span class="sig-name descname"><span class="pre">find_daugs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">track</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">track_id</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pcnaDeep/data/utils.html#find_daugs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pcnaDeep.data.utils.find_daugs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return list of daughters according to certain parent track ID.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>track</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.3.3)"><em>pandas.DataFrame</em></a>) – tracked object table.</p></li>
+<li><p><strong>track_id</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/functions.html#int" title="(in Python v3.6)"><em>int</em></a>) – track ID.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pcnaDeep.data.utils.filter_edge">
+<span class="sig-prename descclassname"><span class="pre">pcnaDeep.data.utils.</span></span><span class="sig-name descname"><span class="pre">filter_edge</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">img</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">props</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">edge_flt</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pcnaDeep/data/utils.html#filter_edge"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pcnaDeep.data.utils.filter_edge" title="Permalink to this definition">¶</a></dt>
+<dd><p>Filter objects at the edge</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>img</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.21)"><em>numpy.ndarray</em></a>) – mask image with object labels.</p></li>
+<li><p><strong>props</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.3.3)"><em>pandas.DataFrame</em></a>) – part of the object table.</p></li>
+<li><p><strong>edge_flt</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/functions.html#int" title="(in Python v3.6)"><em>int</em></a>) – pixel width of the edge area.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pcnaDeep.data.utils.expand_bbox">
+<span class="sig-prename descclassname"><span class="pre">pcnaDeep.data.utils.</span></span><span class="sig-name descname"><span class="pre">expand_bbox</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bbox</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">factor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">limit</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pcnaDeep/data/utils.html#expand_bbox"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pcnaDeep.data.utils.expand_bbox" title="Permalink to this definition">¶</a></dt>
+<dd><p>Expand bounding box by factor times.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>bbox</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#tuple" title="(in Python v3.6)"><em>tuple</em></a>) – (x1, y1, x2, y2).</p></li>
+<li><p><strong>factor</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/functions.html#float" title="(in Python v3.6)"><em>float</em></a>) – positive value, expand height and width by multiplying the factor.
+Round if result is not integer.
+The output shape will be (factor + 1) ** 2 times of the original size.</p></li>
+<li><p><strong>limit</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#tuple" title="(in Python v3.6)"><em>tuple</em></a>) – (x_max, y_max), limit values to avoid boundary crush.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>new bounding box (x1, y1, x2, y2).</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>(<a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#tuple" title="(in Python v3.6)">tuple</a>)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pcnaDeep.data.utils.align_table_and_mask">
+<span class="sig-prename descclassname"><span class="pre">pcnaDeep.data.utils.</span></span><span class="sig-name descname"><span class="pre">align_table_and_mask</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">table</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mask</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pcnaDeep/data/utils.html#align_table_and_mask"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pcnaDeep.data.utils.align_table_and_mask" title="Permalink to this definition">¶</a></dt>
+<dd><p>For every object in the mask, check if is consistent with the table. If no, remove the object in the mask.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>table</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.3.3)"><em>pandas.DataFrame</em></a>) – (tracked) object table.</p></li>
+<li><p><strong>mask</strong> (<a class="reference external" href="https://numpy.org/doc/stable/reference/generated/numpy.ndarray.html#numpy.ndarray" title="(in NumPy v1.21)"><em>numpy.ndarray</em></a>) – labeled object mask, object label should be corresponding to <cite>continuous_label</cite> column in the table.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="pcnaDeep.data.utils.merge_obj_tables">
+<span class="sig-prename descclassname"><span class="pre">pcnaDeep.data.utils.</span></span><span class="sig-name descname"><span class="pre">merge_obj_tables</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">a</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">b</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">col</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">mode</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'label'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/pcnaDeep/data/utils.html#merge_obj_tables"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#pcnaDeep.data.utils.merge_obj_tables" title="Permalink to this definition">¶</a></dt>
+<dd><p>Merge two object tables according to shared frame and continuous label / location identity.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>a</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.3.3)"><em>pandas.DataFrame</em></a>) – donor table. Record not found in acceptor will be ignored.</p></li>
+<li><p><strong>b</strong> (<a class="reference external" href="https://pandas.pydata.org/docs/reference/api/pandas.DataFrame.html#pandas.DataFrame" title="(in pandas v1.3.3)"><em>pandas.DataFrame</em></a>) – acceptor table. Record cannot be matched with donor will results in NA and warned.</p></li>
+<li><p><strong>col</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#str" title="(in Python v3.6)"><em>str</em></a>) – key in both a and b that aimed to merge. Only allow one key and a time</p></li>
+<li><p><strong>mode</strong> (<a class="reference external" href="https://docs.python.org/3.6/library/stdtypes.html#str" title="(in Python v3.6)"><em>str</em></a>) – either ‘label’ or ‘loc’.</p></li>
+</ul>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<dl class="simple">
+<dt>Both a and b tables must have the keys:</dt><dd><ul class="simple">
+<li><p>Center_of_the_object_0</p></li>
+<li><p>Center_of_the_object_1</p></li>
+<li><p>continuous label</p></li>
+<li><p>frame</p></li>
+<li><p>(key to merge)</p></li>
+</ul>
+</dd>
+</dl>
+<p>In loc mode, location will be rounded to 3 digits before matching.</p>
+</div>
+</dd></dl>
+
+</section>
+</section>
+
+
+           </div>
+           
+          </div>
+          <footer>
+    <div class="rst-footer-buttons" role="navigation" aria-label="footer navigation">
+        <a href="pcnaDeep.html" class="btn btn-neutral float-left" title="pcnaDeep" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>
+        &#169; Copyright 2021, Chan Kuan Yoow Group.
+
+    </p>
+  </div>
+    
+    
+    
+    Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    
+    provided by <a href="https://readthedocs.org">Read the Docs</a>. 
+
+</footer>
+        </div>
+      </div>
+
+    </section>
+
+  </div>
+  
+
+  <script type="text/javascript">
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script>
+
+  
+  
+    
+   
+
+</body>
+</html>
