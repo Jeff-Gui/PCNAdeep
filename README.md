@@ -3,7 +3,7 @@
 Welcome! pcnaDeep integrates cutting-edge detection techniques with tracking and cell cycle resolving models.
 Using the Mask R-CNN model under FAIR's Detectron2 framework, pcnaDeep is able to detect and resolve very dense cell tracks with __PCNA fluorescent__.
 
-Check out our [preprint](https://www.biorxiv.org/content/10.1101/2021.09.19.460933).
+Check out the preprint [here](https://www.biorxiv.org/content/10.1101/2021.09.19.460933).
 
 <img src="/tutorial/assets/overview.jpg" alt="overview" width="800" />
 
@@ -46,7 +46,7 @@ You may also go through other tutorials for advanced usages.
 
 ## API Documentation
 
-API documentation is available [here]().
+API documentation is available [here](pcnaDeep.readthedocs.io/en/latest).
 
 ## Licence
 
