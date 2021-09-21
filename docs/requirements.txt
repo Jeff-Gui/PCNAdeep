@@ -10,6 +10,7 @@ scikit-learn>=0.24.1
 scipy
 tqdm
 git+git://github.com/facebookresearch/fvcore.git
+https://download.pytorch.org/whl/cpu/torchvision-0.8.1%2Bcpu-cp37-cp37m-linux_x86_64.whl
 pycocotools
 iopath
 
