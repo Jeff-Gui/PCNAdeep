@@ -32,7 +32,6 @@ release = '1.0'
 # ones.
 extensions = [
     "recommonmark",
-    "numpy",
     "sphinx.ext.autodoc",
     "sphinx.ext.napoleon",
     "sphinx.ext.intersphinx",
@@ -45,10 +44,10 @@ extensions = [
 
 # -- Configurations for plugins ------------
 napoleon_google_docstring = True
-napoleon_include_init_with_doc = True
+napoleon_include_init_with_doc = False
 napoleon_include_special_with_doc = True
-napoleon_numpy_docstring = False
-napoleon_use_rtype = False
+napoleon_numpy_docstring = True
+napoleon_use_rtype = True
 autodoc_inherit_docstrings = False
 autodoc_member_order = "bysource"
 
