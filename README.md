@@ -1,4 +1,6 @@
-# pcnaDeep: a deep-learning based single-cell cycle profiler with PCNA signal
+## :eyes: Archived :books:. Released version @: [pcnaDeep](https://github.com/chan-labsite/PCNAdeep)
+
+## pcnaDeep: a deep-learning based single-cell cycle profiler with PCNA signal
 
 Welcome! pcnaDeep integrates cutting-edge detection techniques with tracking and cell cycle resolving models.
 Using the Mask R-CNN model under FAIR's Detectron2 framework, pcnaDeep is able to detect and resolve very dense cell tracks with __PCNA fluorescence__.
