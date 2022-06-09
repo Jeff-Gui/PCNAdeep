@@ -56,7 +56,7 @@ autodoc_member_order = "bysource"
 pdf_documents = [('index', u'rst2pdf', u'Test', u'Jeff')]
 
 intersphinx_mapping = {
-    "python": ("https://docs.python.org/3.6", None),
+    "python": ("https://docs.python.org/3.7", None),
     "numpy": ("https://numpy.org/doc/stable", None),
     "pandas": ("https://pandas.pydata.org/docs/", None),
 }
