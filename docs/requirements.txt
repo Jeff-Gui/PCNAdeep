@@ -16,26 +16,6 @@ tqdm
 https://download.pytorch.org/whl/cpu/torch-1.7.1%2Bcpu-cp37-cp37m-linux_x86_64.whl
 https://download.pytorch.org/whl/cpu/torchvision-0.8.2%2Bcpu-cp37-cp37m-linux_x86_64.whl
 https://download.pytorch.org/whl/torchaudio-0.7.2-cp37-cp37m-linux_x86_64.whl
-pycocotools
-iopath
-pillow
-yacs
-termcolor
-cityscapesscripts
-tabulate
-lvis
-psutil
-#caffe2
-onnx
-#panopticapi
-black
-isort
-av
-omegaconf
-hydra
-#yaml
-pydoc
-submitit
 
 sphinx_rtd_theme
 sphinx
