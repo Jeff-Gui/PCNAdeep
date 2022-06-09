@@ -27,7 +27,7 @@ lvis
 psutil
 #caffe2
 onnx
-panopticapi
+#panopticapi
 black
 isort
 av
