@@ -22,6 +22,31 @@ def dist(x1, y1, x2, y2):
     return math.sqrt((float(x1) - float(x2)) ** 2 + (float(y1) - float(y2)) ** 2)
 
 
+def get_stack_mask(labels, frame, mask, dilate_range=80):
+    """Generate stacked mask for a specific object
+
+    Args:
+        labels (list): object labels on each frame.
+        frame (list): frame index of the mask.
+        mask (numpy.ndarray): objects mask.
+        dilate_range (int): range of the dilation mask.
+
+    Returns:
+        Stacked mask (numpy.ndarray).
+    """
+
+    sls = []
+    for i in range(len(labels)):
+        sl = mask[frame[i], :, :].copy()
+        sl[sl != labels[i]] = 0
+        sl = sl.astype('bool')
+        sls.append(sl)
+    out = np.sum(np.stack(sls, axis=0), axis=0)
+    out = out.astype('bool')
+    out = morph.binary_dilation(out, selem=np.ones((dilate_range, dilate_range)))
+    return out
+
+
 class Refiner:
 
     def __init__(self, track, smooth=5, maxBG=5, minM=10, mode='SVM',
@@ -91,10 +116,13 @@ class Refiner:
         self.daug_from_broken = []
         self.mt_dic = {}
         self.par_mt_mask = {}
+        self.app_mask = {}
         self.mt_exit_lookup = {}  # {parent ID: (exit frame, quality)}
         self.mt_entry_lookup = {}  # {daughter ID: (exit frame, quality)}
         self.imprecise = []  # imprecise mitosis: daughter exit without M classification
         self.mean_size = np.mean(np.array(self.track[['major_axis', 'minor_axis']]))
+        # dilate the mask by 50% mean radius, adjustable
+        self.dilate_range = int(2 * self.dilate_factor * int(np.floor(self.mean_size / 4)))
         self.mean_intensity = np.mean(np.array(self.track[['mean_intensity']]))
         self.logger.info('Mean size: ' + str(self.mean_size))
         self.dist_weight = dist_weight
@@ -369,8 +397,8 @@ class Refiner:
 
         for i in pool:
             if i not in daughter_pool and i not in lin_daug_pool and i not in self.short_tracks:
-                if re.search('M', self.ann[self.ann['track'] == i]['app_stage'].values[0]) is not None:
-                # if re.search('S', self.ann[self.ann['track'] == i]['app_stage'].values[0]) is None:
+                # if re.search('M', self.ann[self.ann['track'] == i]['app_stage'].values[0]) is not None:
+                if re.search('S', self.ann[self.ann['track'] == i]['app_stage'].values[0]) is None:
                     daughter_pool.append(i)
 
         if extra_par:
@@ -380,33 +408,38 @@ class Refiner:
 
         return parent_pool, daughter_pool
 
-    def get_parent_mask(self, p):
-        """Extract parent mask, begin from mitosis entry, end with parent disappearance
+    def get_app_mask(self, trackID, frame_range=5, mode='app'):
+        """Extract mask at the beginning (appearance) of the track
 
         Args:
-            p (int): parent track ID
+            trackID (int): track ID.
+            mode (str): either 'app' or 'par' mode. If 'par', will use parent track info. Else track info only.
+            frame_range (int): For 'app' mode. Frames to stack together for an overall mask. Default 5 frames post app.
         """
-        if p not in self.par_mt_mask.keys():
-            sub = self.track[(self.track['trackId'] == p) & (self.track['frame'] >= (self.mt_entry_lookup[p][0] - 2))]
-            lbs = list(sub['continuous_label'])
+        if mode == 'app':
+            kys = self.app_mask.keys()
+        else:
+            kys = self.par_mt_mask.keys()
+        if trackID not in kys:
+            if mode == 'app':
+                sub = self.track[(self.track['trackId'] == trackID)]
+                sub = sub[sub['frame'] < (sub['frame'].iloc[0] + frame_range)]
+            else:
+                sub = self.track[(self.track['trackId'] == trackID) &
+                                 (self.track['frame'] >= (self.mt_entry_lookup[trackID][0] - 2))]
             frame = list(sub['frame'])
-            sls = []
-            for i in range(len(lbs)):
-                sl = self.mask[frame[i], :, :].copy()
-                sl[sl != lbs[i]] = 0
-                sl = sl.astype('bool')
-                sls.append(sl)
-            out = np.sum(np.stack(sls, axis=0), axis=0)
-            out = out.astype('bool')
-            # dilate the mask by 50% mean radius, adjustable
-            dilate_range = int(2 * self.dilate_factor * int(np.floor(self.mean_size/4)))
-            out = morph.binary_dilation(out, selem=np.ones((dilate_range, dilate_range)))
+            out = get_stack_mask(labels=list(sub['continuous_label']), frame=frame,
+                                 mask=self.mask, dilate_range=self.dilate_range)
             if np.sum(out) == 0:
-                warnings.warn('Object not found in mask for parent: ' + str(p) + ' in frames: ' + str(frame)[1:-1])
-            self.par_mt_mask[p] = out
+                warnings.warn('Object not found in mask for track: ' + str(trackID) + ' in frames: ' + str(frame)[1:-1])
+
+            if mode == 'app':
+                self.app_mask[trackID] = out
+            else:
+                self.par_mt_mask[trackID] = out
             return out
         else:
-            return self.par_mt_mask[p]
+            return self.app_mask[trackID] if mode == 'app' else self.par_mt_mask[trackID]
 
     def daug_app_in_par_mask(self, par, daug):
         """Check if daughter appears in the mask of parent
@@ -415,7 +448,7 @@ class Refiner:
             par (int): parent track ID
             daug (int): daughter track ID
         """
-        mask = self.get_parent_mask(par)
+        mask = self.get_app_mask(par, mode='par')
         sub = self.ann[self.ann['track'] == daug]
         x = int(np.floor(sub['app_x']))
         y = int(np.floor(sub['app_y']))
@@ -424,6 +457,17 @@ class Refiner:
             return True
         else:
             return False
+
+    def calc_IOU_par_daug(self, par, daug):
+        """
+
+        Args:
+            par (int): parent track ID.
+            daug (int): daughter track ID.
+        """
+        a = self.get_app_mask(par, mode='par')
+        b = self.get_app_mask(daug, frame_range=5, mode='app')
+        return np.sum(np.logical_and(a,b)) / np.sum(np.logical_or(a,b))
 
     def extract_features(self, par_pool, daug_pool, remove_outlier=None, normalize=None, sample=None):
         """Extract Input Features for the classifier
@@ -752,7 +796,7 @@ class Refiner:
         return pd.DataFrame(d)
 
     def getAsoInput(self, parent, daughter):
-        """Generate SVM classifier input for track 1 & 2.
+        """Generate classifier input for candidate parent and daughter track.
 
         Args:
             parent (int): parent track ID.
@@ -760,7 +804,7 @@ class Refiner:
 
         Returns:
             Input vector of the classifier:
-            - [distance_diff, frame_diff]
+            - [distance_diff, frame_diff, iou]
 
             Some parameters are normalized with dataset specific features:
             - distance_diff /= ave_displace
@@ -797,8 +841,11 @@ class Refiner:
         y2 = daug['Center_of_the_object_1'].iloc[0]
         distance_diff = dist(x1, y1, x2, y2)
 
+        # TEST Feature 3: IoU
+        iou = self.calc_IOU_par_daug(parent, daughter)
+
         out = [distance_diff / (self.mean_size/2 + np.abs(frame_diff) * self.metaData['meanDisplace']),
-               frame_diff / self.metaData['sample_freq']]
+               frame_diff / self.metaData['sample_freq'], iou]
 
         return out
 

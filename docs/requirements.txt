@@ -23,7 +23,7 @@ cityscapesscripts
 tabulate
 lvis
 psutil
-caffe2
+#caffe2
 onnx
 panopticapi
 black
